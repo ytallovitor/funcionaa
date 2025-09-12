@@ -1,0 +1,42 @@
+{
+  "name": "GymPal Pro - Fitness Tracking Platform",
+  "short_name": "GymPal Pro",
+  "description": "Complete fitness tracking platform for trainers and students",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["fitness", "health", "sports"],
+  "shortcuts": [
+    {
+      "name": "New Measurement",
+      "short_name": "Measure",
+      "description": "Record new body measurements",
+      "url": "/evaluation",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Chat with Trainer",
+      "short_name": "Chat",
+      "description": "Message your trainer",
+      "url": "/chat",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

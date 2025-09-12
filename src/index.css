@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    /* Fitness V2.0 - Vibrant Blue + Green Gradient */
+    --primary: 210 100% 45%; /* Bright Blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary-gradient: 150 100% 35%; /* Vibrant Green */
+    --primary-glow: 180 100% 60%; /* Cyan glow */
+    --primary-light: 210 100% 90%;
+
+    --secondary: 210 50% 96%;
+    --secondary-foreground: 210 100% 25%;
+
+    --muted: 180 20% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 180 100% 85%;
+    --accent-foreground: 180 82% 25%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 180 30% 91%;
+    --input: 180 30% 96%;
+    --ring: 180 82% 25%;
+
+    --radius: 0.75rem;
+
+    /* V2.0 Fitness Gradients - Blue to Green */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary-gradient)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary-gradient)) 100%);
+    --gradient-light: linear-gradient(180deg, hsl(var(--primary-light)), hsl(var(--background)));
+    --shadow-primary: 0 20px 40px -10px hsl(var(--primary) / 0.4);
+    --shadow-glow: 0 0 60px hsl(var(--primary-glow) / 0.3);
+    --shadow-hero: 0 25px 50px -12px hsl(var(--primary) / 0.5);
+
+    --sidebar-background: 180 30% 98%;
+    --sidebar-foreground: 180 50% 20%;
+    --sidebar-primary: 180 82% 25%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 180 50% 95%;
+    --sidebar-accent-foreground: 180 82% 25%;
+    --sidebar-border: 180 30% 91%;
+    --sidebar-ring: 180 82% 25%;
+  }
+
+  .dark {
+    --background: 180 30% 4%;
+    --foreground: 180 20% 98%;
+
+    --card: 180 30% 6%;
+    --card-foreground: 180 20% 98%;
+
+    --popover: 180 30% 6%;
+    --popover-foreground: 180 20% 98%;
+
+    /* V2.0 Fitness Dark Mode */
+    --primary: 210 100% 60%;
+    --primary-foreground: 210 30% 4%;
+    --secondary-gradient: 150 100% 45%;
+    --primary-glow: 180 100% 70%;
+    --primary-light: 210 60% 15%;
+
+    --secondary: 180 30% 12%;
+    --secondary-foreground: 180 100% 70%;
+
+    --muted: 180 30% 12%;
+    --muted-foreground: 180 20% 65%;
+
+    --accent: 180 30% 15%;
+    --accent-foreground: 180 100% 70%;
+
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 180 20% 98%;
+
+    --border: 180 30% 15%;
+    --input: 180 30% 12%;
+    --ring: 180 100% 70%;
+
+    /* Dark mode gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary-gradient)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary-gradient)) 100%);
+    --gradient-light: linear-gradient(180deg, hsl(var(--primary-light)), hsl(var(--background)));
+    --shadow-primary: 0 20px 40px -10px hsl(var(--primary) / 0.5);
+    --shadow-glow: 0 0 60px hsl(var(--primary-glow) / 0.4);
+    --shadow-hero: 0 25px 50px -12px hsl(var(--primary) / 0.6);
+
+    --sidebar-background: 180 30% 8%;
+    --sidebar-foreground: 180 20% 95%;
+    --sidebar-primary: 180 100% 70%;
+    --sidebar-primary-foreground: 180 30% 4%;
+    --sidebar-accent: 180 30% 12%;
+    --sidebar-accent-foreground: 180 100% 70%;
+    --sidebar-border: 180 30% 15%;
+    --sidebar-ring: 180 100% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    background: linear-gradient(135deg, hsl(var(--background)), hsl(var(--primary-light) / 0.1));
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .gradient-light {
+    background: var(--gradient-light);
+  }
+  
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+  
+  .shadow-primary {
+    box-shadow: var(--shadow-primary);
+  }
+  
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .shadow-hero {
+    box-shadow: var(--shadow-hero);
+  }
+  
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
