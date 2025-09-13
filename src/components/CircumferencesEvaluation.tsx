@@ -217,15 +217,28 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
     }
   };
 
-  const isFormValid = () => {
-    const weight = parseFloat(formData.weight);
-    const waist = parseFloat(formData.waist);
-    const neck = parseFloat(formData.neck);
-    const hip = formData.hip ? parseFloat(formData.hip) : null;
-    
-    return !isNaN(weight) && weight > 0 && !isNaN(waist) && waist > 0 && !isNaN(neck) && neck > 0 && 
-           (student.gender !== 'feminino' || (!isNaN(hip || NaN) && hip > 0));
+  const isWeightValid = () => {
+    const w = parseFloat(formData.weight);
+    return !isNaN(w) && w > 0;
   };
+
+  const isWaistValid = () => {
+    const w = parseFloat(formData.waist);
+    return !isNaN(w) && w > 0;
+  };
+
+  const isNeckValid = () => {
+    const n = parseFloat(formData.neck);
+    return !isNaN(n) && n > 0;
+  };
+
+  const isHipValid = () => {
+    if (student.gender !== 'feminino') return true;
+    const h = parseFloat(formData.hip);
+    return !isNaN(h) && h > 0;
+  };
+
+  const isFormValid = isWeightValid() && isWaistValid() && isNeckValid() && isHipValid();
 
   return (
     <div className="space-y-6">
@@ -293,6 +306,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
                     onChange={(e) => setFormData(prev => ({ ...prev, neck: e.target.value }))}
                     required
                   />
+                </div>
                 {student.gender === 'feminino' && (
                   <div className="space-y-2">
                     <Label htmlFor="hip">Quadril (cm) *</Label>
@@ -334,7 +348,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
               <Button 
                 type="submit" 
                 className="w-full gradient-primary shadow-primary hover:shadow-glow transition-all"
-                disabled={!isFormValid()}
+                disabled={!isFormValid}
               >
                 {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 <Save className="h-4 w-4 mr-2" />
