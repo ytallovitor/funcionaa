@@ -48,7 +48,7 @@ interface Challenge {
   trainer_id: string;
 }
 
-// Templates pré-definidos (8 exemplos científicos, baseados em guidelines ACSM/NSCA)
+// Templates pré-definidos (8 exemplos científicos, baseados em guidelines ACSM/NSCA) - Sem 'difficulty' para compatibilidade
 const CHALLENGE_TEMPLATES = [
   {
     title: "30 Dias de Força",
@@ -57,8 +57,7 @@ const CHALLENGE_TEMPLATES = [
     category: "Força",
     goal_value: 30,
     goal_unit: "dias",
-    prize_description: "Kit de suplementos + consulta gratuita",
-    difficulty: "Intermediário"
+    prize_description: "Kit de suplementos + consulta gratuita"
   },
   {
     title: "Detox 7 Dias",
@@ -67,8 +66,7 @@ const CHALLENGE_TEMPLATES = [
     category: "Nutrição",
     goal_value: 7,
     goal_unit: "dias",
-    prize_description: "Voucher de nutrição esportiva",
-    difficulty: "Iniciante"
+    prize_description: "Voucher de nutrição esportiva"
   },
   {
     title: "10.000 Passos Diários",
@@ -77,8 +75,7 @@ const CHALLENGE_TEMPLATES = [
     category: "Cardio",
     goal_value: 10000,
     goal_unit: "passos",
-    prize_description: "Smartwatch básico",
-    difficulty: "Iniciante"
+    prize_description: "Smartwatch básico"
   },
   {
     title: "Flexão Challenge",
@@ -87,8 +84,7 @@ const CHALLENGE_TEMPLATES = [
     category: "Força",
     goal_value: 100,
     goal_unit: "flexões",
-    prize_description: "Camiseta fitness + shake pós-treino",
-    difficulty: "Iniciante"
+    prize_description: "Camiseta fitness + shake pós-treino"
   },
   {
     title: "Meditação Diária 10 Min",
@@ -97,8 +93,7 @@ const CHALLENGE_TEMPLATES = [
     category: "Mental",
     goal_value: 10,
     goal_unit: "minutos",
-    prize_description: "Acesso a app de meditação",
-    difficulty: "Iniciante"
+    prize_description: "Acesso a app de meditação"
   },
   {
     title: "Desafio Equipe 21 Dias",
@@ -107,8 +102,7 @@ const CHALLENGE_TEMPLATES = [
     category: "Funcional",
     goal_value: 21,
     goal_unit: "dias",
-    prize_description: "Encontro em grupo + prêmios coletivos",
-    difficulty: "Intermediário"
+    prize_description: "Encontro em grupo + prêmios coletivos"
   },
   {
     title: "HIIT 4 Semanas",
@@ -117,8 +111,7 @@ const CHALLENGE_TEMPLATES = [
     category: "HIIT",
     goal_value: 16,
     goal_unit: "sessões",
-    prize_description: "Aulas particulares gratuitas",
-    difficulty: "Avançado"
+    prize_description: "Aulas particulares gratuitas"
   },
   {
     title: "Mobilidade Semanal",
@@ -127,8 +120,7 @@ const CHALLENGE_TEMPLATES = [
     category: "Flexibilidade",
     goal_value: 12,
     goal_unit: "sessões",
-    prize_description: "Kit de yoga básico",
-    difficulty: "Iniciante"
+    prize_description: "Kit de yoga básico"
   }
 ];
 
@@ -269,31 +261,37 @@ const Challenges = () => {
         });
       }
 
-      const challengeData = {
-        ...newChallenge,
-        trainer_id: profile.id,
-        goal_value: newChallenge.goal_value ? parseFloat(newChallenge.goal_value) : null,
+      // Filtrar só campos válidos do schema (evita inserir 'difficulty' ou outros)
+      const validFields = {
+        title: newChallenge.title.trim(),
+        description: newChallenge.description.trim(),
+        challenge_type: newChallenge.challenge_type,
+        category: newChallenge.category.trim(),
         start_date: startDate,
         end_date: endDate,
+        goal_value: newChallenge.goal_value ? parseFloat(newChallenge.goal_value) : null,
+        goal_unit: newChallenge.goal_unit ? newChallenge.goal_unit.trim() : null,
+        prize_description: newChallenge.prize_description ? newChallenge.prize_description.trim() : null,
+        trainer_id: profile.id,
         is_active: true
       };
 
-      // Se veio de template, usa os dados do template
+      // Se veio de template, usa os dados do template (sem 'difficulty')
       if (template) {
-        challengeData.title = template.title;
-        challengeData.description = template.description;
-        challengeData.challenge_type = template.challenge_type;
-        challengeData.category = template.category;
-        challengeData.goal_value = template.goal_value;
-        challengeData.goal_unit = template.goal_unit;
-        challengeData.prize_description = template.prize_description;
-        challengeData.start_date = new Date().toISOString().split('T')[0]; // Início hoje
-        challengeData.end_date = new Date(Date.now() + (template.goal_value * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]; // Fim baseado na meta
+        validFields.title = template.title;
+        validFields.description = template.description;
+        validFields.challenge_type = template.challenge_type;
+        validFields.category = template.category;
+        validFields.goal_value = template.goal_value;
+        validFields.goal_unit = template.goal_unit;
+        validFields.prize_description = template.prize_description;
+        validFields.start_date = new Date().toISOString().split('T')[0]; // Início hoje
+        validFields.end_date = new Date(Date.now() + (template.goal_value * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]; // Fim baseado na meta
       }
 
       const { error } = await supabase
         .from('challenges')
-        .insert(challengeData);
+        .insert(validFields);
 
       if (error) {
         console.error('Supabase Error Details:', error); // Debug: Mostra erro exato no console
@@ -455,9 +453,6 @@ const Challenges = () => {
                         </Badge>
                         <Badge variant="outline" className="text-xs">
                           {template.category}
-                        </Badge>
-                        <Badge variant="secondary" className="text-xs">
-                          {template.difficulty}
                         </Badge>
                       </div>
                     </CardHeader>
