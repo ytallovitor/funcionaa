@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Search, Plus, Activity, Calendar, Loader2, Edit } from "lucide-react";
+import { Users, Search, Plus, Activity, Calendar, Loader2, Edit, Dumbbell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import StudentPortalManager from "@/components/StudentPortalManager";
 import EditStudentDialog from "@/components/EditStudentDialog";
+import StudentWorkoutManager from "@/components/StudentWorkoutManager";
 
 interface Student {
   id: string;
@@ -35,6 +36,8 @@ const Students = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [managingWorkoutsFor, setManagingWorkoutsFor] = useState<Student | null>(null);
+  const [isWorkoutManagerOpen, setIsWorkoutManagerOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     birth_date: "",
@@ -55,7 +58,6 @@ const Students = () => {
     try {
       setLoading(true);
       
-      // First get the profile id
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
@@ -71,7 +73,6 @@ const Students = () => {
         return;
       }
 
-      // Then get students for this trainer
       const { data: studentsData, error } = await supabase
         .from('students')
         .select(`
@@ -87,7 +88,6 @@ const Students = () => {
 
       if (error) throw error;
 
-      // Process students with latest evaluation data
       const processedStudents = studentsData?.map(student => {
         const latestEvaluation = student.evaluations?.[0];
         return {
@@ -116,7 +116,6 @@ const Students = () => {
     setIsSubmitting(true);
 
     try {
-      // Get the profile id
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
@@ -127,7 +126,6 @@ const Students = () => {
         throw new Error('Perfil não encontrado');
       }
 
-      // Calculate age from birth date
       const age = formData.birth_date ? 
         new Date().getFullYear() - new Date(formData.birth_date).getFullYear() : 0;
 
@@ -365,6 +363,17 @@ const Students = () => {
                     <Activity className="h-4 w-4 mr-2" />
                     Avaliar
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setManagingWorkoutsFor(student);
+                      setIsWorkoutManagerOpen(true);
+                    }}
+                  >
+                    <Dumbbell className="h-4 w-4 mr-2" />
+                    Treinos
+                  </Button>
                   <StudentPortalManager student={student} />
                 </div>
               </div>
@@ -395,6 +404,13 @@ const Students = () => {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         onStudentUpdated={fetchStudents}
+      />
+
+      <StudentWorkoutManager
+        student={managingWorkoutsFor}
+        open={isWorkoutManagerOpen}
+        onOpenChange={setIsWorkoutManagerOpen}
+        onWorkoutsUpdated={fetchStudents}
       />
     </div>
   );
