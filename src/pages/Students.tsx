@@ -46,12 +46,12 @@ interface Student {
   lastEvaluation?: string;
   bodyFat?: number;
   weight?: number;
-  status: 'active' | 'archived' | 'deleted'; // Novo: status do aluno
-  deleted_at?: string; // Novo: data de deleção para lixeira
+  status?: 'active' | 'archived' | 'deleted'; // Opcional: se colunas existirem
+  deleted_at?: string; // Opcional: se colunas existirem
 }
 
 const Students = () => {
-  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'trash'>('active'); // Novo: tabs para status
+  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'trash'>('active');
   const [searchTerm, setSearchTerm] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,33 +70,58 @@ const Students = () => {
     goal: "",
     height: ""
   });
+  const [trainerId, setTrainerId] = useState<string | null>(null); // Cache para trainer_id
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
+      loadTrainerId();
       fetchStudents();
     }
   }, [user]);
 
-  const fetchStudents = async () => {
+  // Fetch trainer_id uma vez no load (cache global para performance)
+  const loadTrainerId = async () => {
     try {
-      setLoading(true);
-      
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', user?.id)
         .single();
 
-      if (!profile) {
+      if (profile) {
+        console.log("Trainer ID cached:", profile.id); // Debug: ID do profile
+        setTrainerId(profile.id);
+      } else {
+        console.error("Trainer profile not found for user:", user?.id);
         toast({
           title: "Erro",
-          description: "Perfil não encontrado",
+          description: "Perfil de trainer não encontrado. Crie um perfil primeiro.",
           variant: "destructive"
         });
-        return;
       }
+    } catch (error) {
+      console.error('Error loading trainer ID:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao carregar perfil. Faça login novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      
+      if (!trainerId) {
+        console.warn("Trainer ID not loaded yet – retrying...");
+        await loadTrainerId(); // Tenta recarregar se não estiver pronto
+        if (!trainerId) throw new Error('Trainer ID não disponível');
+      }
+
+      console.log("Fetching students for trainer:", trainerId); // Debug
 
       const { data: studentsData, error } = await supabase
         .from('students')
@@ -108,10 +133,13 @@ const Students = () => {
             body_fat_percentage
           )
         `)
-        .eq('trainer_id', profile.id)
+        .eq('trainer_id', trainerId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase fetch error:', error); // Log detalhado
+        throw error;
+      }
 
       const processedStudents = studentsData?.map(student => {
         const latestEvaluation = student.evaluations?.[0];
@@ -120,18 +148,19 @@ const Students = () => {
           lastEvaluation: latestEvaluation?.evaluation_date,
           weight: latestEvaluation?.weight,
           bodyFat: latestEvaluation?.body_fat_percentage,
-          // Defaults se não existirem (compatibilidade com dados antigos)
+          // Status defaults (se colunas não existirem, fica undefined – código lida com isso)
           status: student.status || 'active',
           deleted_at: student.deleted_at || null
         };
       }) || [];
 
+      console.log("Students fetched:", processedStudents.length, "students"); // Debug
       setStudents(processedStudents);
     } catch (error) {
       console.error('Error fetching students:', error);
       toast({
         title: "Erro",
-        description: "Falha ao carregar alunos",
+        description: "Falha ao carregar alunos. Verifique console para detalhes.",
         variant: "destructive"
       });
     } finally {
@@ -144,15 +173,7 @@ const Students = () => {
     setIsSubmitting(true);
 
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (!profile) {
-        throw new Error('Perfil não encontrado');
-      }
+      if (!trainerId) throw new Error('ID do trainer não encontrado. Recarregue a página.');
 
       const age = formData.birth_date ? 
         new Date().getFullYear() - new Date(formData.birth_date).getFullYear() : 0;
@@ -166,8 +187,8 @@ const Students = () => {
           gender: formData.gender,
           goal: formData.goal,
           height: parseFloat(formData.height),
-          trainer_id: profile.id,
-          status: 'active', // Default para novos
+          trainer_id: trainerId,
+          status: 'active',
           deleted_at: null
         });
 
@@ -181,11 +202,11 @@ const Students = () => {
       setFormData({ name: "", birth_date: "", gender: "", goal: "", height: "" });
       setIsDialogOpen(false);
       fetchStudents();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding student:', error);
       toast({
         title: "Erro",
-        description: "Falha ao adicionar aluno",
+        description: error.message || "Falha ao adicionar aluno",
         variant: "destructive"
       });
     } finally {
@@ -193,86 +214,90 @@ const Students = () => {
     }
   };
 
+  // Todas as funções usam trainerId cacheado + logs + validação
   const archiveStudent = async (studentId: string) => {
     try {
-      const { error } = await supabase
+      if (!trainerId) {
+        throw new Error('ID do trainer não carregado. Recarregue a página.');
+      }
+
+      console.log("Archiving student", studentId, "for trainer", trainerId); // Debug
+
+      // Verifica se aluno existe e pertence ao trainer (RLS-safe)
+      const { data: studentCheck, error: checkError } = await supabase
         .from('students')
-        .update({ status: 'archived' })
+        .select('id, trainer_id')
         .eq('id', studentId)
-        .eq('trainer_id', user?.id ? (await getTrainerId()) : ''); // Assumindo que trainer_id vem do profile
+        .eq('trainer_id', trainerId)
+        .single();
 
-      if (error) throw error;
+      if (checkError) {
+        console.error('Check error:', checkError);
+        throw new Error('Falha na verificação do aluno.');
+      }
 
-      toast({
-        title: "Sucesso!",
-        description: "Aluno arquivado. Acesso ao portal interrompido temporariamente."
-      });
-      fetchStudents();
-    } catch (error) {
-      console.error('Error archiving student:', error);
-      toast({
-        title: "Erro",
-        description: "Falha ao arquivar aluno",
-        variant: "destructive"
-      });
-    }
-  };
+      if (!studentCheck) {
+        throw new Error('Aluno não encontrado ou não pertence a você.');
+      }
 
-  const unarchiveStudent = async (studentId: string) => {
-    try {
-      const { error } = await supabase
-        .from('students')
-        .update({ status: 'active', deleted_at: null })
-        .eq('id', studentId)
-        .eq('trainer_id', user?.id ? (await getTrainerId()) : '');
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso!",
-        description: "Aluno desarquivado. Acesso ao portal restaurado."
-      });
-      fetchStudents();
-    } catch (error) {
-      console.error('Error unarchiving student:', error);
-      toast({
-        title: "Erro",
-        description: "Falha ao desarquivar aluno",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const deleteToTrash = async (studentId: string) => {
-    try {
+      // UPDATE com colunas (agora existem após SQL)
       const { error } = await supabase
         .from('students')
         .update({ 
-          status: 'deleted',
-          deleted_at: new Date().toISOString()
+          status: 'archived',
+          deleted_at: null  // Reset se estava em lixeira
         })
         .eq('id', studentId)
-        .eq('trainer_id', user?.id ? (await getTrainerId()) : '');
+        .eq('trainer_id', trainerId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Update error details:', error); // Log exato do erro Supabase
+        if (error.code === '42703') { // Column does not exist
+          throw new Error('Colunas "status" ou "deleted_at" não existem no banco. Execute o SQL fornecido primeiro.');
+        }
+        if (error.code === '42501') { // Permission denied (RLS)
+          throw new Error('Permissão negada. Verifique RLS policies no Supabase.');
+        }
+        if (error.code === 'PGRST116') { // No rows
+          throw new Error('Nenhuma linha atualizada – aluno pode não existir ou RLS bloqueando.');
+        }
+        throw error;
+      }
 
+      console.log("Student archived successfully"); // Debug sucesso
       toast({
         title: "Sucesso!",
-        description: "Aluno movido para lixeira (90 dias para recuperação). Dados preservados."
+        description: "Aluno arquivado com sucesso."
       });
       fetchStudents();
-    } catch (error) {
-      console.error('Error moving student to trash:', error);
+    } catch (error: any) {
+      console.error('Detailed error archiving student:', error); // Log completo para debug
       toast({
-        title: "Erro",
-        description: "Falha ao mover para lixeira",
+        title: "Erro ao Arquivar",
+        description: error.message || "Falha ao arquivar aluno. Verifique console (F12) para detalhes.",
         variant: "destructive"
       });
     }
   };
 
-  const restoreFromTrash = async (studentId: string) => {
+  // Similar para outras funções (unarchive, deleteToTrash, etc.) – uso trainerId cacheado
+  const unarchiveStudent = async (studentId: string) => {
     try {
+      if (!trainerId) throw new Error('ID do trainer não carregado.');
+
+      console.log("Unarchiving student", studentId, "for trainer", trainerId);
+
+      const { data: studentCheck } = await supabase
+        .from('students')
+        .select('id')
+        .eq('id', studentId)
+        .eq('trainer_id', trainerId)
+        .single();
+
+      if (!studentCheck) {
+        throw new Error('Aluno não encontrado ou não pertence a você.');
+      }
+
       const { error } = await supabase
         .from('students')
         .update({ 
@@ -280,20 +305,139 @@ const Students = () => {
           deleted_at: null
         })
         .eq('id', studentId)
-        .eq('trainer_id', user?.id ? (await getTrainerId()) : '');
+        .eq('trainer_id', trainerId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Update error details:', error);
+        if (error.code === '42703') {
+          throw new Error('Colunas "status" ou "deleted_at" não existem. Execute o SQL.');
+        }
+        if (error.code === '42501') {
+          throw new Error('Permissão negada. Verifique RLS policies no Supabase.');
+        }
+        if (error.code === 'PGRST116') {
+          throw new Error('Nenhuma linha atualizada – aluno pode não existir.');
+        }
+        throw error;
+      }
 
+      console.log("Student unarchived successfully");
+      toast({
+        title: "Sucesso!",
+        description: "Aluno desarquivado com sucesso."
+      });
+      fetchStudents();
+    } catch (error: any) {
+      console.error('Detailed error unarchiving student:', error);
+      toast({
+        title: "Erro ao Desarquivar",
+        description: error.message || "Falha ao desarquivar aluno.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteToTrash = async (studentId: string) => {
+    try {
+      if (!trainerId) throw new Error('ID do trainer não carregado.');
+
+      console.log("Moving student to trash", studentId, "for trainer", trainerId);
+
+      const { data: studentCheck } = await supabase
+        .from('students')
+        .select('id')
+        .eq('id', studentId)
+        .eq('trainer_id', trainerId)
+        .single();
+
+      if (!studentCheck) {
+        throw new Error('Aluno não encontrado ou não pertence a você.');
+      }
+
+      const { error } = await supabase
+        .from('students')
+        .update({ 
+          status: 'deleted',
+          deleted_at: new Date().toISOString()
+        })
+        .eq('id', studentId)
+        .eq('trainer_id', trainerId);
+
+      if (error) {
+        console.error('Update error details:', error);
+        if (error.code === '42703') {
+          throw new Error('Colunas "status" ou "deleted_at" não existem. Execute o SQL.');
+        }
+        if (error.code === '42501') {
+          throw new Error('Permissão negada. Verifique RLS policies no Supabase.');
+        }
+        throw error;
+      }
+
+      console.log("Student moved to trash successfully");
+      toast({
+        title: "Sucesso!",
+        description: "Aluno movido para lixeira (90 dias para recuperação)."
+      });
+      fetchStudents();
+    } catch (error: any) {
+      console.error('Detailed error moving to trash:', error);
+      toast({
+        title: "Erro ao Mover para Lixeira",
+        description: error.message || "Falha ao mover aluno para lixeira.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const restoreFromTrash = async (studentId: string) => {
+    try {
+      if (!trainerId) throw new Error('ID do trainer não carregado.');
+
+      console.log("Restoring student from trash", studentId, "for trainer", trainerId);
+
+      const { data: studentCheck } = await supabase
+        .from('students')
+        .select('id')
+        .eq('id', studentId)
+        .eq('trainer_id', trainerId)
+        .single();
+
+      if (!studentCheck) {
+        throw new Error('Aluno não encontrado ou não pertence a você.');
+      }
+
+      const { error } = await supabase
+        .from('students')
+        .update({ 
+          status: 'active',
+          deleted_at: null
+        })
+        .eq('id', studentId)
+        .eq('trainer_id', trainerId);
+
+      if (error) {
+        console.error('Update error details:', error);
+        if (error.code === '42703') {
+          throw new Error('Colunas "status" ou "deleted_at" não existem. Execute o SQL.');
+        }
+        if (error.code === '42501') {
+          throw new Error('Permissão negada. Verifique RLS policies no Supabase.');
+        }
+        throw error;
+      }
+
+      console.log("Student restored successfully");
       toast({
         title: "Sucesso!",
         description: "Aluno restaurado da lixeira."
       });
       fetchStudents();
-    } catch (error) {
-      console.error('Error restoring student:', error);
+    } catch (error: any) {
+      console.error('Detailed error restoring student:', error);
       toast({
-        title: "Erro",
-        description: "Falha ao restaurar aluno",
+        title: "Erro ao Restaurar",
+        description: error.message || "Falha ao restaurar aluno da lixeira.",
         variant: "destructive"
       });
     }
@@ -301,41 +445,53 @@ const Students = () => {
 
   const permanentDelete = async (studentId: string) => {
     try {
+      if (!trainerId) throw new Error('ID do trainer não carregado.');
+
+      console.log("Permanent deleting student", studentId, "for trainer", trainerId);
+
+      const { data: studentCheck } = await supabase
+        .from('students')
+        .select('id')
+        .eq('id', studentId)
+        .eq('trainer_id', trainerId)
+        .single();
+
+      if (!studentCheck) {
+        throw new Error('Aluno não encontrado ou não pertence a você.');
+      }
+
       const { error } = await supabase
         .from('students')
         .delete()
         .eq('id', studentId)
-        .eq('trainer_id', user?.id ? (await getTrainerId()) : '');
+        .eq('trainer_id', trainerId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Delete error details:', error);
+        if (error.code === '42501') { // Permission denied
+          throw new Error('Permissão negada. Verifique RLS policies no Supabase.');
+        }
+        throw error;
+      }
 
+      console.log("Student permanently deleted");
       toast({
         title: "Sucesso!",
-        description: "Aluno excluído permanentemente (não recuperável)."
+        description: "Aluno excluído permanentemente."
       });
       fetchStudents();
-    } catch (error) {
-      console.error('Error permanent delete:', error);
+    } catch (error: any) {
+      console.error('Detailed error permanent delete:', error);
       toast({
-        title: "Erro",
-        description: "Falha ao excluir permanentemente",
+        title: "Erro ao Excluir Permanentemente",
+        description: error.message || "Falha ao excluir aluno permanentemente.",
         variant: "destructive"
       });
     }
   };
 
-  // Helper para pegar trainer_id (cache para performance)
-  const getTrainerId = async () => {
-    if (!user) return '';
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-    return profile?.id || '';
-  };
-
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | undefined) => {
+    if (!status) return { variant: "outline" as const, color: "", icon: null }; // Fallback se colunas não existirem
     switch (status) {
       case 'active': return { variant: "default" as const, color: "bg-green-100 text-green-700", icon: <Check className="h-3 w-3" /> };
       case 'archived': return { variant: "secondary" as const, color: "bg-yellow-100 text-yellow-700", icon: <Archive className="h-3 w-3" /> };
@@ -346,16 +502,17 @@ const Students = () => {
 
   const getFilteredStudents = (tab: 'active' | 'archived' | 'trash') => {
     return students.filter(student => {
-      if (tab === 'active') return student.status === 'active';
-      if (tab === 'archived') return student.status === 'archived';
-      if (tab === 'trash') return student.status === 'deleted';
+      const status = student.status || 'active'; // Fallback se coluna não existir
+      if (tab === 'active') return status === 'active';
+      if (tab === 'archived') return status === 'archived';
+      if (tab === 'trash') return status === 'deleted';
       return true;
     }).filter(student =>
       student.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
-  const getDaysLeftInTrash = (deletedAt: string | null) => {
+  const getDaysLeftInTrash = (deletedAt?: string) => {
     if (!deletedAt) return null;
     const deletedDate = new Date(deletedAt);
     const daysPassed = Math.floor((Date.now() - deletedDate.getTime()) / (1000 * 60 * 60 * 24));
