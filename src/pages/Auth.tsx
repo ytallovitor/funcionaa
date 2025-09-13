@@ -38,7 +38,7 @@ export default function Auth() {
     
     if (!isSignIn) {
       if (formData.password !== formData.confirmPassword) {
-        return;
+        return; // Toast já cuida disso
       }
       await signUp(formData.email, formData.password, formData.fullName);
     } else {
@@ -122,13 +122,13 @@ export default function Auth() {
                       placeholder="Seu nome completo"
                       value={formData.fullName}
                       onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                      required
+                      required={!isSignIn}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signupEmail">E-mail</Label>
+                    <Label htmlFor="email">E-mail</Label>
                     <Input
-                      id="signupEmail"
+                      id="email"
                       type="email"
                       placeholder="seu@email.com"
                       value={formData.email}
@@ -137,9 +137,9 @@ export default function Auth() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signupPassword">Senha</Label>
+                    <Label htmlFor="password">Senha</Label>
                     <Input
-                      id="signupPassword"
+                      id="password"
                       type="password"
                       placeholder="••••••••"
                       value={formData.password}
@@ -155,7 +155,7 @@ export default function Auth() {
                       placeholder="••••••••"
                       value={formData.confirmPassword}
                       onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                      required
+                      required={!isSignIn}
                     />
                   </div>
                   <Button type="submit" className="w-full gradient-primary shadow-primary hover:shadow-glow transition-all">

@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Activity } from "lucide-react";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: Home },
+  { title: "Painel", url: "/", icon: Home },
   { title: "Alunos", url: "/students", icon: Users },
   { title: "Nova Avaliação", url: "/evaluation", icon: PlusCircle },
   { title: "Treinos", url: "/workouts", icon: Dumbbell },
@@ -103,7 +103,7 @@ export function AppSidebar() {
         <div className="space-y-2">
           <div className="px-2 py-1">
             <p className="text-sm font-medium truncate">{user?.email}</p>
-            <p className="text-xs text-muted-foreground">Trainer</p>
+            <p className="text-xs text-muted-foreground">Personal Trainer</p>
           </div>
           <Button
             variant="ghost"

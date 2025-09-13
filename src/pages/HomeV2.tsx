@@ -82,7 +82,7 @@ const HomeV2 = () => {
         "Relatórios e exportações",
         "Integração com wearables",
         "Suporte prioritário",
-        "Sistema de gamificação"
+        "Sistema de desafios"
       ],
       popular: true
     },
@@ -128,12 +128,10 @@ const HomeV2 = () => {
   ];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 gradient-hero opacity-90"></div>
-        <div className="absolute inset-0 bg-black/20"></div>
-        
         <div className="relative container mx-auto px-4 py-20 lg:py-32">
           <div className="text-center space-y-8">
             <Badge className="mx-auto bg-white/20 text-white border-white/30 hover:bg-white/30">
@@ -150,14 +148,14 @@ const HomeV2 = () => {
               Registre medidas, acompanhe evolução e gerencie treinos em tempo real.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
               {user ? (
                 <Button 
                   size="lg" 
                   className="text-lg px-8 py-6 bg-white text-primary hover:bg-white/90 shadow-hero"
                   onClick={() => navigate('/dashboard')}
                 >
-                  Acessar Dashboard
+                  Acessar Painel
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               ) : (
@@ -192,7 +190,7 @@ const HomeV2 = () => {
             <h2 className="text-3xl md:text-4xl font-bold text-gradient">
               Por que escolher nossa plataforma?
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Tecnologia avançada para resultados reais no seu acompanhamento fitness
             </p>
           </div>
@@ -201,10 +199,12 @@ const HomeV2 = () => {
             {benefits.map((benefit, index) => (
               <Card key={index} className="text-center p-6 shadow-primary/10 border-primary/20 hover:shadow-primary/20 transition-all duration-300 group">
                 <CardHeader>
-                  <div className="mx-auto w-16 h-16 gradient-primary rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <div className="gradient-primary p-3 rounded-xl shadow-glow mx-auto mb-4 group-hover:scale-110 transition-transform">
                     <benefit.icon className="h-8 w-8 text-white" />
                   </div>
-                  <CardTitle className="text-xl">{benefit.title}</CardTitle>
+                  <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                    {benefit.title}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <CardDescription className="text-base leading-relaxed">
@@ -224,16 +224,16 @@ const HomeV2 = () => {
             <h2 className="text-3xl md:text-4xl font-bold text-gradient">
               Planos que se adaptam ao seu objetivo
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Do aluno individual às grandes academias, temos o plano perfeito para você
             </p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {plans.map((plan, index) => (
-              <Card key={index} className={`relative p-6 ${plan.popular ? 'ring-2 ring-primary shadow-hero scale-105' : 'shadow-primary/10'} transition-all duration-300 hover:shadow-primary/20`}>
+              <Card key={index} className={`relative p-6 ${plan.popular ? 'ring-2 ring-primary shadow-hero scale-105' : 'shadow-primary/10'} transition-all duration-300 hover:shadow-primary/20 group border-primary/20`}>
                 {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-primary text-white">
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-white">
                     Mais Popular
                   </Badge>
                 )}
@@ -280,7 +280,7 @@ const HomeV2 = () => {
             <h2 className="text-3xl md:text-4xl font-bold text-gradient">
               O que nossos usuários dizem
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Histórias reais de transformação e sucesso
             </p>
           </div>
@@ -289,23 +289,23 @@ const HomeV2 = () => {
             {testimonials.map((testimonial, index) => (
               <Card key={index} className="p-6 shadow-primary/10 border-primary/20 hover:shadow-primary/20 transition-all duration-300">
                 <CardContent className="space-y-4">
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 fill-primary text-primary" />
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl">{testimonial.avatar}</div>
+                    <div>
+                      <h4 className="font-medium">{testimonial.name}</h4>
+                      <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className={`h-5 w-5 fill-current ${i < testimonial.rating ? 'text-yellow-400' : 'text-yellow-200'}`} />
                     ))}
                   </div>
                   
                   <p className="text-base leading-relaxed italic">
                     "{testimonial.content}"
                   </p>
-                  
-                  <div className="flex items-center gap-3 pt-4">
-                    <div className="text-2xl">{testimonial.avatar}</div>
-                    <div>
-                      <p className="font-semibold">{testimonial.name}</p>
-                      <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             ))}
