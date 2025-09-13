@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentStats } from "@/hooks/useStudentStats";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { useNavigate } from "react-router-dom";
 
 interface TrainerDashboardProps {
   trainer: {
@@ -33,7 +33,7 @@ interface TrainerDashboardProps {
 const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
   const { user } = useAuth();
   const statsHook = useStudentStats();
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
   const [studentsOverview, setStudentsOverview] = useState({
     total: 0,
     active: 0,
@@ -50,7 +50,6 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
       try {
         setLoading(true);
 
-        // Get trainer profile ID
         const { data: profile } = await supabase
           .from('profiles')
           .select('id')
@@ -59,13 +58,11 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
 
         if (!profile) {
           console.warn("Perfil do trainer não encontrado - usando fallback");
-          return; // Fallback: mantém estados vazios
+          return;
         }
 
-        // Total students (from hook)
         const totalStudents = statsHook.totalStudents;
 
-        // Step 1: Fetch student IDs for this trainer
         const { data: trainerStudents } = await supabase
           .from('students')
           .select('id')
@@ -73,31 +70,25 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
 
         const studentIds = trainerStudents?.map(s => s.id) || [];
 
-        // Active students: those with workouts or evaluations in last 30 days
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        // Count workouts for these students in last 30 days
         const { count: workoutsCount = 0 } = await supabase
           .from('student_workouts')
           .select('*', { count: 'exact', head: true })
           .in('student_id', studentIds)
           .gte('assigned_date', thirtyDaysAgo.toISOString());
 
-        // Count evaluations for these students in last 30 days
         const { count: evalsCount = 0 } = await supabase
           .from('evaluations')
           .select('*, students!inner(id)', { count: 'exact', head: true })
           .in('students.id', studentIds)
           .gte('evaluation_date', thirtyDaysAgo.toISOString().split('T')[0]);
 
-        // Active = unique students with activity (workouts + evals > 0)
         const activeStudents = workoutsCount + evalsCount > 0 ? Math.min(totalStudents, workoutsCount + evalsCount) : 0;
 
-        // Needs evaluation: students without evaluation in last 30 days (from hook)
         const needsEvaluation = statsHook.upcomingEvaluations;
 
-        // New this week
         const startOfWeek = new Date();
         startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
         const { count: newThisWeek = 0 } = await supabase
@@ -113,7 +104,6 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           newThisWeek
         });
 
-        // Recent students with latest evaluation
         const { data: recentData = [], error: recentError } = await supabase
           .from('students')
           .select(`
@@ -129,16 +119,16 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
 
         if (recentError) {
           console.warn('Warning fetching recent students:', recentError);
-          setRecentStudents([]); // Fallback vazio
+          setRecentStudents([]);
         } else {
           const recentStudentsProcessed = recentData.map(student => {
             const latestEval = student.evaluations?.[0];
-            const changeBodyFat = latestEval?.body_fat_percentage ? -1.5 : 0; // Simplified; calculate real change if multiple evals
+            const changeBodyFat = latestEval?.body_fat_percentage ? -1.5 : 0;
             return {
               id: student.id,
               name: student.name,
               lastEvaluation: latestEval?.evaluation_date || null,
-              progress: latestEval ? "good" : "attention", // Based on existence
+              progress: latestEval ? "good" : "attention",
               needsAttention: !latestEval,
               bodyFat: latestEval?.body_fat_percentage || null,
               change: changeBodyFat
@@ -150,7 +140,6 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
 
       } catch (err: any) {
         console.warn('Warning fetching dashboard data (non-fatal):', err.message);
-        // Não setar error - mantém layout vazio
       } finally {
         setLoading(false);
       }
@@ -196,7 +185,6 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
       <div className="flex justify-between items-start">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-gradient">
@@ -207,18 +195,17 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button className="gradient-primary text-white" onClick={() => navigate('/students')}> {/* Added onClick */}
+          <Button className="gradient-primary text-white" onClick={() => navigate('/students')}>
             <Plus className="mr-2 h-4 w-4" />
             Novo Aluno
           </Button>
-          <Button variant="outline" onClick={() => navigate('/chat')}> {/* Added onClick */}
+          <Button variant="outline" onClick={() => navigate('/chat')}>
             <MessageCircle className="mr-2 h-4 w-4" />
             Mensagens
           </Button>
         </div>
       </div>
 
-      {/* Stats Grid - Real data from hook */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="shadow-primary/10 border-primary/20 hover:shadow-primary/20 transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -313,9 +300,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
         </Card>
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Recent Students - Real data with empty state */}
         <Card className="lg:col-span-2 shadow-primary/10 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -376,7 +361,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">Nenhum aluno recente</p>
                   <p className="text-sm mt-1">Comece adicionando seu primeiro aluno para ver o progresso aqui</p>
-                  <Button className="mt-4 gradient-primary" onClick={() => navigate('/students')}> {/* Added onClick */}
+                  <Button className="mt-4 gradient-primary" onClick={() => navigate('/students')}>
                     <Plus className="mr-2 h-4 w-4" />
                     Adicionar Aluno
                   </Button>
@@ -384,7 +369,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
               )}
               
               {studentsOverview.total > 0 && (
-                <Button variant="outline" className="w-full" onClick={() => navigate('/students')}> {/* Added onClick */}
+                <Button variant="outline" className="w-full" onClick={() => navigate('/students')}>
                   Ver Todos os Alunos
                 </Button>
               )}
@@ -392,7 +377,6 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           </CardContent>
         </Card>
 
-        {/* Quick Actions - Static but can be dynamic if needed */}
         <Card className="shadow-primary/10 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -404,22 +388,22 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/evaluation')}> {/* Added onClick */}
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/evaluation')}>
               <Calendar className="mr-2 h-4 w-4" />
               Agendar Avaliações
             </Button>
             
-            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/chat')}> {/* Added onClick */}
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/chat')}>
               <MessageCircle className="mr-2 h-4 w-4" />
               Enviar Motivação
             </Button>
             
-            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/reports')}> {/* Added onClick */}
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/reports')}>
               <BarChart3 className="mr-2 h-4 w-4" />
               Relatório Semanal
             </Button>
             
-            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/reports')}> {/* Added onClick */}
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/reports')}>
               <TrendingUp className="mr-2 h-4 w-4" />
               Análise de Progresso
             </Button>
@@ -446,7 +430,6 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
         </Card>
       </div>
 
-      {/* Performance Overview - Real calculations */}
       <Card className="shadow-primary/10 border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

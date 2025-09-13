@@ -5,8 +5,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Dumbbell, Clock, Target, List, Edit, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Dumbbell, Clock, Target, List, Edit, Plus, Trash2, Video } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface ExerciseDetail {
   id: string;
@@ -22,6 +23,7 @@ interface ExerciseDetail {
 }
 
 interface WorkoutTemplateExercise {
+  id: string; // Add ID for deletion
   order_index: number;
   sets?: number;
   reps?: number;
@@ -51,6 +53,7 @@ const WorkoutDetail = () => {
   const [workout, setWorkout] = useState<WorkoutTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!workoutId) {
@@ -67,7 +70,7 @@ const WorkoutDetail = () => {
           .select(`
             *,
             workout_template_exercises (
-              order_index,
+              id, order_index,
               sets,
               reps,
               weight_kg,
@@ -106,6 +109,43 @@ const WorkoutDetail = () => {
 
     fetchWorkoutDetails();
   }, [workoutId, toast]);
+
+  const handleDeleteWorkout = async () => {
+    if (!workoutId) return;
+    setIsDeleting(true);
+    try {
+      // Delete associated workout_template_exercises first
+      const { error: deleteExercisesError } = await supabase
+        .from('workout_template_exercises')
+        .delete()
+        .eq('workout_template_id', workoutId);
+
+      if (deleteExercisesError) throw deleteExercisesError;
+
+      // Then delete the workout template
+      const { error: deleteTemplateError } = await supabase
+        .from('workout_templates')
+        .delete()
+        .eq('id', workoutId);
+
+      if (deleteTemplateError) throw deleteTemplateError;
+
+      toast({
+        title: "Sucesso!",
+        description: "Treino excluído com sucesso."
+      });
+      navigate('/workouts'); // Redirect to workouts list
+    } catch (err: any) {
+      console.error("Error deleting workout:", err);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o treino: " + err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -222,7 +262,7 @@ const WorkoutDetail = () => {
             <ScrollArea className="h-[400px] pr-4">
               <div className="space-y-4">
                 {workout.workout_template_exercises.map((wte, index) => (
-                  <Card key={wte.exercises.id} className="border-primary/20">
+                  <Card key={wte.id} className="border-primary/20">
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base flex items-center gap-2">
@@ -251,6 +291,20 @@ const WorkoutDetail = () => {
                           </ul>
                         </div>
                       )}
+                      {wte.exercises.tips && wte.exercises.tips.length > 0 && (
+                        <div className="mt-2">
+                          <h4 className="font-medium text-xs text-muted-foreground">Dicas:</h4>
+                          <ul className="list-disc list-inside text-xs text-muted-foreground">
+                            {wte.exercises.tips.map((tip, i) => <li key={i}>{tip}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {wte.exercises.video_url && (
+                        <Button variant="outline" size="sm" className="mt-2">
+                          <Video className="h-4 w-4 mr-2" />
+                          Ver Vídeo
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -259,14 +313,34 @@ const WorkoutDetail = () => {
           </div>
 
           <div className="flex gap-2 mt-6">
-            <Button className="gradient-primary text-white">
+            <Button className="gradient-primary text-white" onClick={() => navigate(`/workouts/edit/${workout.id}`)}>
               <Edit className="mr-2 h-4 w-4" />
               Editar Treino
             </Button>
-            <Button variant="outline">
-              <Plus className="mr-2 h-4 w-4" />
-              Atribuir a Aluno
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={isDeleting}>
+                  {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir Treino
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. Isso excluirá permanentemente o modelo de treino "{workout.name}" e todos os seus exercícios associados.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteWorkout} disabled={isDeleting}>
+                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Excluir
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </CardContent>
       </Card>

@@ -19,7 +19,7 @@ import Chat from "./pages/Chat";
 import Workouts from "./pages/Workouts";
 import Challenges from "./pages/Challenges";
 import Nutrition from "./pages/Nutrition";
-import WorkoutDetail from "./pages/WorkoutDetail"; // Import the new component
+import WorkoutDetail from "./pages/WorkoutDetail";
 
 const queryClient = new QueryClient();
 
@@ -41,7 +41,8 @@ const App = () => (
             <Route path="/settings" element={<Layout><Settings /></Layout>} />
             <Route path="/chat" element={<Layout><Chat /></Layout>} />
             <Route path="/workouts" element={<Layout><Workouts /></Layout>} />
-            <Route path="/workouts/:workoutId" element={<Layout><WorkoutDetail /></Layout>} /> {/* NEW ROUTE */}
+            <Route path="/workouts/:workoutId" element={<Layout><WorkoutDetail /></Layout>} />
+            <Route path="/workouts/edit/:workoutId" element={<Layout><Workouts /></Layout>} /> {/* NEW ROUTE FOR EDITING */}
             <Route path="/challenges" element={<Layout><Challenges /></Layout>} />
             <Route path="/nutrition" element={<Layout><Nutrition /></Layout>} />
             <Route path="/portal/:trainerId" element={<StudentPortal />} />

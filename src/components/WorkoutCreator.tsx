@@ -21,7 +21,8 @@ import {
   Target,
   Edit,
   GripVertical,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 
 interface Exercise {
@@ -33,7 +34,7 @@ interface Exercise {
   equipment: string[];
   instructions: string[];
   tips: string[];
-  duration: number;
+  duration: number; // in seconds for cardio, sets for strength
   reps?: number;
   sets?: number;
   rest_time?: number;
@@ -42,6 +43,7 @@ interface Exercise {
 }
 
 interface WorkoutExercise {
+  id?: string; // Added for existing workout_template_exercises
   exercise: Exercise;
   sets: number;
   reps: number;
@@ -52,46 +54,80 @@ interface WorkoutExercise {
   order_index: number;
 }
 
-interface WorkoutCreatorProps {
-  onSave?: (workout: any) => void;
-  editingWorkout?: any;
+interface WorkoutTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  estimated_duration: number;
+  equipment_needed: string[];
+  is_public: boolean;
+  workout_template_exercises?: WorkoutExercise[]; // Use WorkoutExercise for nested exercises
 }
 
-const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
+interface WorkoutCreatorProps {
+  onSave?: (workout: any) => void;
+  editingWorkout?: WorkoutTemplate | null;
+  onCancel?: () => void;
+}
+
+const WorkoutCreator = ({ onSave, editingWorkout, onCancel }: WorkoutCreatorProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [workoutName, setWorkoutName] = useState("");
   const [workoutDescription, setWorkoutDescription] = useState("");
-  const [workoutCategory, setWorkoutCategory] = useState("");
-  const [workoutDifficulty, setWorkoutDifficulty] = useState("");
+  const [workoutCategory, setWorkoutCategory] = useState("Força");
+  const [workoutDifficulty, setWorkoutDifficulty] = useState("Iniciante");
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
   const [estimatedDuration, setEstimatedDuration] = useState(0);
   const [isPublic, setIsPublic] = useState(false);
   const [equipmentNeeded, setEquipmentNeeded] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (editingWorkout) {
       setWorkoutName(editingWorkout.name || "");
       setWorkoutDescription(editingWorkout.description || "");
-      setWorkoutCategory(editingWorkout.category || "");
-      setWorkoutDifficulty(editingWorkout.difficulty || "");
+      setWorkoutCategory(editingWorkout.category || "Força");
+      setWorkoutDifficulty(editingWorkout.difficulty || "Iniciante");
       setIsPublic(editingWorkout.is_public || false);
+      setEstimatedDuration(editingWorkout.estimated_duration || 0);
+      setEquipmentNeeded(editingWorkout.equipment_needed || []);
       
-      const exercises = editingWorkout.exercises?.map((ex: any, index: number) => ({
-        ...ex,
-        order_index: index
+      const exercises = editingWorkout.workout_template_exercises?.map((wte: any) => ({
+        id: wte.id, // Keep the ID for existing template exercises
+        exercise: wte.exercises,
+        sets: wte.sets || 3,
+        reps: wte.reps || 12,
+        weight_kg: wte.weight_kg || 0,
+        duration: wte.duration || 0,
+        rest_time: wte.rest_time || 60,
+        notes: wte.notes || "",
+        order_index: wte.order_index
       })) || [];
       setWorkoutExercises(exercises);
+    } else {
+      // Reset form for new workout
+      setWorkoutName("");
+      setWorkoutDescription("");
+      setWorkoutCategory("Força");
+      setWorkoutDifficulty("Iniciante");
+      setWorkoutExercises([]);
+      setEstimatedDuration(0);
+      setIsPublic(false);
+      setEquipmentNeeded([]);
     }
   }, [editingWorkout]);
 
   useEffect(() => {
-    const totalDuration = workoutExercises.reduce((total, workoutExercise) => {
-      const exerciseTime = workoutExercise.duration || (workoutExercise.sets * 60);
-      const restTime = workoutExercise.sets * workoutExercise.rest_time;
-      return total + exerciseTime + restTime;
+    const totalDurationSeconds = workoutExercises.reduce((total, workoutExercise) => {
+      // Estimate time per set for strength exercises (e.g., 5 seconds per rep)
+      const exerciseDuration = workoutExercise.duration || (workoutExercise.sets * workoutExercise.reps * 5);
+      const restDuration = (workoutExercise.sets > 1 ? workoutExercise.sets - 1 : 0) * workoutExercise.rest_time;
+      return total + exerciseDuration + restDuration;
     }, 0);
-    setEstimatedDuration(Math.round(totalDuration / 60));
+    setEstimatedDuration(Math.round(totalDurationSeconds / 60));
 
     const allEquipment = workoutExercises.flatMap(we => we.exercise.equipment);
     setEquipmentNeeded([...new Set(allEquipment)]);
@@ -119,7 +155,7 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
 
   const handleRemoveExercise = (index: number) => {
     const newExercises = workoutExercises.filter((_, i) => i !== index);
-    setWorkoutExercises(newExercises);
+    setWorkoutExercises(newExercises.map((ex, i) => ({ ...ex, order_index: i }))); // Re-index
   };
 
   const handleUpdateExercise = (index: number, field: string, value: any) => {
@@ -138,6 +174,8 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
       const { data: profile } = await supabase
         .from('profiles')
@@ -151,58 +189,121 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
           description: "Perfil não encontrado",
           variant: "destructive"
         });
+        setIsSubmitting(false);
         return;
       }
 
-      const { data: workoutTemplate, error: workoutError } = await supabase
-        .from('workout_templates')
-        .insert({
-          name: workoutName,
-          description: workoutDescription,
-          category: workoutCategory,
-          difficulty: workoutDifficulty,
-          estimated_duration: estimatedDuration,
-          equipment_needed: equipmentNeeded,
-          trainer_id: profile.id,
-          is_public: isPublic
-        })
-        .select()
-        .single();
+      let workoutTemplateId = editingWorkout?.id;
 
-      if (workoutError) throw workoutError;
+      if (editingWorkout) {
+        // Update existing workout template
+        const { error: updateError } = await supabase
+          .from('workout_templates')
+          .update({
+            name: workoutName,
+            description: workoutDescription,
+            category: workoutCategory,
+            difficulty: workoutDifficulty,
+            estimated_duration: estimatedDuration,
+            equipment_needed: equipmentNeeded,
+            trainer_id: profile.id,
+            is_public: isPublic,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', workoutTemplateId);
 
-      const exercisePromises = workoutExercises.map((workoutExercise, index) => {
-        return supabase.from('workout_template_exercises').insert({
-          workout_template_id: workoutTemplate.id,
-          exercise_id: workoutExercise.exercise.id,
-          sets: workoutExercise.sets,
-          reps: workoutExercise.reps,
-          weight_kg: workoutExercise.weight_kg,
-          duration: workoutExercise.duration,
-          rest_time: workoutExercise.rest_time,
-          notes: workoutExercise.notes,
-          order_index: index
+        if (updateError) throw updateError;
+
+        // Handle workout_template_exercises: delete removed, update existing, insert new
+        const existingExerciseIds = new Set(editingWorkout.workout_template_exercises?.map(wte => wte.id));
+        const currentExerciseIds = new Set(workoutExercises.filter(we => we.id).map(we => we.id));
+
+        // Delete removed exercises
+        const exercisesToDelete = editingWorkout.workout_template_exercises?.filter(wte => !currentExerciseIds.has(wte.id));
+        if (exercisesToDelete && exercisesToDelete.length > 0) {
+          const { error: deleteError } = await supabase
+            .from('workout_template_exercises')
+            .delete()
+            .in('id', exercisesToDelete.map(ex => ex.id));
+          if (deleteError) throw deleteError;
+        }
+
+        // Upsert current exercises
+        const upsertPromises = workoutExercises.map(workoutExercise => {
+          const dataToUpsert = {
+            workout_template_id: workoutTemplateId,
+            exercise_id: workoutExercise.exercise.id,
+            sets: workoutExercise.sets,
+            reps: workoutExercise.reps,
+            weight_kg: workoutExercise.weight_kg,
+            duration: workoutExercise.duration,
+            rest_time: workoutExercise.rest_time,
+            notes: workoutExercise.notes,
+            order_index: workoutExercise.order_index
+          };
+          if (workoutExercise.id) {
+            return supabase.from('workout_template_exercises').update(dataToUpsert).eq('id', workoutExercise.id);
+          } else {
+            return supabase.from('workout_template_exercises').insert(dataToUpsert);
+          }
         });
-      });
+        await Promise.all(upsertPromises);
 
-      await Promise.all(exercisePromises);
+        toast({
+          title: "Sucesso!",
+          description: "Treino atualizado com sucesso"
+        });
 
-      toast({
-        title: "Sucesso!",
-        description: "Treino criado com sucesso"
-      });
+      } else {
+        // Create new workout template
+        const { data: workoutTemplate, error: workoutError } = await supabase
+          .from('workout_templates')
+          .insert({
+            name: workoutName,
+            description: workoutDescription,
+            category: workoutCategory,
+            difficulty: workoutDifficulty,
+            estimated_duration: estimatedDuration,
+            equipment_needed: equipmentNeeded,
+            trainer_id: profile.id,
+            is_public: isPublic
+          })
+          .select()
+          .single();
 
-      setWorkoutName("");
-      setWorkoutDescription("");
-      setWorkoutCategory("");
-      setWorkoutDifficulty("");
-      setWorkoutExercises([]);
-      setEquipmentNeeded([]);
-      setIsPublic(false);
+        if (workoutError) throw workoutError;
+        workoutTemplateId = workoutTemplate.id;
 
-      if (onSave) {
-        onSave(workoutTemplate);
+        const exercisePromises = workoutExercises.map((workoutExercise, index) => {
+          return supabase.from('workout_template_exercises').insert({
+            workout_template_id: workoutTemplateId,
+            exercise_id: workoutExercise.exercise.id,
+            sets: workoutExercise.sets,
+            reps: workoutExercise.reps,
+            weight_kg: workoutExercise.weight_kg,
+            duration: workoutExercise.duration,
+            rest_time: workoutExercise.rest_time,
+            notes: workoutExercise.notes,
+            order_index: index
+          });
+        });
+
+        await Promise.all(exercisePromises);
+
+        toast({
+          title: "Sucesso!",
+          description: "Treino criado com sucesso"
+        });
       }
+
+      // Reset form or call onSave
+      if (onSave) {
+        onSave(workoutTemplateId); // Pass the ID of the saved/updated workout
+      }
+      if (onCancel) {
+        onCancel(); // Navigate back to workouts list
+      }
+
     } catch (error) {
       console.error('Error saving workout:', error);
       toast({
@@ -210,6 +311,8 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
         description: "Não foi possível salvar o treino",
         variant: "destructive"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -324,7 +427,7 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
               <ScrollArea className="max-h-96">
                 <div className="space-y-4">
                   {workoutExercises.map((workoutExercise, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-3">
+                    <div key={workoutExercise.id || index} className="border rounded-lg p-4 space-y-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
                           <div className="text-sm font-medium text-muted-foreground">
@@ -409,12 +512,13 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
           <Button 
             onClick={handleSaveWorkout}
             className="gradient-primary text-white"
-            disabled={!workoutName || workoutExercises.length === 0}
+            disabled={isSubmitting || !workoutName || workoutExercises.length === 0}
           >
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Save className="mr-2 h-4 w-4" />
-            Salvar Treino
+            {editingWorkout ? "Atualizar Treino" : "Salvar Treino"}
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={onCancel}>
             <X className="mr-2 h-4 w-4" />
             Cancelar
           </Button>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom"; // Import useNavigate
+import { useLocation, useNavigate, useParams } from "react-router-dom"; // Import useParams
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,9 +22,13 @@ import {
   Target,
   Activity,
   TrendingUp,
-  Dumbbell
+  Dumbbell,
+  Trash2,
+  Edit,
+  Loader2
 } from "lucide-react";
 import AssignWorkoutDialog from "@/components/AssignWorkoutDialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface Exercise {
   id: string;
@@ -40,6 +44,17 @@ interface Exercise {
   rest_time?: number;
 }
 
+interface WorkoutTemplateExercise {
+  id: string; // Add ID for deletion
+  exercise: Exercise;
+  order_index: number;
+  sets?: number;
+  reps?: number;
+  weight_kg?: number;
+  rest_time?: number;
+  notes?: string;
+}
+
 interface WorkoutTemplate {
   id: string;
   name: string;
@@ -49,51 +64,52 @@ interface WorkoutTemplate {
   estimated_duration: number;
   equipment_needed: string[];
   is_public: boolean;
-  exercises?: {
-    exercise: Exercise;
-    order_index: number;
-    sets?: number;
-    reps?: number;
-    weight_kg?: number;
-    rest_time?: number;
-    notes?: string;
-  }[];
+  workout_template_exercises?: WorkoutTemplateExercise[];
 }
 
 const Workouts = () => {
   const location = useLocation();
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
+  const { workoutId: editingWorkoutId } = useParams<{ workoutId: string }>(); // Get workoutId from URL for editing
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState(location.state?.suggestedWorkout ? "creator" : "templates");
+  const [activeTab, setActiveTab] = useState(editingWorkoutId ? "creator" : "templates"); // Set tab to creator if editing
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutTemplate | null>(null);
-
-  // Create template form state
-  const [newTemplate, setNewTemplate] = useState({
-    name: "",
-    description: "",
-    category: "Força",
-    difficulty: "Iniciante" as "Iniciante" | "Intermediário" | "Avançado",
-    estimated_duration: 60,
-    equipment_needed: [] as string[],
-    is_public: false
-  });
-  const [selectedExercises, setSelectedExercises] = useState<any[]>([]);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [workoutToEdit, setWorkoutToEdit] = useState<WorkoutTemplate | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchData();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (editingWorkoutId && workoutTemplates.length > 0) {
+      const foundWorkout = workoutTemplates.find(wt => wt.id === editingWorkoutId);
+      if (foundWorkout) {
+        setWorkoutToEdit(foundWorkout);
+        setActiveTab("creator"); // Ensure creator tab is active when editing
+      } else {
+        // If not found, navigate back to templates and show error
+        toast({
+          title: "Erro",
+          description: "Treino não encontrado para edição.",
+          variant: "destructive"
+        });
+        navigate('/workouts');
+      }
+    } else if (!editingWorkoutId && activeTab === "creator") {
+      setWorkoutToEdit(null); // Clear editing state if not in edit mode
+    }
+  }, [editingWorkoutId, workoutTemplates, navigate, toast]);
+
 
   const fetchData = async () => {
     try {
@@ -112,7 +128,7 @@ const Workouts = () => {
         .select(`
           *,
           workout_template_exercises (
-            order_index,
+            id, order_index,
             sets,
             reps,
             weight_kg,
@@ -145,6 +161,46 @@ const Workouts = () => {
 
   const handleViewWorkout = (workoutId: string) => {
     navigate(`/workouts/${workoutId}`);
+  };
+
+  const handleEditWorkout = (workoutId: string) => {
+    navigate(`/workouts/edit/${workoutId}`);
+  };
+
+  const handleDeleteWorkout = async (workoutId: string) => {
+    setIsDeleting(true);
+    try {
+      // Delete associated workout_template_exercises first
+      const { error: deleteExercisesError } = await supabase
+        .from('workout_template_exercises')
+        .delete()
+        .eq('workout_template_id', workoutId);
+
+      if (deleteExercisesError) throw deleteExercisesError;
+
+      // Then delete the workout template
+      const { error: deleteTemplateError } = await supabase
+        .from('workout_templates')
+        .delete()
+        .eq('id', workoutId);
+
+      if (deleteTemplateError) throw deleteTemplateError;
+
+      toast({
+        title: "Sucesso!",
+        description: "Treino excluído com sucesso."
+      });
+      fetchData(); // Refresh the list
+    } catch (err: any) {
+      console.error("Error deleting workout:", err);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o treino: " + err.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const categories = ["all", "Força", "Cardio", "Funcional", "HIIT", "Flexibilidade"];
@@ -190,10 +246,15 @@ const Workouts = () => {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(value) => {
+        setActiveTab(value);
+        if (value !== "creator") {
+          navigate('/workouts'); // Clear edit state from URL
+        }
+      }} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="templates">Modelos de Treino</TabsTrigger>
-          <TabsTrigger value="creator">Criar Treino</TabsTrigger>
+          <TabsTrigger value="creator">Criar/Editar Treino</TabsTrigger>
           <TabsTrigger value="library">Biblioteca de Exercícios</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
@@ -251,7 +312,7 @@ const Workouts = () => {
                       <div className="text-xs text-muted-foreground">Minutos</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">{template.exercises?.length || 0}</div>
+                      <div className="text-2xl font-bold text-primary">{template.workout_template_exercises?.length || 0}</div>
                       <div className="text-xs text-muted-foreground">Exercícios</div>
                     </div>
                     <div className="text-center">
@@ -278,9 +339,34 @@ const Workouts = () => {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleViewWorkout(template.id)}> {/* ADDED onClick */}
+                      <Button variant="outline" size="sm" onClick={() => handleViewWorkout(template.id)}>
                         Visualizar
                       </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleEditWorkout(template.id)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm" disabled={isDeleting}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta ação não pode ser desfeita. Isso excluirá permanentemente o modelo de treino "{template.name}" e todos os seus exercícios associados.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteWorkout(template.id)} disabled={isDeleting}>
+                              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                       <Button size="sm" className="gradient-primary text-white" onClick={() => handleAssignClick(template)}>
                         Atribuir
                       </Button>
@@ -306,7 +392,7 @@ const Workouts = () => {
         </TabsContent>
 
         <TabsContent value="creator" className="space-y-6">
-          <WorkoutCreator onSave={fetchData} editingWorkout={location.state?.suggestedWorkout} />
+          <WorkoutCreator onSave={fetchData} editingWorkout={workoutToEdit} onCancel={() => navigate('/workouts')} />
         </TabsContent>
 
         <TabsContent value="library" className="space-y-6">
