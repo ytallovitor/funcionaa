@@ -60,23 +60,41 @@ interface WorkoutCreatorProps {
 const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [workoutName, setWorkoutName] = useState(editingWorkout?.name || "");
-  const [workoutDescription, setWorkoutDescription] = useState(editingWorkout?.description || "");
-  const [workoutCategory, setWorkoutCategory] = useState(editingWorkout?.category || "");
-  const [workoutDifficulty, setWorkoutDifficulty] = useState(editingWorkout?.difficulty || "");
+  const [workoutName, setWorkoutName] = useState("");
+  const [workoutDescription, setWorkoutDescription] = useState("");
+  const [workoutCategory, setWorkoutCategory] = useState("");
+  const [workoutDifficulty, setWorkoutDifficulty] = useState("");
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
   const [estimatedDuration, setEstimatedDuration] = useState(0);
-  const [isPublic, setIsPublic] = useState(editingWorkout?.is_public || false);
-  const [equipmentNeeded, setEquipmentNeeded] = useState<string[]>(editingWorkout?.equipment_needed || []);
+  const [isPublic, setIsPublic] = useState(false);
+  const [equipmentNeeded, setEquipmentNeeded] = useState<string[]>([]);
 
   useEffect(() => {
-    // Calculate estimated duration when exercises change
+    if (editingWorkout) {
+      setWorkoutName(editingWorkout.name || "");
+      setWorkoutDescription(editingWorkout.description || "");
+      setWorkoutCategory(editingWorkout.category || "");
+      setWorkoutDifficulty(editingWorkout.difficulty || "");
+      setIsPublic(editingWorkout.is_public || false);
+      
+      const exercises = editingWorkout.exercises?.map((ex: any, index: number) => ({
+        ...ex,
+        order_index: index
+      })) || [];
+      setWorkoutExercises(exercises);
+    }
+  }, [editingWorkout]);
+
+  useEffect(() => {
     const totalDuration = workoutExercises.reduce((total, workoutExercise) => {
-      const exerciseTime = workoutExercise.duration || (workoutExercise.sets * 60); // 60 seconds per set estimate
+      const exerciseTime = workoutExercise.duration || (workoutExercise.sets * 60);
       const restTime = workoutExercise.sets * workoutExercise.rest_time;
       return total + exerciseTime + restTime;
     }, 0);
-    setEstimatedDuration(Math.round(totalDuration / 60)); // Convert to minutes
+    setEstimatedDuration(Math.round(totalDuration / 60));
+
+    const allEquipment = workoutExercises.flatMap(we => we.exercise.equipment);
+    setEquipmentNeeded([...new Set(allEquipment)]);
   }, [workoutExercises]);
 
   const handleAddExercise = (exercise: Exercise) => {
@@ -93,12 +111,6 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
     
     setWorkoutExercises([...workoutExercises, newWorkoutExercise]);
     
-    // Update equipment needed
-    const newEquipment = exercise.equipment.filter(eq => !equipmentNeeded.includes(eq));
-    if (newEquipment.length > 0) {
-      setEquipmentNeeded([...equipmentNeeded, ...newEquipment]);
-    }
-
     toast({
       title: "Exercício Adicionado",
       description: `${exercise.name} foi adicionado ao treino`
@@ -142,7 +154,6 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
         return;
       }
 
-      // Create workout template
       const { data: workoutTemplate, error: workoutError } = await supabase
         .from('workout_templates')
         .insert({
@@ -160,7 +171,6 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
 
       if (workoutError) throw workoutError;
 
-      // Add exercises to workout template
       const exercisePromises = workoutExercises.map((workoutExercise, index) => {
         return supabase.from('workout_template_exercises').insert({
           workout_template_id: workoutTemplate.id,
@@ -182,7 +192,6 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
         description: "Treino criado com sucesso"
       });
 
-      // Reset form
       setWorkoutName("");
       setWorkoutDescription("");
       setWorkoutCategory("");
@@ -206,7 +215,6 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
 
   return (
     <div className="grid lg:grid-cols-3 gap-6">
-      {/* Workout Configuration */}
       <div className="lg:col-span-2 space-y-6">
         <Card>
           <CardHeader>
@@ -295,7 +303,6 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
           </CardContent>
         </Card>
 
-        {/* Exercise List */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -398,7 +405,6 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
           </CardContent>
         </Card>
 
-        {/* Actions */}
         <div className="flex gap-2">
           <Button 
             onClick={handleSaveWorkout}
@@ -415,7 +421,6 @@ const WorkoutCreator = ({ onSave, editingWorkout }: WorkoutCreatorProps) => {
         </div>
       </div>
 
-      {/* Exercise Library */}
       <div className="lg:col-span-1">
         <ExerciseLibrary onSelectExercise={handleAddExercise} compact />
       </div>

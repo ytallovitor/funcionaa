@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Search, Plus, Activity, Calendar, Loader2, Edit, Dumbbell } from "lucide-react";
+import { Users, Search, Plus, Activity, Calendar, Loader2, Edit, Dumbbell, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import StudentPortalManager from "@/components/StudentPortalManager";
 import EditStudentDialog from "@/components/EditStudentDialog";
 import StudentWorkoutManager from "@/components/StudentWorkoutManager";
+import AnamnesisForm from "@/components/AnamnesisForm";
 
 interface Student {
   id: string;
@@ -38,6 +39,8 @@ const Students = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [managingWorkoutsFor, setManagingWorkoutsFor] = useState<Student | null>(null);
   const [isWorkoutManagerOpen, setIsWorkoutManagerOpen] = useState(false);
+  const [anamnesisStudent, setAnamnesisStudent] = useState<Student | null>(null);
+  const [isAnamnesisOpen, setIsAnamnesisOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     birth_date: "",
@@ -347,12 +350,12 @@ const Students = () => {
                     size="sm" 
                     variant="outline" 
                     onClick={() => {
-                      setEditingStudent(student);
-                      setIsEditDialogOpen(true);
+                      setAnamnesisStudent(student);
+                      setIsAnamnesisOpen(true);
                     }}
                   >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
+                    <FileText className="h-4 w-4 mr-2" />
+                    Anamnese
                   </Button>
                   <Button 
                     size="sm" 
@@ -411,6 +414,12 @@ const Students = () => {
         open={isWorkoutManagerOpen}
         onOpenChange={setIsWorkoutManagerOpen}
         onWorkoutsUpdated={fetchStudents}
+      />
+
+      <AnamnesisForm
+        student={anamnesisStudent}
+        open={isAnamnesisOpen}
+        onOpenChange={setIsAnamnesisOpen}
       />
     </div>
   );

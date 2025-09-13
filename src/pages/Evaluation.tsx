@@ -7,6 +7,7 @@ import EvaluationMethodSelector from "@/components/EvaluationMethodSelector";
 import CircumferencesEvaluation from "@/components/CircumferencesEvaluation";
 import SkinfoldsEvaluation from "@/components/SkinfoldsEvaluation";
 import { Loader2 } from "lucide-react";
+import WorkoutSuggestionDialog from "@/components/WorkoutSuggestionDialog";
 
 interface Student {
   id: string;
@@ -25,7 +26,7 @@ const Evaluation = () => {
   
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentStep, setCurrentStep] = useState<'method' | 'evaluation'>('method');
+  const [currentStep, setCurrentStep] = useState<'method' | 'evaluation' | 'suggestion'>('method');
   const [selectedMethod, setSelectedMethod] = useState<'circumferences' | 'skinfolds'>('circumferences');
 
   const studentId = searchParams.get('student');
@@ -80,7 +81,7 @@ const Evaluation = () => {
   };
 
   const handleEvaluationSuccess = () => {
-    navigate('/students');
+    setCurrentStep('suggestion');
   };
 
   if (loading) {
@@ -97,6 +98,15 @@ const Evaluation = () => {
 
   if (currentStep === 'method') {
     return <EvaluationMethodSelector onMethodSelect={handleMethodSelect} />;
+  }
+
+  if (currentStep === 'suggestion') {
+    return (
+      <WorkoutSuggestionDialog
+        student={student}
+        onClose={() => navigate('/students')}
+      />
+    );
   }
 
   return selectedMethod === 'circumferences' ? (

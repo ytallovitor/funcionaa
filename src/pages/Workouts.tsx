@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,9 +61,10 @@ interface WorkoutTemplate {
 }
 
 const Workouts = () => {
+  const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("templates");
+  const [activeTab, setActiveTab] = useState(location.state?.suggestedWorkout ? "creator" : "templates");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
@@ -96,7 +98,6 @@ const Workouts = () => {
     try {
       setLoading(true);
       
-      // Get user profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -105,7 +106,6 @@ const Workouts = () => {
       
       setUserProfile(profile);
 
-      // Fetch workout templates
       const { data: templates, error: templatesError } = await supabase
         .from('workout_templates')
         .select(`
@@ -125,24 +125,6 @@ const Workouts = () => {
       if (templatesError) throw templatesError;
       setWorkoutTemplates(templates || []);
 
-      // Fetch exercises
-      const { data: exercisesData, error: exercisesError } = await supabase
-        .from('exercises')
-        .select('*')
-        .order('name');
-
-      if (exercisesError) throw exercisesError;
-      setExercises(exercisesData || []);
-
-      // Fetch students
-      const { data: studentsData, error: studentsError } = await supabase
-        .from('students')
-        .select('*')
-        .eq('trainer_id', profile?.id);
-
-      if (studentsError) throw studentsError;
-      setStudents(studentsData || []);
-
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -153,94 +135,6 @@ const Workouts = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const createWorkoutTemplate = async () => {
-    if (!userProfile) return;
-
-    try {
-      // Create the workout template
-      const { data: template, error: templateError } = await supabase
-        .from('workout_templates')
-        .insert({
-          trainer_id: userProfile.id,
-          name: newTemplate.name,
-          description: newTemplate.description,
-          category: newTemplate.category,
-          difficulty: newTemplate.difficulty,
-          estimated_duration: newTemplate.estimated_duration,
-          equipment_needed: newTemplate.equipment_needed,
-          is_public: newTemplate.is_public
-        })
-        .select()
-        .single();
-
-      if (templateError) throw templateError;
-
-      // Add exercises to the template
-      if (selectedExercises.length > 0) {
-        const exerciseEntries = selectedExercises.map((exercise, index) => ({
-          workout_template_id: template.id,
-          exercise_id: exercise.exercise.id,
-          order_index: index + 1,
-          sets: exercise.sets || exercise.exercise.sets,
-          reps: exercise.reps || exercise.exercise.reps,
-          weight_kg: exercise.weight_kg,
-          rest_time: exercise.rest_time || exercise.exercise.rest_time,
-          notes: exercise.notes
-        }));
-
-        const { error: exerciseError } = await supabase
-          .from('workout_template_exercises')
-          .insert(exerciseEntries);
-
-        if (exerciseError) throw exerciseError;
-      }
-
-      toast({
-        title: "Sucesso!",
-        description: "Modelo de treino criado com sucesso"
-      });
-
-      // Reset form and close dialog
-      setNewTemplate({
-        name: "",
-        description: "",
-        category: "Força",
-        difficulty: "Iniciante",
-        estimated_duration: 60,
-        equipment_needed: [],
-        is_public: false
-      });
-      setSelectedExercises([]);
-      setIsCreateDialogOpen(false);
-      
-      // Refresh data
-      fetchData();
-
-    } catch (error) {
-      console.error('Error creating workout template:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível criar o modelo de treino",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const addExerciseToTemplate = (exercise: Exercise) => {
-    setSelectedExercises([...selectedExercises, {
-      exercise,
-      sets: exercise.sets || 3,
-      reps: exercise.reps || 12,
-      weight_kg: 0,
-      rest_time: exercise.rest_time || 60,
-      notes: ""
-    }]);
-  };
-
-  const removeExerciseFromTemplate = (index: number) => {
-    setSelectedExercises(selectedExercises.filter((_, i) => i !== index));
   };
 
   const handleAssignClick = (template: WorkoutTemplate) => {
@@ -288,130 +182,6 @@ const Workouts = () => {
           <p className="text-muted-foreground mt-2">
             Gerencie treinos, templates e acompanhe o progresso dos alunos
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gradient-primary text-white">
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Modelo
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Criar Novo Modelo de Treino</DialogTitle>
-                <DialogDescription>
-                  Configure um novo modelo de treino que pode ser atribuído aos seus alunos
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Nome do Treino</Label>
-                    <Input
-                      id="name"
-                      value={newTemplate.name}
-                      onChange={(e) => setNewTemplate({...newTemplate, name: e.target.value})}
-                      placeholder="Ex: Treino de Peito e Tríceps"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="category">Categoria</Label>
-                    <Select value={newTemplate.category} onValueChange={(value) => setNewTemplate({...newTemplate, category: value})}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Força">Força</SelectItem>
-                        <SelectItem value="Cardio">Cardio</SelectItem>
-                        <SelectItem value="Funcional">Funcional</SelectItem>
-                        <SelectItem value="HIIT">HIIT</SelectItem>
-                        <SelectItem value="Flexibilidade">Flexibilidade</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="difficulty">Dificuldade</Label>
-                    <Select value={newTemplate.difficulty} onValueChange={(value: any) => setNewTemplate({...newTemplate, difficulty: value})}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Iniciante">Iniciante</SelectItem>
-                        <SelectItem value="Intermediário">Intermediário</SelectItem>
-                        <SelectItem value="Avançado">Avançado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="duration">Duração Estimada (minutos)</Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      value={newTemplate.estimated_duration}
-                      onChange={(e) => setNewTemplate({...newTemplate, estimated_duration: parseInt(e.target.value)})}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={newTemplate.description}
-                    onChange={(e) => setNewTemplate({...newTemplate, description: e.target.value})}
-                    placeholder="Descreva o treino e seus objetivos..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <Label>Exercícios Selecionados</Label>
-                    <div className="border rounded-lg p-3 max-h-40 overflow-y-auto">
-                      {selectedExercises.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">Nenhum exercício selecionado</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {selectedExercises.map((item, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-accent/50 rounded">
-                              <span className="text-sm font-medium">{item.exercise.name}</span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeExerciseFromTemplate(index)}
-                              >
-                                ×
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="col-span-2">
-                    <ExerciseLibrary onSelectExercise={addExerciseToTemplate} compact />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button 
-                    onClick={createWorkoutTemplate}
-                    disabled={!newTemplate.name || selectedExercises.length === 0}
-                    className="gradient-primary text-white"
-                  >
-                    Criar Modelo
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
@@ -531,7 +301,7 @@ const Workouts = () => {
         </TabsContent>
 
         <TabsContent value="creator" className="space-y-6">
-          <WorkoutCreator onSave={fetchData} />
+          <WorkoutCreator onSave={fetchData} editingWorkout={location.state?.suggestedWorkout} />
         </TabsContent>
 
         <TabsContent value="library" className="space-y-6">
