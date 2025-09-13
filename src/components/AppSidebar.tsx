@@ -42,7 +42,7 @@ export function AppSidebar() {
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
       ? "bg-primary text-primary-foreground font-medium"
-      : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
   return (
     <Sidebar
@@ -69,7 +69,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="text-sidebar-foreground">
+            <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
@@ -87,7 +87,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>V2.0 Features</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="text-sidebar-foreground">
+            <SidebarMenu>
               {v2Items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
