@@ -1,18 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Wand2, ArrowRight, Check, AlertCircle } from "lucide-react";
+import { Loader2, Wand2, ArrowRight, Check, AlertCircle, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar } from "@/components/ui/calendar";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 interface Student {
   id: string;
@@ -30,14 +29,14 @@ interface AnamnesisSummary {
   training_experience?: string;
   main_goal?: string;
   barriers_to_training?: string;
-  equipment_available?: string[]; // Inferido ou perguntado
+  equipment_available?: string[];
   preferred_training_times?: string;
 }
 
 interface WorkoutParams {
   daysPerWeek: number;
   workoutType: 'forca' | 'funcional' | 'cardio' | 'hiit' | 'flexibilidade';
-  focusArea: string; // Ex: upper body, lower body, full body
+  focusArea: string;
   equipmentAvailable: string[];
   specialNotes?: string;
 }
@@ -50,6 +49,7 @@ interface WorkoutSuggestionDialogProps {
 const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [step, setStep] = useState<'initial' | 'params' | 'generating'>('initial');
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasAnamnesis, setHasAnamnesis] = useState<boolean | null>(null);
@@ -60,283 +60,348 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
     equipmentAvailable: [],
     specialNotes: ''
   });
+  const [trainerId, setTrainerId] = useState<string | null>(null); // Fetch real trainer ID
 
-  // Fallback exercises com embasamento científico (baseado em ACSM/NSCA guidelines)
+  // Fallback exercises científicos (inseridos no DB se necessário)
   const scientificFallbackExercises = [
-    // Força/Hipertrofia: 8-12 reps, 3-4 sets, 60-90s rest (ACSM)
     {
-      id: "sci-1",
       name: "Agachamento Livre",
       category: "Força",
-      muscle_groups: ["Quadríceps", "Glúteos", "Core"],
       difficulty: "Iniciante",
+      muscle_groups: ["Quadríceps", "Glúteos", "Core"],
       equipment: ["Barra", "Rack"],
-      instructions: [
-        "Posição inicial: pés na largura dos ombros, barra nos trapézios.",
-        "Desça flexionando joelhos e quadris até coxas paralelas ao chão.",
-        "Mantenha coluna neutra e joelhos alinhados com pés.",
-        "Suba empurrando calcanhares, contraindo glúteos no topo."
-      ],
-      tips: [
-        "Embasamento: Ativa 70% dos músculos inferiores (Estudo JSCR 2018).",
-        "Progressão: Aumente 2.5kg/semana para overload progressivo.",
-        "Segurança: Evite hiperextensão lombar."
-      ],
-      duration: 0,
-      reps: 10, // Hipertrofia range
+      instructions: ["Posição inicial: pés na largura dos ombros, barra nos trapézios.", "Desça flexionando joelhos e quadris até coxas paralelas ao chão.", "Mantenha coluna neutra e joelhos alinhados com pés.", "Suba empurrando calcanhares, contraindo glúteos no topo."],
+      tips: ["Embasamento: Ativa 70% dos músculos inferiores (Estudo JSCR 2018).", "Progressão: Aumente 2.5kg/semana para overload progressivo.", "Segurança: Evite hiperextensão lombar."],
       sets: 3,
-      rest_time: 90, // Para recuperação ATP-CP
-      video_url: "",
-      image_url: ""
+      reps: 10,
+      rest_time: 90,
+      duration: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
-    // Cardio/Endurance: 12-15 reps ou 20-30s, circuitos (NSCA)
     {
-      id: "sci-2",
       name: "Burpee",
       category: "HIIT/Cardio",
-      muscle_groups: ["Full Body", "Cardiovascular"],
       difficulty: "Iniciante",
+      muscle_groups: ["Full Body", "Cardiovascular"],
       equipment: [],
-      instructions: [
-        "De pé, agache e apoie mãos no chão.",
-        "Pule pés para trás em prancha.",
-        "Faça flexão ou pule diretamente para flexionar joelhos.",
-        "Pule de volta em pé, batendo palmas acima da cabeça."
-      ],
-      tips: [
-        "Embasamento: Queima 10-15kcal/min, melhora VO2 max (ACSM 2021).",
-        "Modificação: Sem flexão para iniciantes.",
-        "Benefício: EPOC elevado para perda de gordura pós-treino."
-      ],
-      duration: 30, // Tempo para HIIT
-      reps: 0,
+      instructions: ["De pé, agache e apoie mãos no chão.", "Pule pés para trás em prancha.", "Faça flexão ou pule diretamente para flexionar joelhos.", "Pule de volta em pé, batendo palmas acima da cabeça."],
+      tips: ["Embasamento: Queima 10-15kcal/min, melhora VO2 max (ACSM 2021).", "Modificação: Sem flexão para iniciantes.", "Benefício: EPOC elevado para perda de gordura pós-treino."],
       sets: 3,
-      rest_time: 60, // Para manter frequência cardíaca elevada
-      video_url: "",
-      image_url: ""
+      reps: 0,
+      rest_time: 60,
+      duration: 30,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
-    // Funcional/Core: 15-20 reps, 2-3 sets, 30-60s rest
     {
-      id: "sci-3",
       name: "Prancha com Elevação de Pernas",
       category: "Funcional",
-      muscle_groups: ["Core", "Estabilizadores"],
       difficulty: "Iniciante",
+      muscle_groups: ["Core", "Estabilizadores"],
       equipment: [],
-      instructions: [
-        "Posição prancha nos antebraços.",
-        "Alternadamente, eleve uma perna 15cm do chão.",
-        "Mantenha quadris estáveis, sem rotação.",
-        "Troque de perna a cada 5 reps."
-      ],
-      tips: [
-        "Embasamento: Ativa transverso abdominal 30% mais que crunch (JOSPT 2019).",
-        "Progressão: Adicione peso nas pernas após 4 semanas.",
-        "Segurança: Pare se sentir dor lombar."
-      ],
-      duration: 45,
-      reps: 10, // Por perna
+      instructions: ["Posição prancha nos antebraços.", "Alternadamente, eleve uma perna 15cm do chão.", "Mantenha quadris estáveis, sem rotação.", "Troque de perna a cada 5 reps."],
+      tips: ["Embasamento: Ativa transverso abdominal 30% mais que crunch (JOSPT 2019).", "Progressão: Adicione peso nas pernas após 4 semanas.", "Segurança: Pare se sentir dor lombar."],
       sets: 3,
+      reps: 10,
       rest_time: 45,
-      video_url: "",
-      image_url: ""
+      duration: 45,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
-    // Perda de Gordura: Higher reps + cardio
     {
-      id: "sci-4",
       name: "Remada Unilateral com Haltere",
       category: "Força",
-      muscle_groups: ["Costas", "Bíceps"],
       difficulty: "Iniciante",
+      muscle_groups: ["Costas", "Bíceps"],
       equipment: ["Haltere", "Banco"],
-      instructions: [
-        "Apoie um joelho e mão no banco, outra mão com haltere.",
-        "Puxe haltere em direção ao quadril, contraindo escápula.",
-        "Desça controladamente até extensão completa do braço.",
-        "Troque de lado após série."
-      ],
-      tips: [
-        "Embasamento: Melhora postura e equilíbrio muscular (ACSM).",
-        "Para perda de gordura: Use 12-15 reps com 60s rest.",
-        "Foco: Contração isométrica no topo por 1s."
-      ],
-      duration: 0,
-      reps: 12,
+      instructions: ["Apoie um joelho e mão no banco, outra mão com haltere.", "Puxe haltere em direção ao quadril, contraindo escápula.", "Desça controladamente até extensão completa do braço.", "Troque de lado após série."],
+      tips: ["Embasamento: Melhora postura e equilíbrio muscular (ACSM).", "Para perda de gordura: Use 12-15 reps com 60s rest.", "Foco: Contração isométrica no topo por 1s."],
       sets: 3,
+      reps: 12,
       rest_time: 60,
-      video_url: "",
-      image_url: ""
+      duration: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
-    // Flexibilidade/Mobilidade
     {
-      id: "sci-5",
       name: "Alongamento de Isquiotibiais",
       category: "Flexibilidade",
-      muscle_groups: ["Posterior da Coxa"],
       difficulty: "Iniciante",
+      muscle_groups: ["Posterior da Coxa"],
       equipment: [],
-      instructions: [
-        "Sente no chão com pernas estendidas.",
-        "Incline tronco para frente alcançando pés.",
-        "Mantenha respiração normal, segure 20-30s.",
-        "Repita com leve oscilação para alongar mais."
-      ],
-      tips: [
-        "Embasamento: Reduz risco de lesão em 20% (NSCA).",
-        "Frequência: 3x/semana pós-treino.",
-        "Não force: Sinta alongamento, não dor."
-      ],
-      duration: 30,
-      reps: 0,
+      instructions: ["Sente no chão com pernas estendidas.", "Incline tronco para frente alcançando pés.", "Mantenha respiração normal, segure 20-30s.", "Repita com leve oscilação para alongar mais."],
+      tips: ["Embasamento: Reduz risco de lesão em 20% (NSCA).", "Frequência: 3x/semana pós-treino.", "Não force: Sinta alongamento, não dor."],
       sets: 3,
+      reps: 0,
       rest_time: 10,
-      video_url: "",
-      image_url: ""
+      duration: 30,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
-    // Full Body para iniciantes
     {
-      id: "sci-6",
       name: "Flexão de Braço Modificada",
       category: "Força",
-      muscle_groups: ["Peitoral", "Tríceps"],
       difficulty: "Iniciante",
+      muscle_groups: ["Peitoral", "Tríceps"],
       equipment: [],
-      instructions: [
-        "Em posição de prancha, joelhos no chão.",
-        "Desça peito em direção ao chão.",
-        "Empurre de volta à posição inicial.",
-        "Mantenha core contraído."
-      ],
-      tips: [
-        "Embasamento: Ativa 60% dos músculos superiores (JSCR).",
-        "Progressão: De joelhos para full push-up em 4 semanas.",
-        "Respiração: Expire na subida."
-      ],
-      duration: 0,
-      reps: 8,
+      instructions: ["Em posição de prancha, joelhos no chão.", "Desça peito em direção ao chão.", "Empurre de volta à posição inicial.", "Mantenha core contraído."],
+      tips: ["Embasamento: Ativa 60% dos músculos superiores (JSCR).", "Progressão: De joelhos para full push-up em 4 semanas.", "Respiração: Expire na subida."],
       sets: 3,
+      reps: 8,
       rest_time: 60,
-      video_url: "",
-      image_url: ""
+      duration: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
   ];
+
+  useEffect(() => {
+    if (user) {
+      fetchTrainerProfile();
+    }
+  }, [user]);
+
+  const fetchTrainerProfile = async () => {
+    if (!user) return;
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error) {
+      console.error("Error fetching trainer profile:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar o perfil do treinador. Tente novamente.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setTrainerId(profile.id);
+  };
 
   // Verifica se Anamnese está preenchida (campos chave)
   const checkAnamnesis = async () => {
     const { data: anamnesis } = await supabase
       .from('anamnesis')
-      .select('main_goal, training_experience, barriers_to_training, equipment_available, preferred_training_times')
+      .select('main_goal, training_experience, barriers_to_training, physical_activity_work, preferred_training_times')
       .eq('student_id', student.id)
       .single();
 
-    const hasKeyFields = anamnesis?.main_goal && anamnesis?.training_experience && 
-                         (anamnesis?.barriers_to_training || anamnesis?.preferred_training_times);
+    const hasKeyFields = anamnesis?.main_goal && anamnesis?.training_experience &&
+                         (anamnesis?.barriers_to_training || anamnesis?.preferred_training_times || anamnesis?.physical_activity_work);
 
     setHasAnamnesis(!!hasKeyFields);
     return hasKeyFields;
   };
 
-  // Gera treino baseado em parâmetros científicos (ACSM/NSCA guidelines)
-  const generateScientificWorkout = (params: WorkoutParams, anamnesis?: AnamnesisSummary) => {
-    let exercises = [];
-    let totalDuration = 0;
-
-    // Baseado no objetivo do aluno
-    const objectiveGuidelines = {
-      perder_gordura: { reps: 12-15, sets: 3, rest: 45-60, type: 'funcional', focus: 'full_body' },
-      ganhar_massa: { reps: 8-12, sets: 3-4, rest: 90-120, type: 'forca', focus: 'hipertrofia' },
-      manter_peso: { reps: 10-12, sets: 3, rest: 60-90, type: 'funcional', focus: 'manutencao' }
-    };
-
-    const guidelines = objectiveGuidelines[student.goal as keyof typeof objectiveGuidelines] || 
-                       { reps: 10-12, sets: 3, rest: 60, type: 'forca', focus: 'full_body' };
-
-    // Ajusta por tipo de treino
-    if (params.workoutType === 'cardio' || params.workoutType === 'hiit') {
-      guidelines.reps = 0; // Tempo-based
-      guidelines.rest = 30-60;
-    } else if (params.workoutType === 'flexibilidade') {
-      guidelines.sets = 2;
-      guidelines.reps = 0;
-      guidelines.duration = 30; // Segundos por alongamento
+  // Função assíncrona para gerar e inserir treino completo no DB
+  const generateScientificWorkout = async (currentParams: WorkoutParams, anamnesis?: AnamnesisSummary) => {
+    if (!trainerId) {
+      toast({
+        title: "Erro",
+        description: "ID do treinador não encontrado. Faça login novamente.",
+        variant: "destructive"
+      });
+      setIsGenerating(false);
+      return;
     }
 
-    // Fetch exercises específicos do DB com filtros científicos
-    const query = supabase
-      .from('exercises')
-      .select('*')
-      .eq('category', params.workoutType === 'forca' ? 'Força' : params.workoutType.charAt(0).toUpperCase() + params.workoutType.slice(1))
-      .eq('difficulty', student.age < 30 ? 'Iniciante' : 'Intermediário') // Ajuste por idade
-      .in('muscle_groups', params.focusArea.includes('full') ? ['Full Body', 'Quadríceps', 'Peitoral', 'Costas'] : [params.focusArea])
-      .in('equipment', params.equipmentAvailable.length > 0 ? params.equipmentAvailable : ['Nenhum']) // Prioriza equipamentos disponíveis
-      .limit(params.daysPerWeek * 2); // 2 exercícios por dia
+    try {
+      // Passo 1: Buscar exercícios reais do DB com filtros
+      const { data: exercisesFromDB, error: fetchError } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('category', currentParams.workoutType === 'forca' ? 'Força' : currentParams.workoutType.charAt(0).toUpperCase() + currentParams.workoutType.slice(1))
+        .eq('difficulty', student.age && student.age < 30 ? 'Iniciante' : 'Intermediário') // Ajuste por idade
+        .in('muscle_groups', currentParams.focusArea.includes('full') ? ['Full Body', 'Quadríceps', 'Peitoral', 'Costas', 'Ombros', 'Tríceps', 'Bíceps', 'Glúteos', 'Panturrilhas', 'Core'] : [currentParams.focusArea])
+        .overlaps('equipment', currentParams.equipmentAvailable.length > 0 ? currentParams.equipmentAvailable : ['Nenhum']) // Prioriza equipamentos disponíveis
+        .limit(currentParams.daysPerWeek * 3) // 3 exercícios por dia, mais buffer
+        .order('name');
 
-    // Executa query e usa fallback se vazio
-    query.then(({ data, error }) => {
-      if (error || data?.length === 0) {
-        exercises = scientificFallbackExercises.filter(ex => 
-          ex.category.toLowerCase().includes(params.workoutType) &&
-          ex.muscle_groups.some(mg => mg.toLowerCase().includes(params.focusArea))
-        ).slice(0, params.daysPerWeek * 2);
-      } else {
-        exercises = data;
+      let exercises = exercisesFromDB || [];
+
+      // Se DB vazio ou poucos exercícios, insere fallback e usa IDs
+      if (exercises.length < currentParams.daysPerWeek * 2) {
+        const { data: existingFallbackExercises } = await supabase
+          .from('exercises')
+          .select('id, name')
+          .in('name', scientificFallbackExercises.map(ex => ex.name));
+
+        const exercisesToInsert = scientificFallbackExercises.filter(
+          fbEx => !existingFallbackExercises?.some(ex => ex.name === fbEx.name)
+        );
+
+        if (exercisesToInsert.length > 0) {
+          const { data: insertedExercises, error: insertError } = await supabase
+            .from('exercises')
+            .insert(exercisesToInsert)
+            .select();
+
+          if (insertError) throw insertError;
+          exercises = [...exercises, ...insertedExercises];
+        } else {
+          exercises = [...exercises, ...(existingFallbackExercises || [])];
+        }
+
+        toast({
+          title: "Exercícios complementares usados",
+          description: "A biblioteca foi complementada com exercícios científicos padrão (ACSM/NSCA)."
+        });
       }
 
-      // Distribui exercícios por dias (split científico: push/pull/legs ou full body)
-      const daysSplit = params.focusArea === 'full_body' ? 
-        Array.from({ length: params.daysPerWeek }, () => exercises.slice(0, 4)) : // 4 ex por dia full body
-        [ // Exemplo push/pull/legs cycle
-          exercises.filter(ex => ex.muscle_groups.includes('Peitoral') || ex.muscle_groups.includes('Ombros')), // Push
-          exercises.filter(ex => ex.muscle_groups.includes('Costas') || ex.muscle_groups.includes('Bíceps')), // Pull
-          exercises.filter(ex => ex.muscle_groups.includes('Quadríceps') || ex.muscle_groups.includes('Panturrilhas')) // Legs
-        ].slice(0, params.daysPerWeek);
+      // Filtra e randomiza para garantir variedade e quantidade adequada
+      const finalExercises = exercises
+        .filter(ex =>
+          ex.category.toLowerCase().includes(currentParams.workoutType) ||
+          (currentParams.workoutType === 'forca' && ex.category === 'Força') ||
+          (currentParams.workoutType === 'cardio' && ex.category === 'Cardio') ||
+          (currentParams.workoutType === 'hiit' && ex.category === 'HIIT') ||
+          (currentParams.workoutType === 'funcional' && ex.category === 'Funcional') ||
+          (currentParams.workoutType === 'flexibilidade' && ex.category === 'Flexibilidade')
+        )
+        .sort(() => 0.5 - Math.random()) // Randomiza a ordem
+        .slice(0, currentParams.daysPerWeek * 4); // Pega mais exercícios para distribuir
 
-      const workoutDays = daysSplit.map((dayExercises, dayIndex) => ({
-        day: dayIndex + 1,
-        exercises: dayExercises.map((ex, exIndex) => ({
-          exercise: ex,
-          sets: guidelines.sets,
-          reps: typeof guidelines.reps === 'number' ? guidelines.reps : Math.floor(Math.random() * (guidelines.reps[1] - guidelines.reps[0]) + guidelines.reps[0]),
-          rest_time: guidelines.rest,
-          notes: anamnesis?.barriers_to_training ? `Adapte para ${anamnesis.barriers_to_training}` : `Foco em forma correta.`
-        })),
-        duration: dayExercises.reduce((sum, ex) => sum + (ex.duration || (guidelines.sets * 60) + (guidelines.sets * guidelines.rest)), 0) / 60
-      }));
+      if (finalExercises.length === 0) {
+        throw new Error("Nenhum exercício adequado encontrado ou gerado. Tente ajustar os parâmetros.");
+      }
 
-      // Calcula duração total
-      totalDuration = workoutDays.reduce((sum, day) => sum + day.duration, 0);
-
-      // Monta o treino sugerido
-      const suggestedWorkout = {
-        name: `${student.name} - Treino ${params.workoutType} (${params.daysPerWeek} dias/semana)`,
-        description: `Treino personalizado baseado em ${student.goal.replace('_', ' ')}, experiência ${anamnesis?.training_experience || 'iniciante'} e parâmetros informados. Embasamento: ACSM/NSCA guidelines para ${params.workoutType} (reps ${guidelines.reps}, rest ${guidelines.rest}s). Duração total: ${totalDuration} min/semana. Ajustes: ${params.specialNotes || 'Nenhum'}.`,
-        category: params.workoutType,
-        difficulty: student.age < 30 ? 'Iniciante' : 'Intermediário',
-        estimated_duration: totalDuration / params.daysPerWeek, // Por sessão
-        equipment_needed: params.equipmentAvailable,
-        workout_days: workoutDays // Estrutura por dias
+      // Baseado no objetivo do aluno (ACSM/NSCA guidelines)
+      const objectiveGuidelines = {
+        perder_gordura: { reps: [12, 15], sets: 3, rest: [45, 60], type: 'funcional', focus: 'full_body' },
+        ganhar_massa: { reps: [8, 12], sets: [3, 4], rest: [90, 120], type: 'forca', focus: 'hipertrofia' },
+        manter_peso: { reps: [10, 12], sets: 3, rest: [60, 90], type: 'funcional', focus: 'manutencao' }
       };
 
-      // Navega para o criador com a sugestão
-      navigate('/workouts', { 
-        state: { 
-          suggestedWorkout,
-          fromSuggestion: true,
-          scientificBasis: `ACSM/NSCA: ${student.goal === 'perder_gordura' ? 'Higher reps (12-15) para EPOC e queima calórica.' : student.goal === 'ganhar_massa' ? '8-12 reps para hipertrofia sarcoplásmica.' : '10-12 reps para manutenção muscular.'}`
-        } 
+      const guidelines = objectiveGuidelines[student.goal as keyof typeof objectiveGuidelines] ||
+                         { reps: [10, 12], sets: 3, rest: [60, 90], type: 'forca', focus: 'full_body' };
+
+      // Ajusta por tipo de treino
+      let finalGuidelines;
+      if (currentParams.workoutType === 'cardio' || currentParams.workoutType === 'hiit') {
+        finalGuidelines = { ...guidelines, reps: 0, rest: [30, 60], sets: 3, duration: [20, 45] }; // Tempo-based, HIIT curto
+      } else if (currentParams.workoutType === 'flexibilidade') {
+        finalGuidelines = { ...guidelines, sets: 2, reps: 0, duration: [30, 60], rest: [10, 20] };
+      } else {
+        finalGuidelines = { ...guidelines };
+      }
+
+      // Distribui exercícios por dias (split científico: push/pull/legs ou full body baseado em foco)
+      const workoutDaysExercises: any[][] = Array.from({ length: currentParams.daysPerWeek }, () => []);
+      let exerciseIndex = 0;
+
+      for (let day = 0; day < currentParams.daysPerWeek; day++) {
+        const exercisesForDay = [];
+        const numExercisesPerDay = currentParams.focusArea === 'full_body' ? 4 : 3; // 3-4 exercícios por dia
+
+        for (let i = 0; i < numExercisesPerDay; i++) {
+          if (exerciseIndex < finalExercises.length) {
+            exercisesForDay.push(finalExercises[exerciseIndex]);
+            exerciseIndex++;
+          }
+        }
+        workoutDaysExercises[day] = exercisesForDay;
+      }
+
+      // Achata para lista plana com order_index para DB
+      const allTemplateExercises = [];
+      let globalOrderIndex = 0;
+      workoutDaysExercises.forEach((dayExercises) => {
+        dayExercises.forEach((ex) => {
+          const sets = Array.isArray(finalGuidelines.sets)
+            ? Math.floor(Math.random() * (finalGuidelines.sets[1] - finalGuidelines.sets[0] + 1)) + finalGuidelines.sets[0]
+            : finalGuidelines.sets;
+          const reps = Array.isArray(finalGuidelines.reps)
+            ? Math.floor(Math.random() * (finalGuidelines.reps[1] - finalGuidelines.reps[0] + 1)) + finalGuidelines.reps[0]
+            : finalGuidelines.reps;
+          const rest_time = Array.isArray(finalGuidelines.rest)
+            ? Math.floor(Math.random() * (finalGuidelines.rest[1] - finalGuidelines.rest[0] + 1)) + finalGuidelines.rest[0]
+            : finalGuidelines.rest;
+          const duration = Array.isArray(finalGuidelines.duration)
+            ? Math.floor(Math.random() * (finalGuidelines.duration[1] - finalGuidelines.duration[0] + 1)) + finalGuidelines.duration[0]
+            : finalGuidelines.duration;
+
+          allTemplateExercises.push({
+            exercise_id: ex.id,
+            order_index: globalOrderIndex++,
+            sets: sets,
+            reps: reps,
+            rest_time: rest_time,
+            duration: duration,
+            notes: anamnesis?.barriers_to_training ? `Adapte para ${anamnesis.barriers_to_training}. Foco: ${student.goal}.` : `Foco em forma correta. Objetivo: ${student.goal}.`
+          });
+        });
       });
+
+      // Calcula duração total por sessão
+      const estimatedDurationPerSession = allTemplateExercises.slice(0, 4).reduce((sum, te) => { // Primeiros 4 para estimativa por sessão
+        const exerciseTime = te.duration || (te.sets * 60); // 60s por set se não for tempo-base
+        const restTime = (te.sets > 1 ? te.sets - 1 : 0) * (te.rest_time || 60);
+        return sum + exerciseTime + restTime;
+      }, 0) / 60;
+
+      // Passo 2: Inserir o template
+      const { data: insertedTemplate, error: templateError } = await supabase
+        .from('workout_templates')
+        .insert({
+          name: `${student.name} - Treino ${currentParams.workoutType} (${currentParams.daysPerWeek} dias/semana)`,
+          description: `Treino 100% personalizado e criado automaticamente para ${student.name} baseado em: ${student.goal.replace('_', ' ')} (idade ${student.age || 'não informada'}, ${student.body_fat_percentage ? `${student.body_fat_percentage}% gordura` : 'sem composição recente'}). Parâmetros: ${currentParams.daysPerWeek} dias de ${currentParams.workoutType} focado em ${currentParams.focusArea}. Embasamento científico: ACSM/NSCA guidelines adaptadas (reps ${Array.isArray(finalGuidelines.reps) ? finalGuidelines.reps[0] + '-' + finalGuidelines.reps[1] : finalGuidelines.reps}, rest ${Array.isArray(finalGuidelines.rest) ? finalGuidelines.rest[0] + '-' + finalGuidelines.rest[1] : finalGuidelines.rest}s). Notas: ${currentParams.specialNotes || 'Nenhum ajuste especial'}. Duração estimada por sessão: ${Math.round(estimatedDurationPerSession)} min. Total semanal: ${Math.round(estimatedDurationPerSession * currentParams.daysPerWeek)} min. Ajustes baseados em anamnese: ${anamnesis?.barriers_to_training || 'Nenhuma barreira informada'}.`,
+          category: currentParams.workoutType,
+          difficulty: student.age && student.age < 30 ? 'Iniciante' : 'Intermediário',
+          estimated_duration: Math.round(estimatedDurationPerSession),
+          equipment_needed: currentParams.equipmentAvailable,
+          trainer_id: trainerId,
+          is_public: false
+        })
+        .select()
+        .single();
+
+      if (templateError) throw templateError;
+
+      // Passo 3: Inserir exercícios do template (referenciando exercise_id dos fetched/inserted)
+      const { error: exercisesError } = await supabase
+        .from('workout_template_exercises')
+        .insert(allTemplateExercises.map(ex => ({
+          ...ex,
+          workout_template_id: insertedTemplate.id
+        })));
+
+      if (exercisesError) throw exercisesError;
 
       toast({
-        title: "Treino Gerado com Base Científica!",
-        description: `Criado ${params.daysPerWeek}-dia(s) de ${params.workoutType} focado em ${params.focusArea}. Embasamento: ACSM/NSCA guidelines adaptadas aos dados de ${student.name}. Edite no criador!`,
+        title: "Treino Criado com Sucesso!",
+        description: `Treino completo inserido no banco! ${currentParams.daysPerWeek} dias de ${currentParams.workoutType} com ${allTemplateExercises.length} exercícios (ACSM/NSCA adaptado para ${student.goal}). Visualize e edite no menu Treinos.`,
       });
-    });
+
+      // Navega para workouts com o novo template para edição/visualização imediata
+      navigate('/workouts', {
+        state: {
+          newlyCreatedWorkoutId: insertedTemplate.id,
+          fromSuggestion: true,
+          scientificBasis: `ACSM/NSCA: ${student.goal === 'perder_gordura' ? 'Higher reps (12-15) para EPOC e queima calórica.' : student.goal === 'ganhar_massa' ? '8-12 reps para hipertrofia sarcoplásmica.' : '10-12 reps para manutenção muscular.'} Total: ${allTemplateExercises.length} exercícios inseridos.`
+        }
+      });
+
+      onClose(); // Fecha o diálogo após sucesso
+    } catch (error: any) {
+      console.error("Error generating and inserting workout:", error);
+      toast({
+        title: "Erro na Criação",
+        description: error.message || "Não foi possível gerar o treino. Verifique os dados e tente novamente.",
+        variant: "destructive"
+      });
+      setStep('initial');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const generateWorkout = async () => {
+  const handleGenerateWorkout = async () => {
     setIsGenerating(true);
     try {
-      // Verifica Anamnese primeiro
       const hasAnamnesisFilled = await checkAnamnesis();
 
       if (!hasAnamnesisFilled) {
@@ -355,7 +420,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       console.error("Error generating workout:", error);
       toast({
         title: "Erro na Geração",
-        description: "Não foi possível gerar a sugestão. Verifique os dados e tente novamente.",
+        description: error.message || "Não foi possível gerar a sugestão. Verifique os dados e tente novamente.",
         variant: "destructive"
       });
     } finally {
@@ -367,6 +432,14 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
     // Validações
     if (params.daysPerWeek < 1 || params.daysPerWeek > 7) {
       toast({ title: "Inválido", description: "Dias de treino deve ser entre 1 e 7.", variant: "destructive" });
+      return;
+    }
+    if (!params.workoutType) {
+      toast({ title: "Inválido", description: "Tipo de treino é obrigatório.", variant: "destructive" });
+      return;
+    }
+    if (!params.focusArea) {
+      toast({ title: "Inválido", description: "Foco principal é obrigatório.", variant: "destructive" });
       return;
     }
 
@@ -390,7 +463,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       console.error("Error with params:", error);
       toast({
         title: "Erro",
-        description: "Falha ao gerar treino com parâmetros. Tente novamente.",
+        description: error.message || "Falha ao gerar treino com parâmetros. Tente novamente.",
         variant: "destructive"
       });
       setStep('initial');
@@ -423,7 +496,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
             <Button variant="outline" onClick={onClose}>
               Manter manual
             </Button>
-            <Button onClick={generateWorkout} disabled={isGenerating}>
+            <Button onClick={handleGenerateWorkout} disabled={isGenerating}>
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -457,7 +530,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
               Parâmetros para Treino Personalizado
             </DialogTitle>
             <DialogDescription>
-              Como a anamnese de {student.name} está incompleta, precisamos de detalhes para gerar um treino seguro e eficaz. 
+              Como a anamnese de {student.name} está incompleta, precisamos de detalhes para gerar um treino seguro e eficaz.
               Basearemos na avaliação recente ({student.body_fat_percentage ? `${student.body_fat_percentage}% gordura` : 'sem % gordura'}) e objetivo ({student.goal.replace('_', ' ')}).
             </DialogDescription>
           </DialogHeader>
@@ -469,7 +542,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1,2,3,4,5,6,7].map(n => <SelectItem key={n} value={n.toString()}>{n} dias</SelectItem>)}
+                  {[1, 2, 3, 4, 5, 6, 7].map(n => <SelectItem key={n} value={n.toString()}>{n} dias</SelectItem>)}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">Recomendação: 3-4 para iniciantes, 4-5 para intermediários (ACSM).</p>
@@ -511,21 +584,21 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
               <Label>Equipamentos Disponíveis</Label>
               <div className="grid grid-cols-3 gap-2">
                 {['Nenhum', 'Halteres', 'Barra', 'Rack', 'Máquinas', 'Bola Suíça', 'Elásticos', 'Esteira', 'Bicicleta'].map(eq => (
-                  <Checkbox
-                    key={eq}
-                    id={eq}
-                    checked={params.equipmentAvailable.includes(eq)}
-                    onCheckedChange={(checked) => {
-                      setParams(prev => ({
-                        ...prev,
-                        equipmentAvailable: checked 
-                          ? [...prev.equipmentAvailable, eq]
-                          : prev.equipmentAvailable.filter(e => e !== eq)
-                      }));
-                    }}
-                  >
+                  <div key={eq} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={eq}
+                      checked={params.equipmentAvailable.includes(eq)}
+                      onCheckedChange={(checked) => {
+                        setParams(prev => ({
+                          ...prev,
+                          equipmentAvailable: checked
+                            ? [...prev.equipmentAvailable, eq]
+                            : prev.equipmentAvailable.filter(e => e !== eq)
+                        }));
+                      }}
+                    />
                     <Label htmlFor={eq} className="text-xs cursor-pointer">{eq}</Label>
-                  </Checkbox>
+                  </div>
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">Priorizaremos exercícios com esses equipamentos para acessibilidade.</p>
@@ -546,9 +619,18 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
             <Button variant="outline" onClick={() => setStep('initial')}>
               Voltar
             </Button>
-            <Button onClick={handleParamsSubmit}>
-              <Check className="mr-2 h-4 w-4" />
-              Gerar Treino Personalizado
+            <Button onClick={handleParamsSubmit} disabled={isGenerating}>
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Gerar Treino Personalizado
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
