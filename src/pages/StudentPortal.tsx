@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Activity, User, Target, Calendar } from "lucide-react";
+import { Activity, User, Target, Calendar, Dumbbell } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const StudentPortal = () => {
   const { trainerId } = useParams();
   const [studentData, setStudentData] = useState<any>(null);
   const [evaluations, setEvaluations] = useState<any[]>([]);
+  const [workouts, setWorkouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -28,9 +30,7 @@ const StudentPortal = () => {
         })
         .maybeSingle();
 
-      if (loginError) {
-        throw loginError;
-      }
+      if (loginError) throw loginError;
 
       if (!student) {
         toast({
@@ -42,19 +42,25 @@ const StudentPortal = () => {
         return;
       }
 
-      // Fetch evaluations via RPC (also bypasses RLS but only for this student)
-      const { data: evalData, error: evalError } = await supabase
-        .rpc('fn_student_evaluations', {
+      // Fetch evaluations and workouts in parallel
+      const [evalResponse, workoutResponse] = await Promise.all([
+        supabase.rpc('fn_student_evaluations', {
           p_username: loginForm.username,
           p_password: loginForm.password,
-        });
+        }),
+        supabase.rpc('fn_student_workouts', {
+          p_username: loginForm.username,
+          p_password: loginForm.password,
+        })
+      ]);
 
-      if (evalError) throw evalError;
+      if (evalResponse.error) throw evalResponse.error;
+      if (workoutResponse.error) throw workoutResponse.error;
 
       setStudentData(student);
-      setEvaluations(evalData || []);
+      setEvaluations(evalResponse.data || []);
+      setWorkouts(workoutResponse.data || []);
       setIsLoggedIn(true);
-      setLoading(false);
 
       toast({
         title: "Acesso liberado!",
@@ -68,6 +74,7 @@ const StudentPortal = () => {
         description: error.message || "Não foi possível acessar os dados. Verifique suas credenciais e tente novamente.",
         variant: "destructive"
       });
+    } finally {
       setLoading(false);
     }
   };
@@ -219,50 +226,93 @@ const StudentPortal = () => {
           </Card>
         </div>
 
-        <Card className="shadow-primary/10 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
-              Histórico de Avaliações
-            </CardTitle>
-            <CardDescription>
-              Acompanhe sua evolução ao longo do tempo
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {evaluations.length > 0 ? (
-                evaluations.map((evaluation, index) => (
-                  <div key={evaluation.id} className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
-                    <div>
-                      <p className="font-medium">
-                        Avaliação #{evaluations.length - index}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(evaluation.evaluation_date).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <p className="text-sm">
-                        <span className="font-medium">Peso:</span> {evaluation.weight}kg
-                      </p>
-                      {evaluation.body_fat_percentage && (
-                        <p className="text-sm">
-                          <span className="font-medium">Gordura:</span> {evaluation.body_fat_percentage.toFixed(1)}%
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="shadow-primary/10 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Dumbbell className="h-5 w-5 text-primary" />
+                Meus Treinos
+              </CardTitle>
+              <CardDescription>
+                Seus treinos atribuídos pelo seu personal trainer
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {workouts.length > 0 ? (
+                <Accordion type="single" collapsible className="w-full">
+                  {workouts.map((workout) => (
+                    <AccordionItem key={workout.id} value={workout.id}>
+                      <AccordionTrigger>{workout.name}</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">{workout.description}</p>
+                          {workout.exercises?.map((ex: any, index: number) => (
+                            <div key={index} className="p-3 bg-accent/50 rounded-lg">
+                              <p className="font-medium">{ex.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {ex.sets} séries x {ex.reps} reps • Descanso: {ex.rest_time}s
+                              </p>
+                              {ex.notes && <p className="text-xs text-primary mt-1">Nota: {ex.notes}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <p>Nenhuma avaliação encontrada</p>
-                  <p className="text-xs mt-1">Aguarde sua primeira avaliação</p>
+                  <p>Nenhum treino atribuído ainda</p>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-primary/10 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                Histórico de Avaliações
+              </CardTitle>
+              <CardDescription>
+                Acompanhe sua evolução ao longo do tempo
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {evaluations.length > 0 ? (
+                  evaluations.map((evaluation, index) => (
+                    <div key={evaluation.id} className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
+                      <div>
+                        <p className="font-medium">
+                          Avaliação #{evaluations.length - index}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(evaluation.evaluation_date).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <p className="text-sm">
+                          <span className="font-medium">Peso:</span> {evaluation.weight}kg
+                        </p>
+                        {evaluation.body_fat_percentage && (
+                          <p className="text-sm">
+                            <span className="font-medium">Gordura:</span> {evaluation.body_fat_percentage.toFixed(1)}%
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>Nenhuma avaliação encontrada</p>
+                    <p className="text-xs mt-1">Aguarde sua primeira avaliação</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
