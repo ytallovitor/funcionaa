@@ -12,6 +12,7 @@ import {
   Filter,
   Circle
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import ChatSystem from "@/components/ChatSystem";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -91,7 +92,7 @@ const Chat = () => {
 
       if (error) throw error;
 
-      // Transform data
+      // Transform data with fallback (otimização para evitar crashes)
       const transformedConversations = conversationsData?.map(conv => {
         const lastMessage = conv.messages?.[0];
         return {
