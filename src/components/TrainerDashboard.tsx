@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentStats } from "@/hooks/useStudentStats";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 
 interface TrainerDashboardProps {
   trainer: {
@@ -32,6 +33,7 @@ interface TrainerDashboardProps {
 const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
   const { user } = useAuth();
   const statsHook = useStudentStats();
+  const navigate = useNavigate(); // Initialize useNavigate
   const [studentsOverview, setStudentsOverview] = useState({
     total: 0,
     active: 0,
@@ -205,11 +207,11 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button className="gradient-primary text-white">
+          <Button className="gradient-primary text-white" onClick={() => navigate('/students')}> {/* Added onClick */}
             <Plus className="mr-2 h-4 w-4" />
             Novo Aluno
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => navigate('/chat')}> {/* Added onClick */}
             <MessageCircle className="mr-2 h-4 w-4" />
             Mensagens
           </Button>
@@ -374,7 +376,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium">Nenhum aluno recente</p>
                   <p className="text-sm mt-1">Comece adicionando seu primeiro aluno para ver o progresso aqui</p>
-                  <Button className="mt-4 gradient-primary" onClick={() => window.location.href = '/students'}>
+                  <Button className="mt-4 gradient-primary" onClick={() => navigate('/students')}> {/* Added onClick */}
                     <Plus className="mr-2 h-4 w-4" />
                     Adicionar Aluno
                   </Button>
@@ -382,7 +384,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
               )}
               
               {studentsOverview.total > 0 && (
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={() => navigate('/students')}> {/* Added onClick */}
                   Ver Todos os Alunos
                 </Button>
               )}
@@ -402,22 +404,22 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/evaluation')}> {/* Added onClick */}
               <Calendar className="mr-2 h-4 w-4" />
               Agendar Avaliações
             </Button>
             
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/chat')}> {/* Added onClick */}
               <MessageCircle className="mr-2 h-4 w-4" />
               Enviar Motivação
             </Button>
             
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/reports')}> {/* Added onClick */}
               <BarChart3 className="mr-2 h-4 w-4" />
               Relatório Semanal
             </Button>
             
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/reports')}> {/* Added onClick */}
               <TrendingUp className="mr-2 h-4 w-4" />
               Análise de Progresso
             </Button>

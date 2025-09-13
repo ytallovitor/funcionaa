@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom"; // Import useNavigate
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,7 @@ interface WorkoutTemplate {
 
 const Workouts = () => {
   const location = useLocation();
+  const navigate = useNavigate(); // Initialize useNavigate
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState(location.state?.suggestedWorkout ? "creator" : "templates");
@@ -140,6 +141,10 @@ const Workouts = () => {
   const handleAssignClick = (template: WorkoutTemplate) => {
     setSelectedWorkout(template);
     setIsAssignDialogOpen(true);
+  };
+
+  const handleViewWorkout = (workoutId: string) => {
+    navigate(`/workouts/${workoutId}`);
   };
 
   const categories = ["all", "Força", "Cardio", "Funcional", "HIIT", "Flexibilidade"];
@@ -273,7 +278,7 @@ const Workouts = () => {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => handleViewWorkout(template.id)}> {/* ADDED onClick */}
                         Visualizar
                       </Button>
                       <Button size="sm" className="gradient-primary text-white" onClick={() => handleAssignClick(template)}>
