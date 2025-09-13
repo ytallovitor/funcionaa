@@ -25,12 +25,17 @@ interface Student {
   lean_mass?: number;
 }
 
-interface AnamnesisSummary {
+interface AnamnesisData {
   training_experience?: string;
   main_goal?: string;
   barriers_to_training?: string;
   equipment_available?: string[];
   preferred_training_times?: string;
+  pain_locations?: string;
+  current_pain_level?: number;
+  medical_conditions?: string;
+  previous_injuries?: string;
+  // Adicione outros campos da anamnese que você queira usar
 }
 
 interface WorkoutParams {
@@ -61,6 +66,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
     specialNotes: ''
   });
   const [trainerId, setTrainerId] = useState<string | null>(null);
+  const [anamnesisData, setAnamnesisData] = useState<AnamnesisData | null>(null);
 
   // Fallback exercises científicos (inseridos no DB se necessário)
   const scientificFallbackExercises = [
@@ -287,21 +293,69 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
     setTrainerId(profile.id);
   };
 
-  const checkAnamnesis = async () => {
-    const { data: anamnesis } = await supabase
+  const fetchAnamnesis = async () => {
+    const { data, error } = await supabase
       .from('anamnesis')
-      .select('main_goal, training_experience, barriers_to_training, physical_activity_work, preferred_training_times')
+      .select('*')
       .eq('student_id', student.id)
       .single();
 
-    const hasKeyFields = anamnesis?.main_goal && anamnesis?.training_experience &&
-                         (anamnesis?.barriers_to_training || anamnesis?.preferred_training_times || anamnesis?.physical_activity_work);
+    if (error && error.code !== 'PGRST116') {
+      console.error("Error fetching anamnesis:", error);
+      return null;
+    }
+    setAnamnesisData(data);
+    return data;
+  };
 
+  const checkAnamnesis = async () => {
+    const anamnesis = await fetchAnamnesis();
+    const hasKeyFields = anamnesis?.main_goal && anamnesis?.training_experience;
     setHasAnamnesis(!!hasKeyFields);
     return hasKeyFields;
   };
 
-  const generateScientificWorkout = async (currentParams: WorkoutParams, anamnesis?: AnamnesisSummary) => {
+  const getDifficultyLevel = (trainingExperience?: string) => {
+    switch (trainingExperience) {
+      case 'iniciante': return ['Iniciante'];
+      case 'intermediario': return ['Iniciante', 'Intermediário'];
+      case 'avancado': return ['Intermediário', 'Avançado'];
+      case 'atleta': return ['Avançado'];
+      default: return ['Iniciante']; // Default para iniciante se não houver dados
+    }
+  };
+
+  const getWorkoutSplit = (days: number, focusArea: string) => {
+    if (focusArea === 'full_body') {
+      return Array.from({ length: days }, () => ['Full Body']);
+    }
+    
+    switch (days) {
+      case 1: return [['Full Body']];
+      case 2: return [['Upper Body'], ['Lower Body']];
+      case 3: return [['Push'], ['Pull'], ['Legs']];
+      case 4: return [['Upper Body'], ['Lower Body'], ['Upper Body'], ['Lower Body']];
+      case 5: return [['Push'], ['Pull'], ['Legs'], ['Upper Body'], ['Lower Body']]; // PPL + Upper/Lower
+      case 6: return [['Push'], ['Pull'], ['Legs'], ['Push'], ['Pull'], ['Legs']]; // PPL x 2
+      case 7: return [['Full Body'], ['Full Body'], ['Full Body'], ['Full Body'], ['Full Body'], ['Full Body'], ['Full Body']]; // Full body for 7 days
+      default: return Array.from({ length: days }, () => ['Full Body']);
+    }
+  };
+
+  const getMuscleGroupsForSplit = (splitType: string) => {
+    switch (splitType) {
+      case 'Full Body': return ["Quadríceps", "Glúteos", "Isquiotibiais", "Peitoral", "Costas", "Ombros", "Tríceps", "Bíceps", "Core"];
+      case 'Upper Body': return ["Peitoral", "Costas", "Ombros", "Tríceps", "Bíceps"];
+      case 'Lower Body': return ["Quadríceps", "Glúteos", "Isquiotibiais", "Panturrilhas", "Core"];
+      case 'Push': return ["Peitoral", "Ombros", "Tríceps"];
+      case 'Pull': return ["Costas", "Bíceps"];
+      case 'Legs': return ["Quadríceps", "Glúteos", "Isquiotibiais", "Panturrilhas"];
+      case 'Core': return ["Core"];
+      default: return [];
+    }
+  };
+
+  const generateScientificWorkout = async (currentParams: WorkoutParams, anamnesis: AnamnesisData | null) => {
     if (!trainerId) {
       toast({
         title: "Erro",
@@ -314,18 +368,28 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
 
     try {
       // Passo 1: Buscar exercícios reais do DB com filtros
+      const allowedDifficulties = getDifficultyLevel(anamnesis?.training_experience);
+      const excludedMuscleGroups: string[] = [];
+      if (anamnesis?.pain_locations && anamnesis.current_pain_level && anamnesis.current_pain_level > 4) {
+        // Exemplo: se dor no joelho, evitar exercícios de quadríceps de alto impacto
+        if (anamnesis.pain_locations.toLowerCase().includes('joelho')) {
+          excludedMuscleGroups.push('Quadríceps');
+        }
+        // Adicione mais lógica para outras dores
+      }
+
       const { data: exercisesFromDB, error: fetchError } = await supabase
         .from('exercises')
         .select('*')
         .ilike('category', `%${currentParams.workoutType === 'forca' ? 'Força' : currentParams.workoutType.charAt(0).toUpperCase() + currentParams.workoutType.slice(1)}%`)
-        .in('difficulty', ['Iniciante', 'Intermediário', 'Avançado']) // Fetch all difficulties
-        .limit(50) // Fetch more to ensure variety
+        .in('difficulty', allowedDifficulties)
+        .limit(100) // Fetch mais exercícios para ter variedade
         .order('name');
 
       let exercises = exercisesFromDB || [];
 
       // Se DB vazio ou poucos exercícios, insere fallback e usa IDs
-      if (exercises.length < 20) { // Threshold for fallback
+      if (exercises.length < currentParams.daysPerWeek * 5) { // Ajuste o threshold
         const { data: existingFallbackExercises } = await supabase
           .from('exercises')
           .select('id, name, category, muscle_groups, difficulty, equipment, instructions, tips, duration, reps, sets, rest_time, video_url, image_url')
@@ -356,61 +420,104 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
         });
       }
 
-      // Filtra e randomiza para garantir variedade e quantidade adequada
-      const filteredByParams = exercises.filter(ex => {
-        const matchesCategory = ex.category.toLowerCase().includes(currentParams.workoutType) ||
-                                (currentParams.workoutType === 'forca' && ex.category === 'Força') ||
-                                (currentParams.workoutType === 'cardio' && ex.category === 'Cardio') ||
-                                (currentParams.workoutType === 'hiit' && ex.category === 'HIIT') ||
-                                (currentParams.workoutType === 'funcional' && ex.category === 'Funcional') ||
-                                (currentParams.workoutType === 'flexibilidade' && ex.category === 'Flexibilidade');
-        
-        const matchesFocus = currentParams.focusArea === 'full_body' || ex.muscle_groups.some(mg => mg.toLowerCase().includes(currentParams.focusArea.toLowerCase()));
-        
+      // Filtra exercícios com base em equipamentos e grupos musculares excluídos
+      const availableExercises = exercises.filter(ex => {
         const matchesEquipment = currentParams.equipmentAvailable.length === 0 || currentParams.equipmentAvailable.includes('Nenhum') || ex.equipment.some(eq => currentParams.equipmentAvailable.includes(eq));
+        const notExcludedMuscleGroup = !ex.muscle_groups.some(mg => excludedMuscleGroups.includes(mg));
+        return matchesEquipment && notExcludedMuscleGroup;
+      });
 
-        return matchesCategory && matchesFocus && matchesEquipment;
-      }).sort(() => 0.5 - Math.random()); // Randomiza a ordem
-
-      if (filteredByParams.length === 0) {
-        throw new Error("Nenhum exercício adequado encontrado ou gerado. Tente ajustar os parâmetros.");
+      if (availableExercises.length === 0) {
+        throw new Error("Nenhum exercício adequado encontrado com os filtros aplicados. Tente ajustar os parâmetros ou a anamnese.");
       }
 
       // Baseado no objetivo do aluno (ACSM/NSCA guidelines)
       const objectiveGuidelines = {
-        perder_gordura: { reps: [12, 15], sets: 3, rest: [45, 60], type: 'funcional', focus: 'full_body', numExercises: 5 },
-        ganhar_massa: { reps: [8, 12], sets: [3, 4], rest: [90, 120], type: 'forca', focus: 'hipertrofia', numExercises: 4 },
-        manter_peso: { reps: [10, 12], sets: 3, rest: [60, 90], type: 'funcional', focus: 'manutencao', numExercises: 5 }
+        perder_gordura: { reps: [12, 15], sets: 3, rest: [45, 60], type: 'funcional', numExercisesPerDay: 5 },
+        ganhar_massa: { reps: [8, 12], sets: [3, 4], rest: [90, 120], type: 'forca', numExercisesPerDay: 4 },
+        manter_peso: { reps: [10, 12], sets: 3, rest: [60, 90], type: 'funcional', numExercisesPerDay: 5 }
       };
 
       const guidelines = objectiveGuidelines[student.goal as keyof typeof objectiveGuidelines] ||
-                         { reps: [10, 12], sets: 3, rest: [60, 90], type: 'forca', focus: 'full_body', numExercises: 4 };
+                         { reps: [10, 12], sets: 3, rest: [60, 90], type: 'forca', numExercisesPerDay: 4 };
 
       let finalGuidelines;
       if (currentParams.workoutType === 'cardio' || currentParams.workoutType === 'hiit') {
-        finalGuidelines = { ...guidelines, reps: 0, rest: [30, 60], sets: 1, duration: [20 * 60, 45 * 60], numExercises: 1 }; // Duration in seconds
+        finalGuidelines = { ...guidelines, reps: 0, rest: [30, 60], sets: 1, duration: [20 * 60, 45 * 60], numExercisesPerDay: 1 }; // Duration in seconds
       } else if (currentParams.workoutType === 'flexibilidade') {
-        finalGuidelines = { ...guidelines, sets: 2, reps: 0, duration: [30, 60], rest: [10, 20], numExercises: 3 }; // Duration in seconds for each stretch
+        finalGuidelines = { ...guidelines, sets: 2, reps: 0, duration: [30, 60], rest: [10, 20], numExercisesPerDay: 3 }; // Duration in seconds for each stretch
       } else {
-        finalGuidelines = { ...guidelines, numExercises: currentParams.focusArea === 'full_body' ? 5 : 4 }; // 4-5 exercises per session
+        finalGuidelines = { ...guidelines, numExercisesPerDay: currentParams.focusArea === 'full_body' ? 5 : 4 }; // 4-5 exercises per session
       }
 
       const daysOfWeek = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
       const createdWorkoutIds: string[] = [];
+      const workoutSplit = getWorkoutSplit(currentParams.daysPerWeek, currentParams.focusArea);
 
       for (let dayIndex = 0; dayIndex < currentParams.daysPerWeek; dayIndex++) {
         const dayName = daysOfWeek[dayIndex];
-        const exercisesForThisDay = filteredByParams
-          .slice(dayIndex * finalGuidelines.numExercises, (dayIndex + 1) * finalGuidelines.numExercises);
+        const targetSplitsForDay = workoutSplit[dayIndex]; // Ex: ['Push'] ou ['Upper Body']
         
+        const exercisesForThisDay: any[] = [];
+        const usedExerciseIds = new Set<string>();
+
+        // Prioriza exercícios com base no foco principal do aluno (anamnese)
+        const studentMainGoalKeywords = anamnesis?.main_goal?.toLowerCase().split(' ') || [];
+        const studentFocusMuscleGroups: string[] = [];
+        if (studentMainGoalKeywords.some(k => k.includes('glúteos') || k.includes('pernas'))) studentFocusMuscleGroups.push('Glúteos', 'Quadríceps', 'Isquiotibiais');
+        if (studentMainGoalKeywords.some(k => k.includes('peito') || k.includes('braços'))) studentFocusMuscleGroups.push('Peitoral', 'Tríceps', 'Bíceps');
+        if (studentMainGoalKeywords.some(k => k.includes('costas'))) studentFocusMuscleGroups.push('Costas');
+        if (studentMainGoalKeywords.some(k => k.includes('abdômen') || k.includes('core'))) studentFocusMuscleGroups.push('Core');
+
+        // Seleciona exercícios para cada split do dia
+        for (const split of targetSplitsForDay) {
+          const muscleGroupsForSplit = getMuscleGroupsForSplit(split);
+          
+          let potentialExercises = availableExercises.filter(ex => 
+            ex.muscle_groups.some(mg => muscleGroupsForSplit.includes(mg)) &&
+            !usedExerciseIds.has(ex.id)
+          ).sort(() => 0.5 - Math.random()); // Randomiza para variedade
+
+          // Prioriza exercícios que batem com o foco do aluno
+          if (studentFocusMuscleGroups.length > 0) {
+            potentialExercises.sort((a, b) => {
+              const aHasFocus = a.muscle_groups.some(mg => studentFocusMuscleGroups.includes(mg));
+              const bHasFocus = b.muscle_groups.some(mg => studentFocusMuscleGroups.includes(mg));
+              return (aHasFocus === bHasFocus) ? 0 : aHasFocus ? -1 : 1;
+            });
+          }
+
+          // Pega um número adequado de exercícios para este split
+          const numExercisesForSplit = Math.max(1, Math.floor(finalGuidelines.numExercisesPerDay / targetSplitsForDay.length));
+          for (let i = 0; i < numExercisesForSplit && potentialExercises.length > 0; i++) {
+            const selected = potentialExercises.shift();
+            if (selected) {
+              exercisesForThisDay.push(selected);
+              usedExerciseIds.add(selected.id);
+            }
+          }
+        }
+
+        // Se ainda faltam exercícios, preenche com o que sobrou
+        while (exercisesForThisDay.length < finalGuidelines.numExercisesPerDay && availableExercises.length > 0) {
+          const remaining = availableExercises.filter(ex => !usedExerciseIds.has(ex.id)).sort(() => 0.5 - Math.random());
+          if (remaining.length > 0) {
+            const selected = remaining.shift();
+            if (selected) {
+              exercisesForThisDay.push(selected);
+              usedExerciseIds.add(selected.id);
+            }
+          } else {
+            break; // Não há mais exercícios disponíveis
+          }
+        }
+
         if (exercisesForThisDay.length === 0) {
-          // If not enough unique exercises, reuse or throw error
-          throw new Error(`Não há exercícios suficientes para ${currentParams.daysPerWeek} dias de treino com os parâmetros selecionados.`);
+          throw new Error(`Não foi possível gerar exercícios para o treino de ${dayName} com os parâmetros selecionados.`);
         }
 
         const allTemplateExercises = [];
         let globalOrderIndex = 0;
-
         let totalDurationSecondsForDay = 0;
 
         exercisesForThisDay.forEach((ex) => {
@@ -437,25 +544,22 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
             notes: anamnesis?.barriers_to_training ? `Adapte para ${anamnesis.barriers_to_training}. Foco: ${student.goal}.` : `Foco em forma correta. Objetivo: ${student.goal}.`
           });
 
-          // Calculate duration for this exercise
           if (currentParams.workoutType === 'cardio' || currentParams.workoutType === 'hiit' || currentParams.workoutType === 'flexibilidade') {
             totalDurationSecondsForDay += duration;
           } else {
-            // For strength/functional: (sets * reps * time_per_rep) + (sets-1 * rest_time)
             totalDurationSecondsForDay += (sets * reps * 4) + ((sets > 1 ? sets - 1 : 0) * rest_time);
           }
         });
 
         const estimatedDurationPerSession = Math.round(totalDurationSecondsForDay / 60);
 
-        // Passo 2: Inserir o template para o dia
         const { data: insertedTemplate, error: templateError } = await supabase
           .from('workout_templates')
           .insert({
             name: `${student.name} - Treino de ${dayName}`,
             description: `Treino personalizado para ${student.name} (${dayName}) baseado em: ${student.goal.replace('_', ' ')} (idade ${student.age || 'não informada'}, ${student.body_fat_percentage ? `${student.body_fat_percentage}% gordura` : 'sem composição recente'}). Tipo: ${currentParams.workoutType}, Foco: ${currentParams.focusArea}. Embasamento científico: ACSM/NSCA guidelines adaptadas. Notas: ${currentParams.specialNotes || 'Nenhum ajuste especial'}. Duração estimada: ${estimatedDurationPerSession} min. Ajustes baseados em anamnese: ${anamnesis?.barriers_to_training || 'Nenhuma barreira informada'}.`,
             category: currentParams.workoutType,
-            difficulty: student.age && student.age < 30 ? 'Iniciante' : 'Intermediário',
+            difficulty: allowedDifficulties[0], // Usa a dificuldade principal
             estimated_duration: estimatedDurationPerSession,
             equipment_needed: currentParams.equipmentAvailable,
             trainer_id: trainerId,
@@ -467,7 +571,6 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
         if (templateError) throw templateError;
         createdWorkoutIds.push(insertedTemplate.id);
 
-        // Passo 3: Inserir exercícios do template
         const { error: exercisesError } = await supabase
           .from('workout_template_exercises')
           .insert(allTemplateExercises.map(ex => ({
@@ -508,7 +611,8 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
   const handleGenerateWorkout = async () => {
     setIsGenerating(true);
     try {
-      const hasAnamnesisFilled = await checkAnamnesis();
+      const anamnesis = await fetchAnamnesis();
+      const hasAnamnesisFilled = anamnesis?.main_goal && anamnesis?.training_experience;
 
       if (!hasAnamnesisFilled) {
         setStep('params');
@@ -520,7 +624,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
         return;
       }
 
-      await generateScientificWorkout(params);
+      await generateScientificWorkout(params, anamnesis);
     } catch (error: any) {
       console.error("Error generating workout:", error);
       toast({
@@ -549,19 +653,8 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
 
     setStep('generating');
     try {
-      const { data: anamnesis } = await supabase
-        .from('anamnesis')
-        .select('*')
-        .eq('student_id', student.id)
-        .single() || {};
-
-      await generateScientificWorkout(params, {
-        training_experience: anamnesis?.training_experience,
-        main_goal: anamnesis?.main_goal,
-        barriers_to_training: anamnesis?.barriers_to_training,
-        preferred_training_times: anamnesis?.preferred_training_times,
-        equipment_available: params.equipmentAvailable
-      });
+      const anamnesis = await fetchAnamnesis(); // Garante que a anamnese mais recente é usada
+      await generateScientificWorkout(params, anamnesis);
     } catch (error: any) {
       console.error("Error with params:", error);
       toast({
@@ -745,10 +838,10 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       <Dialog open={true} onOpenChange={onClose}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Gerando Treino...</DialogTitle>
+            <DialogTitle>Otimizando Treino com IA...</DialogTitle>
             <DialogDescription>
-              Aplicando guidelines ACSM/NSCA para {student.goal} com {params.daysPerWeek} dias/semana de {params.workoutType}.
-              <br />Isso leva alguns segundos para otimizar exercícios e progressão.
+              Estamos analisando os dados de {student.name} (anamnese, avaliações, objetivos) e pesquisando em nossa base de dados científica (ACSM/NSCA) para criar o plano de treino mais eficaz e seguro.
+              <br />Isso pode levar alguns segundos para garantir a melhor periodização e seleção de exercícios.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-8">
