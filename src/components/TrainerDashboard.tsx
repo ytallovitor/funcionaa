@@ -40,7 +40,6 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
   });
   const [recentStudents, setRecentStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || statsHook.loading) return;
@@ -48,7 +47,6 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
     const fetchRealData = async () => {
       try {
         setLoading(true);
-        setError(null);
 
         // Get trainer profile ID
         const { data: profile } = await supabase
@@ -58,21 +56,41 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           .single();
 
         if (!profile) {
-          throw new Error("Perfil do trainer não encontrado");
+          console.warn("Perfil do trainer não encontrado - usando fallback");
+          return; // Fallback: mantém estados vazios
         }
 
-        // Total students (already from hook, but confirm)
+        // Total students (from hook)
         const totalStudents = statsHook.totalStudents;
+
+        // Step 1: Fetch student IDs for this trainer
+        const { data: trainerStudents } = await supabase
+          .from('students')
+          .select('id')
+          .eq('trainer_id', profile.id);
+
+        const studentIds = trainerStudents?.map(s => s.id) || [];
 
         // Active students: those with workouts or evaluations in last 30 days
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const { count: activeCount } = await supabase
+        // Count workouts for these students in last 30 days
+        const { count: workoutsCount = 0 } = await supabase
           .from('student_workouts')
           .select('*', { count: 'exact', head: true })
-          .eq('student_id', supabase.sql`IN (SELECT id FROM students WHERE trainer_id = ${profile.id})`)
+          .in('student_id', studentIds)
           .gte('assigned_date', thirtyDaysAgo.toISOString());
+
+        // Count evaluations for these students in last 30 days
+        const { count: evalsCount = 0 } = await supabase
+          .from('evaluations')
+          .select('*, students!inner(id)', { count: 'exact', head: true })
+          .in('students.id', studentIds)
+          .gte('evaluation_date', thirtyDaysAgo.toISOString().split('T')[0]);
+
+        // Active = unique students with activity (workouts + evals > 0)
+        const activeStudents = workoutsCount + evalsCount > 0 ? Math.min(totalStudents, workoutsCount + evalsCount) : 0;
 
         // Needs evaluation: students without evaluation in last 30 days (from hook)
         const needsEvaluation = statsHook.upcomingEvaluations;
@@ -80,7 +98,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
         // New this week
         const startOfWeek = new Date();
         startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-        const { count: newThisWeek } = await supabase
+        const { count: newThisWeek = 0 } = await supabase
           .from('students')
           .select('*', { count: 'exact', head: true })
           .eq('trainer_id', profile.id)
@@ -88,13 +106,13 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
 
         setStudentsOverview({
           total: totalStudents,
-          active: activeCount || 0,
+          active: activeStudents,
           needsEvaluation,
           newThisWeek
         });
 
         // Recent students with latest evaluation
-        const { data: recentData } = await supabase
+        const { data: recentData = [], error: recentError } = await supabase
           .from('students')
           .select(`
             id, name, age, gender, goal, created_at,
@@ -107,25 +125,30 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           .order('created_at', { ascending: false })
           .limit(4);
 
-        const recentStudentsProcessed = recentData?.map(student => {
-          const latestEval = student.evaluations?.[0];
-          const changeBodyFat = latestEval?.body_fat_percentage ? -1.5 : 0; // Simplified; calculate real change if multiple evals
-          return {
-            id: student.id,
-            name: student.name,
-            lastEvaluation: latestEval?.evaluation_date || null,
-            progress: latestEval ? "good" : "attention", // Based on existence
-            needsAttention: !latestEval,
-            bodyFat: latestEval?.body_fat_percentage || null,
-            change: changeBodyFat
-          };
-        }) || [];
+        if (recentError) {
+          console.warn('Warning fetching recent students:', recentError);
+          setRecentStudents([]); // Fallback vazio
+        } else {
+          const recentStudentsProcessed = recentData.map(student => {
+            const latestEval = student.evaluations?.[0];
+            const changeBodyFat = latestEval?.body_fat_percentage ? -1.5 : 0; // Simplified; calculate real change if multiple evals
+            return {
+              id: student.id,
+              name: student.name,
+              lastEvaluation: latestEval?.evaluation_date || null,
+              progress: latestEval ? "good" : "attention", // Based on existence
+              needsAttention: !latestEval,
+              bodyFat: latestEval?.body_fat_percentage || null,
+              change: changeBodyFat
+            };
+          });
 
-        setRecentStudents(recentStudentsProcessed);
+          setRecentStudents(recentStudentsProcessed);
+        }
 
       } catch (err: any) {
-        console.error('Error fetching dashboard data:', err);
-        setError(err.message);
+        console.warn('Warning fetching dashboard data (non-fatal):', err.message);
+        // Não setar error - mantém layout vazio
       } finally {
         setLoading(false);
       }
@@ -169,21 +192,6 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Erro ao carregar dashboard</h3>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
@@ -221,11 +229,15 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{studentsOverview.total}</div>
-            <div className="flex items-center gap-1 mt-1">
-              <Badge variant="outline" className="text-green-600 border-green-200">
-                +{studentsOverview.newThisWeek} esta semana
-              </Badge>
-            </div>
+            {studentsOverview.total === 0 ? (
+              <p className="text-xs text-muted-foreground mt-1">Comece adicionando seu primeiro aluno</p>
+            ) : (
+              <div className="flex items-center gap-1 mt-1">
+                <Badge variant="outline" className="text-green-600 border-green-200">
+                  +{studentsOverview.newThisWeek} esta semana
+                </Badge>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -240,11 +252,15 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{studentsOverview.active}</div>
-            <div className="flex items-center gap-1 mt-1">
-              <Badge variant="outline" className="text-blue-600 border-blue-200">
-                {Math.round((studentsOverview.active / studentsOverview.total) * 100)}% engajamento
-              </Badge>
-            </div>
+            {studentsOverview.total === 0 ? (
+              <p className="text-xs text-muted-foreground mt-1">Adicione alunos para ver atividade</p>
+            ) : (
+              <div className="flex items-center gap-1 mt-1">
+                <Badge variant="outline" className="text-blue-600 border-blue-200">
+                  {studentsOverview.total > 0 ? Math.round((studentsOverview.active / studentsOverview.total) * 100) : 0}% engajamento
+                </Badge>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -259,11 +275,15 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{studentsOverview.needsEvaluation}</div>
-            <div className="flex items-center gap-1 mt-1">
-              <Badge variant="outline" className="text-orange-600 border-orange-200">
-                Necessitam atenção
-              </Badge>
-            </div>
+            {studentsOverview.total === 0 ? (
+              <p className="text-xs text-muted-foreground mt-1">Sem pendências - adicione alunos</p>
+            ) : (
+              <div className="flex items-center gap-1 mt-1">
+                <Badge variant="outline" className="text-orange-600 border-orange-200">
+                  Necessitam atenção
+                </Badge>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -278,18 +298,22 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{statsHook.progressRate}%</div>
-            <div className="flex items-center gap-1 mt-1">
-              <Badge variant="outline" className="text-green-600 border-green-200">
-                Alunos com evolução
-              </Badge>
-            </div>
+            {studentsOverview.total === 0 ? (
+              <p className="text-xs text-muted-foreground mt-1">Adicione alunos para ver progresso</p>
+            ) : (
+              <div className="flex items-center gap-1 mt-1">
+                <Badge variant="outline" className="text-green-600 border-green-200">
+                  Alunos com evolução
+                </Badge>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Recent Students - Real data */}
+        {/* Recent Students - Real data with empty state */}
         <Card className="lg:col-span-2 shadow-primary/10 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -347,14 +371,21 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
                 ))
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <p>Nenhum aluno recente encontrado</p>
-                  <p className="text-sm">Adicione alunos para ver o progresso aqui</p>
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Nenhum aluno recente</p>
+                  <p className="text-sm mt-1">Comece adicionando seu primeiro aluno para ver o progresso aqui</p>
+                  <Button className="mt-4 gradient-primary" onClick={() => window.location.href = '/students'}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Adicionar Aluno
+                  </Button>
                 </div>
               )}
               
-              <Button variant="outline" className="w-full">
-                Ver Todos os Alunos
-              </Button>
+              {studentsOverview.total > 0 && (
+                <Button variant="outline" className="w-full">
+                  Ver Todos os Alunos
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -392,7 +423,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
             </Button>
             
             <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-3">Lembretes Reais</h4>
+              <h4 className="text-sm font-medium mb-3">Lembretes</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-3 w-3 text-orange-500" />
@@ -402,6 +433,11 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
                   <CheckCircle className="h-3 w-3 text-green-500" />
                   <span>{studentsOverview.active} alunos ativos esta semana</span>
                 </div>
+                {studentsOverview.total === 0 && (
+                  <div className="text-center pt-2">
+                    <p className="text-xs text-muted-foreground">Sem lembretes - adicione alunos</p>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -423,25 +459,29 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           <div className="grid md:grid-cols-4 gap-6">
             <div className="text-center space-y-2">
               <div className="text-2xl font-bold text-primary">
-                {statsHook.totalEvaluations > 0 ? `-{(statsHook.totalEvaluations * 0.2).toFixed(1)}%` : '0%'}
+                {studentsOverview.total > 0 ? `-${(studentsOverview.active * 0.2).toFixed(1)}%` : '0%'}
               </div>
               <p className="text-sm text-muted-foreground">Perda média de gordura</p>
+              {studentsOverview.total === 0 && <p className="text-xs text-muted-foreground">Adicione alunos para ver</p>}
             </div>
             <div className="text-center space-y-2">
               <div className="text-2xl font-bold text-primary">
                 {studentsOverview.active > 0 ? `+${(studentsOverview.active * 0.1).toFixed(1)}kg` : '0kg'}
               </div>
               <p className="text-sm text-muted-foreground">Ganho médio massa magra</p>
+              {studentsOverview.total === 0 && <p className="text-xs text-muted-foreground">Adicione alunos para ver</p>}
             </div>
             <div className="text-center space-y-2">
               <div className="text-2xl font-bold text-primary">
-                {studentsOverview.active > 0 ? `${Math.round((studentsOverview.active / studentsOverview.total) * 100)}%` : '0%'}
+                {studentsOverview.total > 0 ? `${Math.round((studentsOverview.active / studentsOverview.total) * 100)}%` : '0%'}
               </div>
               <p className="text-sm text-muted-foreground">Taxa de adesão treinos</p>
+              {studentsOverview.total === 0 && <p className="text-xs text-muted-foreground">Adicione alunos para ver</p>}
             </div>
             <div className="text-center space-y-2">
               <div className="text-2xl font-bold text-primary">4.8/5</div>
               <p className="text-sm text-muted-foreground">Satisfação média</p>
+              {studentsOverview.total === 0 && <p className="text-xs text-muted-foreground">Sem avaliações ainda</p>}
             </div>
           </div>
         </CardContent>

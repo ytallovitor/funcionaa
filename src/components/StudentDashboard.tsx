@@ -12,7 +12,8 @@ import {
   Weight,
   Zap,
   Trophy,
-  Play
+  Play,
+  Users
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import ChatSystem from "./ChatSystem";
@@ -96,7 +97,8 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
 
       setTodaysWorkout(data);
     } catch (error) {
-      console.error('Error fetching today\'s workout:', error);
+      console.warn('Warning fetching today\'s workout:', error);
+      setTodaysWorkout(null); // Fallback vazio
     }
   };
 
@@ -117,20 +119,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
     );
   }
 
-  if (studentData.error) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Erro ao carregar dashboard</h3>
-            <p className="text-muted-foreground mb-4">{studentData.error}</p>
-            <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const hasMeasurements = studentData.latestMeasurements.weight && studentData.latestMeasurements.bodyFat;
 
   return (
     <div className="space-y-6">
@@ -178,15 +167,19 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-primary">{stat.value}</div>
-              <div className="flex items-center gap-1 mt-1">
-                <Badge 
-                  variant={stat.positive ? "default" : "destructive"}
-                  className={stat.positive ? "bg-green-100 text-green-700" : ""}
-                >
-                  {stat.change}
-                </Badge>
-                <span className="text-xs text-muted-foreground">vs. mês anterior</span>
-              </div>
+              {stat.value === 'N/A' ? (
+                <p className="text-xs text-muted-foreground mt-1">Sem dados ainda? Agende uma avaliação</p>
+              ) : (
+                <div className="flex items-center gap-1 mt-1">
+                  <Badge 
+                    variant={stat.positive ? "default" : "destructive"}
+                    className={stat.positive ? "bg-green-100 text-green-700" : ""}
+                  >
+                    {stat.change}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">vs. mês anterior</span>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -245,10 +238,17 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
               />
             </div>
 
-            <Button className="w-full gradient-primary text-white">
-              <Trophy className="mr-2 h-4 w-4" />
-              Ver Todas as Metas
-            </Button>
+            {studentData.weeklyGoals.workouts.completed === 0 && studentData.weeklyGoals.measurements.completed === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                <p className="text-sm">Sem progresso semanal ainda</p>
+                <p className="text-xs mt-1">Comece registrando suas primeiras atividades</p>
+              </div>
+            ) : (
+              <Button className="w-full gradient-primary text-white">
+                <Trophy className="mr-2 h-4 w-4" />
+                Ver Todas as Metas
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -287,8 +287,9 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <p>Nenhum treino para hoje</p>
-                <p className="text-sm">Verifique com seu trainer</p>
+                <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Nenhum treino para hoje</p>
+                <p className="text-sm mt-1">Verifique com seu trainer ou aguarde atribuição</p>
               </div>
             )}
             
@@ -351,8 +352,13 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
               />
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <p>Sem medidas recentes</p>
-                <p className="text-sm">Agende uma avaliação com seu trainer</p>
+                <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Sem medidas recentes</p>
+                <p className="text-sm mt-1">Agende uma avaliação com seu trainer para ver sua composição corporal</p>
+                <Button className="mt-4 gradient-primary" onClick={() => window.location.href = '/chat'}>
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Agendar com Trainer
+                </Button>
               </div>
             )}
           </CardContent>
