@@ -26,11 +26,34 @@ import {
   CheckCircle,
   AlertCircle,
   Gift,
-  FileText
+  FileText,
+  Users as UsersIcon,
+  BarChart3,
+  Trash2,
+  Eye
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 interface Challenge {
   id: string;
@@ -48,7 +71,7 @@ interface Challenge {
   trainer_id: string;
 }
 
-// Templates pré-definidos (8 exemplos científicos, baseados em guidelines ACSM/NSCA) - Sem 'difficulty' para compatibilidade
+// Templates pré-definidos (8 exemplos científicos, baseados em guidelines ACSM/NSCA)
 const CHALLENGE_TEMPLATES = [
   {
     title: "30 Dias de Força",
@@ -127,14 +150,18 @@ const CHALLENGE_TEMPLATES = [
 const Challenges = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'active' | 'finished' | 'drafts'>('active');
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isTemplatesDialogOpen, setIsTemplatesDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [deletingChallenge, setDeletingChallenge] = useState<string | null>(null);
   
-  // Form state for creating challenges
+  // Form state for creating/editing challenges
   const [newChallenge, setNewChallenge] = useState({
     title: '',
     description: '',
@@ -192,7 +219,7 @@ const Challenges = () => {
 
       if (!profile) return;
 
-      // Validação: Campos obrigatórios (title, description, challenge_type, category, start_date, end_date)
+      // Validação: Campos obrigatórios
       if (!newChallenge.title.trim()) {
         toast({
           title: "Validação",
@@ -245,7 +272,7 @@ const Challenges = () => {
       let startDate = newChallenge.start_date;
       let endDate = newChallenge.end_date;
 
-      // Defaults automáticos para datas se vazias (hoje para start, 30 dias para end)
+      // Defaults automáticos para datas se vazias
       if (!startDate) {
         startDate = new Date().toISOString().split('T')[0];
         toast({
@@ -254,15 +281,14 @@ const Challenges = () => {
         });
       }
       if (!endDate) {
-        endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 dias à frente
+        endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         toast({
           title: "Aviso",
           description: "Data de fim não informada. Definindo 30 dias a partir de hoje.",
         });
       }
 
-      // Filtrar só campos válidos do schema (evita inserir 'difficulty' ou outros)
-      const validFields = {
+      const challengeData = {
         title: newChallenge.title.trim(),
         description: newChallenge.description.trim(),
         challenge_type: newChallenge.challenge_type,
@@ -276,25 +302,25 @@ const Challenges = () => {
         is_active: true
       };
 
-      // Se veio de template, usa os dados do template (sem 'difficulty')
+      // Se veio de template, usa os dados do template
       if (template) {
-        validFields.title = template.title;
-        validFields.description = template.description;
-        validFields.challenge_type = template.challenge_type;
-        validFields.category = template.category;
-        validFields.goal_value = template.goal_value;
-        validFields.goal_unit = template.goal_unit;
-        validFields.prize_description = template.prize_description;
-        validFields.start_date = new Date().toISOString().split('T')[0]; // Início hoje
-        validFields.end_date = new Date(Date.now() + (template.goal_value * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]; // Fim baseado na meta
+        challengeData.title = template.title;
+        challengeData.description = template.description;
+        challengeData.challenge_type = template.challenge_type;
+        challengeData.category = template.category;
+        challengeData.goal_value = template.goal_value;
+        challengeData.goal_unit = template.goal_unit;
+        challengeData.prize_description = template.prize_description;
+        challengeData.start_date = new Date().toISOString().split('T')[0];
+        challengeData.end_date = new Date(Date.now() + (template.goal_value * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
       }
 
       const { error } = await supabase
         .from('challenges')
-        .insert(validFields);
+        .insert(challengeData);
 
       if (error) {
-        console.error('Supabase Error Details:', error); // Debug: Mostra erro exato no console
+        console.error('Supabase Error Details:', error);
         throw error;
       }
 
@@ -323,6 +349,205 @@ const Challenges = () => {
       toast({
         title: "Erro",
         description: error.message || "Não foi possível criar o desafio. Verifique os campos e tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const updateChallenge = async (challengeId: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (!profile) return;
+
+      // Validação similar ao create
+      if (!newChallenge.title.trim()) {
+        toast({
+          title: "Validação",
+          description: "Título é obrigatório.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!newChallenge.description.trim()) {
+        toast({
+          title: "Validação",
+          description: "Descrição é obrigatória.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!newChallenge.challenge_type) {
+        toast({
+          title: "Validação",
+          description: "Tipo de desafio é obrigatório.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!newChallenge.category.trim()) {
+        toast({
+          title: "Validação",
+          description: "Categoria é obrigatória.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!newChallenge.start_date) {
+        toast({
+          title: "Validação",
+          description: "Data de início é obrigatória.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!newChallenge.end_date) {
+        toast({
+          title: "Validação",
+          description: "Data de fim é obrigatória.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      let startDate = newChallenge.start_date;
+      let endDate = newChallenge.end_date;
+
+      // Defaults automáticos para datas se vazias
+      if (!startDate) {
+        startDate = new Date().toISOString().split('T')[0];
+      }
+      if (!endDate) {
+        endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      }
+
+      const updateData = {
+        title: newChallenge.title.trim(),
+        description: newChallenge.description.trim(),
+        challenge_type: newChallenge.challenge_type,
+        category: newChallenge.category.trim(),
+        start_date: startDate,
+        end_date: endDate,
+        goal_value: newChallenge.goal_value ? parseFloat(newChallenge.goal_value) : null,
+        goal_unit: newChallenge.goal_unit ? newChallenge.goal_unit.trim() : null,
+        prize_description: newChallenge.prize_description ? newChallenge.prize_description.trim() : null,
+        is_active: editingChallenge ? editingChallenge.is_active : true
+      };
+
+      const { error } = await supabase
+        .from('challenges')
+        .update(updateData)
+        .eq('id', challengeId);
+
+      if (error) {
+        console.error('Supabase Error Details:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso!",
+        description: "Desafio atualizado com sucesso"
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingChallenge(null);
+      setNewChallenge({
+        title: '',
+        description: '',
+        challenge_type: '',
+        category: '',
+        start_date: '',
+        end_date: '',
+        goal_value: '',
+        goal_unit: '',
+        prize_description: ''
+      });
+      fetchChallenges();
+    } catch (error: any) {
+      console.error('Error updating challenge:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível atualizar o desafio.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteChallenge = async (challengeId: string) => {
+    try {
+      // Primeiro, delete participantes relacionados (se houver)
+      const { error: deleteParticipantsError } = await supabase
+        .from('challenge_participants')
+        .delete()
+        .eq('challenge_id', challengeId);
+
+      if (deleteParticipantsError) {
+        console.error('Error deleting participants:', deleteParticipantsError);
+        // Não throw aqui - continua com delete do desafio
+      }
+
+      // Depois, delete o desafio
+      const { error } = await supabase
+        .from('challenges')
+        .delete()
+        .eq('id', challengeId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso!",
+        description: "Desafio excluído com sucesso (participantes removidos automaticamente)"
+      });
+
+      fetchChallenges();
+    } catch (error: any) {
+      console.error('Error deleting challenge:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível excluir o desafio.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const publishDraft = async (challengeId: string, currentChallenge: Challenge) => {
+    try {
+      // Validação básica para publicação
+      if (!currentChallenge.start_date || !currentChallenge.end_date) {
+        toast({
+          title: "Validação",
+          description: "Defina datas de início e fim antes de publicar.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('challenges')
+        .update({
+          is_active: true,
+          start_date: currentChallenge.start_date || new Date().toISOString().split('T')[0],
+          end_date: currentChallenge.end_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        })
+        .eq('id', challengeId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso!",
+        description: "Desafio publicado e ativado!"
+      });
+
+      fetchChallenges();
+    } catch (error: any) {
+      console.error('Error publishing draft:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível publicar o desafio.",
         variant: "destructive"
       });
     }
@@ -434,7 +659,7 @@ const Challenges = () => {
                     className="cursor-pointer hover:shadow-primary/20 transition-all duration-300 hover:scale-105 group border-primary/20"
                     onClick={() => {
                       setSelectedTemplate(template);
-                      setNewChallenge(template); // Preenche o form
+                      setNewChallenge(template);
                       setIsTemplatesDialogOpen(false);
                       setIsCreateDialogOpen(true);
                     }}
@@ -480,7 +705,7 @@ const Challenges = () => {
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Criar Novo Desafio</DialogTitle>
+                <DialogTitle>{editingChallenge ? "Editar Desafio" : "Criar Novo Desafio"}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -583,8 +808,12 @@ const Challenges = () => {
                   />
                 </div>
 
-                <Button onClick={() => createChallenge(selectedTemplate)} className="gradient-primary text-white" disabled={!newChallenge.title || !newChallenge.description || !newChallenge.challenge_type || !newChallenge.category || !newChallenge.start_date || !newChallenge.end_date}>
-                  Criar Desafio
+                <Button 
+                  onClick={() => editingChallenge ? updateChallenge(editingChallenge.id) : createChallenge(selectedTemplate)} 
+                  className="gradient-primary text-white" 
+                  disabled={!newChallenge.title || !newChallenge.description || !newChallenge.challenge_type || !newChallenge.category || !newChallenge.start_date || !newChallenge.end_date}
+                >
+                  {editingChallenge ? "Atualizar Desafio" : "Criar Desafio"}
                 </Button>
               </div>
             </DialogContent>
@@ -678,9 +907,58 @@ const Challenges = () => {
                       </div>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => {
+                        setEditingChallenge(challenge);
+                        setNewChallenge({
+                          title: challenge.title,
+                          description: challenge.description,
+                          challenge_type: challenge.challenge_type,
+                          category: challenge.category,
+                          start_date: challenge.start_date,
+                          end_date: challenge.end_date,
+                          goal_value: challenge.goal_value?.toString() || '',
+                          goal_unit: challenge.goal_unit || '',
+                          prize_description: challenge.prize_description || ''
+                        });
+                        setIsEditDialogOpen(true);
+                      }}>
+                        <Edit className="mr-2 h-3 w-3" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        if (status === 'Rascunho') {
+                          publishDraft(challenge.id, challenge);
+                        } else {
+                          setDeletingChallenge(challenge.id);
+                        }
+                      }}>
+                        {status === 'Rascunho' ? (
+                          <>
+                            <Play className="mr-2 h-3 w-3" />
+                            Publicar
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="mr-2 h-3 w-3" />
+                            Excluir
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate(`/challenges/${challenge.id}/participants`)}>
+                        <UsersIcon className="mr-2 h-3 w-3" />
+                        {status === 'Ativo' ? 'Acompanhar Participantes' : 'Ver Resultados'}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <CardDescription className="line-clamp-2 mt-2">
                   {challenge.description}
@@ -729,28 +1007,11 @@ const Challenges = () => {
                     </div>
                   )}
 
-                  {/* Actions */}
+                  {/* Quick Action Button */}
                   <div className="flex gap-2">
-                    {status === 'Ativo' && (
-                      <Button size="sm" className="flex-1">
-                        <Play className="mr-2 h-4 w-4" />
-                        Acompanhar
-                      </Button>
-                    )}
-                    {status === 'Rascunho' && (
-                      <Button size="sm" className="flex-1">
-                        <Play className="mr-2 h-4 w-4" />
-                        Publicar
-                      </Button>
-                    )}
-                    {status === 'Finalizado' && (
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <Medal className="mr-2 h-4 w-4" />
-                        Resultados
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline">
-                      <Edit className="h-4 w-4" />
+                    <Button size="sm" className="flex-1" onClick={() => navigate(`/challenges/${challenge.id}/participants`)}>
+                      <UsersIcon className="mr-2 h-4 w-4" />
+                      {status === 'Ativo' ? 'Acompanhar' : 'Resultados'}
                     </Button>
                   </div>
                 </div>
@@ -759,6 +1020,208 @@ const Challenges = () => {
           );
         })}
       </div>
+
+      {/* Challenge Ideas */}
+      <Card className="shadow-primary/10 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            Ideias de Desafios Populares
+          </CardTitle>
+          <CardDescription>
+            Inspire-se com os desafios mais eficazes para motivar alunos
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { title: "7 Dias Detox", icon: "🥗", category: "Nutrição" },
+              { title: "10.000 Passos", icon: "👟", category: "Cardio" },
+              { title: "Flexão Challenge", icon: "💪", category: "Força" },
+              { title: "Meditação Diária", icon: "🧘", category: "Mental" }
+            ].map((idea, index) => (
+              <div key={index} className="p-4 border border-primary/20 rounded-lg hover:bg-accent/30 transition-colors cursor-pointer">
+                <div className="text-2xl mb-2">{idea.icon}</div>
+                <h4 className="font-medium">{idea.title}</h4>
+                <p className="text-sm text-muted-foreground">{idea.category}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Upcoming Features */}
+      <Card className="shadow-primary/10 border-primary/20">
+        <CardHeader>
+          <CardTitle>🚀 Próximas Atualizações</CardTitle>
+          <CardDescription>
+            Recursos avançados chegando em breve
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
+              <h4 className="font-medium mb-2">🏆 Sistema de Pontos</h4>
+              <p className="text-sm text-muted-foreground">
+                Gamificação completa com rankings e recompensas
+              </p>
+            </div>
+            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
+              <h4 className="font-medium mb-2">📱 Notificações Push</h4>
+              <p className="text-sm text-muted-foreground">
+                Lembretes automáticos e atualizações em tempo real
+              </p>
+            </div>
+            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
+              <h4 className="font-medium mb-2">🎯 IA Personalizada</h4>
+              <p className="text-sm text-muted-foreground">
+                Desafios automáticos baseados no perfil do aluno
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar Desafio</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Título *</Label>
+                <Input
+                  id="title"
+                  value={newChallenge.title}
+                  onChange={(e) => setNewChallenge({...newChallenge, title: e.target.value})}
+                  placeholder="Ex: Desafio 30 Dias"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Categoria *</Label>
+                <Input
+                  id="category"
+                  value={newChallenge.category}
+                  onChange={(e) => setNewChallenge({...newChallenge, category: e.target.value})}
+                  placeholder="Ex: Força, Cardio, Mobilidade"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição *</Label>
+              <Textarea
+                id="description"
+                value={newChallenge.description}
+                onChange={(e) => setNewChallenge({...newChallenge, description: e.target.value})}
+                placeholder="Descreva os objetivos e regras do desafio"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="challenge_type">Tipo *</Label>
+                <Select 
+                  value={newChallenge.challenge_type} 
+                  onValueChange={(value) => setNewChallenge({...newChallenge, challenge_type: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="individual">Individual</SelectItem>
+                    <SelectItem value="equipe">Equipe</SelectItem>
+                    <SelectItem value="global">Global</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="goal_value">Meta</Label>
+                <Input
+                  id="goal_value"
+                  type="number"
+                  value={newChallenge.goal_value}
+                  onChange={(e) => setNewChallenge({...newChallenge, goal_value: e.target.value})}
+                  placeholder="Ex: 30"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="goal_unit">Unidade</Label>
+                <Input
+                  id="goal_unit"
+                  value={newChallenge.goal_unit}
+                  onChange={(e) => setNewChallenge({...newChallenge, goal_unit: e.target.value})}
+                  placeholder="Ex: dias, kg, km"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="start_date">Data de Início *</Label>
+                <Input
+                  id="start_date"
+                  type="date"
+                  value={newChallenge.start_date}
+                  onChange={(e) => setNewChallenge({...newChallenge, start_date: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end_date">Data de Fim *</Label>
+                <Input
+                  id="end_date"
+                  type="date"
+                  value={newChallenge.end_date}
+                  onChange={(e) => setNewChallenge({...newChallenge, end_date: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="prize_description">Prêmio</Label>
+              <Input
+                id="prize_description"
+                value={newChallenge.prize_description}
+                onChange={(e) => setNewChallenge({...newChallenge, prize_description: e.target.value})}
+                placeholder="Ex: Kit fitness + desconto 20%"
+              />
+            </div>
+
+            <Button 
+              onClick={() => updateChallenge(editingChallenge!.id)} 
+              className="gradient-primary text-white" 
+              disabled={!newChallenge.title || !newChallenge.description || !newChallenge.challenge_type || !newChallenge.category || !newChallenge.start_date || !newChallenge.end_date}
+            >
+              Atualizar Desafio
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deletingChallenge} onOpenChange={() => setDeletingChallenge(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação excluirá permanentemente o desafio "{challenges.find(c => c.id === deletingChallenge)?.title}" e todos os dados associados (participantes, progresso). Tem certeza?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (deletingChallenge) {
+                deleteChallenge(deletingChallenge);
+                setDeletingChallenge(null);
+              }
+            }}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Challenge Ideas */}
       <Card className="shadow-primary/10 border-primary/20">
