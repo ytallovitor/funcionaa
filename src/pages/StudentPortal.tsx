@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Activity, User, Target, Calendar, Dumbbell } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const StudentPortal = () => {
   const { trainerId } = useParams();
@@ -83,10 +84,12 @@ const StudentPortal = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Carregando...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-full max-w-md">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Carregando...</p>
+          </div>
         </div>
       </div>
     );
@@ -94,63 +97,81 @@ const StudentPortal = () => {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="gradient-primary p-3 rounded-lg w-fit mx-auto mb-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="gradient-primary p-3 rounded-xl shadow-glow mx-auto mb-4">
               <Activity className="h-8 w-8 text-primary-foreground" />
             </div>
-            <CardTitle className="text-2xl bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
               Portal do Aluno
-            </CardTitle>
-            <CardDescription>
+            </h1>
+            <p className="text-muted-foreground mt-2">
               Acesse seus dados de evolução e treinos
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="username">Nome de Usuário</Label>
-              <Input
-                id="username"
-                value={loginForm.username}
-                onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
-                placeholder="Digite seu nome de usuário"
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={loginForm.password}
-                onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
-                placeholder="Digite sua senha"
-              />
-            </div>
-            <Button onClick={handleLogin} className="w-full" disabled={!loginForm.username || !loginForm.password}>
-              Entrar
-            </Button>
-          </CardContent>
-        </Card>
+            </p>
+          </div>
+
+          <Card className="shadow-primary border-primary/20">
+            <CardHeader className="text-center space-y-1">
+              <CardTitle className="text-lg">Entrar</CardTitle>
+              <CardDescription>
+                Insira suas credenciais para acessar sua conta
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-3">
+                <Label htmlFor="username">Nome de Usuário</Label>
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="seu_usuario"
+                  value={loginForm.username}
+                  onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
+                  className="min-h-[44px]" // Touch-friendly height
+                />
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="password">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                  className="min-h-[44px]" // Touch-friendly
+                />
+              </div>
+              <Button 
+                onClick={handleLogin} 
+                className="w-full min-h-[44px] gradient-primary shadow-primary hover:shadow-glow transition-all"
+                disabled={!loginForm.username || !loginForm.password}
+              >
+                Entrar
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
             Olá, {studentData?.name}!
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-muted-foreground">
             Acompanhe sua evolução e progresso
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Stats - Single column on mobile, 2 cols on sm+, 4 on lg */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="shadow-primary/10 border-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-col items-center space-y-1 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Peso Atual
               </CardTitle>
@@ -158,8 +179,8 @@ const StudentPortal = () => {
                 <User className="h-4 w-4 text-primary-foreground" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">
+            <CardContent className="text-center">
+              <div className="text-lg font-bold text-primary">
                 {latestEvaluation?.weight ? `${latestEvaluation.weight}kg` : 'N/A'}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -169,7 +190,7 @@ const StudentPortal = () => {
           </Card>
 
           <Card className="shadow-primary/10 border-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-col items-center space-y-1 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 % Gordura
               </CardTitle>
@@ -177,8 +198,8 @@ const StudentPortal = () => {
                 <Activity className="h-4 w-4 text-primary-foreground" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">
+            <CardContent className="text-center">
+              <div className="text-lg font-bold text-primary">
                 {latestEvaluation?.body_fat_percentage ? `${latestEvaluation.body_fat_percentage.toFixed(1)}%` : 'N/A'}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -188,7 +209,7 @@ const StudentPortal = () => {
           </Card>
 
           <Card className="shadow-primary/10 border-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-col items-center space-y-1 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Objetivo
               </CardTitle>
@@ -196,8 +217,8 @@ const StudentPortal = () => {
                 <Target className="h-4 w-4 text-primary-foreground" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-lg font-bold text-primary">
+            <CardContent className="text-center">
+              <div className="text-sm font-bold text-primary">
                 {studentData?.goal?.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'N/A'}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -207,7 +228,7 @@ const StudentPortal = () => {
           </Card>
 
           <Card className="shadow-primary/10 border-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-col items-center space-y-1 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Avaliações
               </CardTitle>
@@ -215,8 +236,8 @@ const StudentPortal = () => {
                 <Calendar className="h-4 w-4 text-primary-foreground" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">
+            <CardContent className="text-center">
+              <div className="text-lg font-bold text-primary">
                 {evaluations.length}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -226,7 +247,9 @@ const StudentPortal = () => {
           </Card>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        {/* Main Sections - Stack vertically on mobile */}
+        <div className="space-y-6">
+          {/* Meus Treinos */}
           <Card className="shadow-primary/10 border-primary/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -237,37 +260,38 @@ const StudentPortal = () => {
                 Seus treinos atribuídos pelo seu personal trainer
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="max-h-[300px] overflow-y-auto"> {/* Scrollable on mobile */}
               {workouts.length > 0 ? (
                 <Accordion type="single" collapsible className="w-full">
                   {workouts.map((workout) => (
-                    <AccordionItem key={workout.id} value={workout.id}>
-                      <AccordionTrigger>{workout.name}</AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-3">
-                          <p className="text-sm text-muted-foreground">{workout.description}</p>
-                          {workout.exercises?.map((ex: any, index: number) => (
-                            <div key={index} className="p-3 bg-accent/50 rounded-lg">
-                              <p className="font-medium">{ex.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {ex.sets} séries x {ex.reps} reps • Descanso: {ex.rest_time}s
-                              </p>
-                              {ex.notes && <p className="text-xs text-primary mt-1">Nota: {ex.notes}</p>}
-                            </div>
-                          ))}
-                        </div>
+                    <AccordionItem key={workout.id} value={workout.id} className="border-b">
+                      <AccordionTrigger className="text-sm px-2 py-3 hover:no-underline"> {/* Touch-friendly padding */}
+                        {workout.name}
+                      </AccordionTrigger>
+                      <AccordionContent className="px-2 py-3 space-y-2">
+                        <p className="text-sm text-muted-foreground">{workout.description}</p>
+                        {workout.exercises?.map((ex: any, index: number) => (
+                          <div key={index} className="p-2 bg-accent/50 rounded text-xs">
+                            <p className="font-medium">{ex.name}</p>
+                            <p className="text-muted-foreground">
+                              {ex.sets} séries x {ex.reps} reps • Descanso: {ex.rest_time}s
+                            </p>
+                            {ex.notes && <p className="text-primary mt-1">Nota: {ex.notes}</p>}
+                          </div>
+                        ))}
                       </AccordionContent>
                     </AccordionItem>
                   ))}
                 </Accordion>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <p>Nenhum treino atribuído ainda</p>
+                  <p className="text-sm">Nenhum treino atribuído ainda</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
+          {/* Histórico de Avaliações */}
           <Card className="shadow-primary/10 border-primary/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -278,25 +302,25 @@ const StudentPortal = () => {
                 Acompanhe sua evolução ao longo do tempo
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="max-h-[300px] overflow-y-auto"> {/* Scrollable on mobile */}
+              <div className="space-y-3">
                 {evaluations.length > 0 ? (
                   evaluations.map((evaluation, index) => (
-                    <div key={evaluation.id} className="flex items-center justify-between p-4 bg-accent/50 rounded-lg">
-                      <div>
-                        <p className="font-medium">
+                    <div key={evaluation.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-accent/50 rounded-lg">
+                      <div className="mb-2 sm:mb-0">
+                        <h4 className="font-medium text-sm">
                           Avaliação #{evaluations.length - index}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
                           {new Date(evaluation.evaluation_date).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                      <div className="text-right space-y-1">
-                        <p className="text-sm">
+                      <div className="text-right space-y-1 text-sm">
+                        <p>
                           <span className="font-medium">Peso:</span> {evaluation.weight}kg
                         </p>
                         {evaluation.body_fat_percentage && (
-                          <p className="text-sm">
+                          <p>
                             <span className="font-medium">Gordura:</span> {evaluation.body_fat_percentage.toFixed(1)}%
                           </p>
                         )}
