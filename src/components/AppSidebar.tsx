@@ -1,4 +1,4 @@
-import { Home, Users, PlusCircle, BarChart3, Settings, LogOut, Dumbbell, MessageCircle, Trophy, Apple, FileText } from "lucide-react";
+import { Home, Users, PlusCircle, BarChart3, Settings, LogOut, Dumbbell, MessageCircle, Trophy, Apple } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -12,7 +12,6 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Activity } from "lucide-react";
@@ -35,43 +34,63 @@ export function AppSidebar() {
   const { signOut, user } = useAuth();
   const collapsed = state === "collapsed";
 
-  const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive
-      ? "bg-primary text-primary-foreground font-medium"
-      : "text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700";
+  const getNavCls = ({ isActive }: { isActive: boolean }) => {
+    const baseClasses = "flex items-center gap-3 w-full h-12 px-3 text-sm font-medium transition-all duration-200";
+    const activeClasses = isActive 
+      ? "bg-primary text-primary-foreground font-semibold" 
+      : "text-foreground hover:bg-accent hover:text-accent-foreground";
+    
+    // Garante visibilidade total, sem opacidade condicional excessiva
+    const visibilityClasses = collapsed ? "opacity-100" : "opacity-100";
+    
+    return `${baseClasses} ${activeClasses} ${visibilityClasses}`;
+  };
 
   return (
     <Sidebar
-      className={collapsed ? "w-16" : "w-64"}
+      className="w-64" // Remove o colapso para ícones apenas - sempre visível com largura fixa
       collapsible="icon"
+      style={{
+        minWidth: '240px', // Largura mínima para garantir espaço para labels
+        maxWidth: '300px', // Largura máxima para não invadir demais
+      }}
     >
       <SidebarHeader className="border-b border-sidebar-border p-4">
         <div className="flex items-center gap-2">
           <div className="gradient-primary p-2 rounded-lg shadow-glow">
             <Activity className="h-6 w-6 text-primary-foreground" />
           </div>
-          {!collapsed && (
-            <div>
-              <h2 className="text-lg font-bold text-gradient">
-                FitPro V2
-              </h2>
-              <p className="text-xs text-muted-foreground">Plataforma Fitness</p>
-            </div>
-          )}
+          <div>
+            <h2 className="text-lg font-bold text-gradient">
+              FitPro V2
+            </h2>
+            <p className="text-xs text-muted-foreground">Plataforma Fitness</p>
+          </div>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+      <SidebarContent className="p-2">
+        <SidebarGroup className="space-y-1">
+          <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground px-2">
+            Menu Principal
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end className={getNavCls}>
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                  <SidebarMenuButton asChild className="justify-start w-full h-12 p-3 transition-colors duration-200 hover:bg-accent/100">
+                    <NavLink 
+                      to={item.url} 
+                      end 
+                      className={({ isActive }) => getNavCls({ isActive })} 
+                      style={{
+                        opacity: 1, // Força visibilidade total
+                        color: location.pathname === item.url ? 'var(--primary-foreground)' : 'var(--foreground)',
+                        backgroundColor: location.pathname === item.url ? 'var(--primary)' : 'transparent',
+                      }}
+                    >
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="ml-3 text-sm font-medium transition-colors duration-200">{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -83,20 +102,18 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border p-4">
         <div className="space-y-2">
-          {!collapsed && user && (
-            <div className="px-2 py-1">
-              <p className="text-sm font-medium truncate">{user.email}</p>
-              <p className="text-xs text-muted-foreground">Fitness Pro</p>
-            </div>
-          )}
+          <div className="px-2 py-1">
+            <p className="text-sm font-medium truncate">{user?.email}</p>
+            <p className="text-xs text-muted-foreground">Trainer</p>
+          </div>
           <Button
             variant="ghost"
-            size={collapsed ? "icon" : "sm"}
+            size="sm"
             onClick={signOut}
-            className="w-full justify-start hover:bg-destructive/10 hover:text-destructive"
+            className="w-full justify-start hover:bg-destructive/10 hover:text-destructive transition-colors duration-200"
           >
-            <LogOut className="h-4 w-4" />
-            {!collapsed && <span className="ml-2">Sair</span>}
+            <LogOut className="h-4 w-4 mr-3" />
+            Sair
           </Button>
         </div>
       </SidebarFooter>
