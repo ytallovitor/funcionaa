@@ -224,6 +224,16 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
     }
   };
 
+  const isFormValid = () => {
+    const weight = parseFloat(formData.weight);
+    const waist = parseFloat(formData.waist);
+    const neck = parseFloat(formData.neck);
+    const hip = formData.hip ? parseFloat(formData.hip) : null;
+    
+    return !isNaN(weight) && weight > 0 && !isNaN(waist) && waist > 0 && !isNaN(neck) && neck > 0 && 
+           (student.gender !== 'feminino' || (!isNaN(hip || NaN) && hip > 0));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -331,7 +341,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
               <Button 
                 type="submit" 
                 className="w-full gradient-primary shadow-primary hover:shadow-glow transition-all"
-                disabled={isSubmitting || !formData.weight || !formData.waist || !formData.neck || (student.gender === 'feminino' && !formData.hip)}
+                disabled={!isFormValid()}
               >
                 {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 <Save className="h-4 w-4 mr-2" />
