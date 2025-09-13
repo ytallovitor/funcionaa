@@ -1,4 +1,4 @@
-import { Home, Users, PlusCircle, BarChart3, Settings, LogOut, Dumbbell, MessageCircle, Trophy, Apple } from "lucide-react";
+import { Home, Users, PlusCircle, BarChart3, Settings, LogOut, Dumbbell, MessageCircle, Trophy, Apple, FileText } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -21,15 +21,12 @@ const items = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Alunos", url: "/students", icon: Users },
   { title: "Nova Avaliação", url: "/evaluation", icon: PlusCircle },
-  { title: "Relatórios", url: "/reports", icon: BarChart3 },
-  { title: "Configurações", url: "/settings", icon: Settings },
-];
-
-const v2Items = [
   { title: "Treinos", url: "/workouts", icon: Dumbbell },
   { title: "Nutrição", url: "/nutrition", icon: Apple },
   { title: "Chat", url: "/chat", icon: MessageCircle },
   { title: "Desafios", url: "/challenges", icon: Trophy },
+  { title: "Relatórios", url: "/reports", icon: BarChart3 },
+  { title: "Configurações", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -73,24 +70,6 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end className={getNavCls}>
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>V2.0 Features</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {v2Items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavCls}>
                       <item.icon className="h-4 w-4" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
