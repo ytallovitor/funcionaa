@@ -22,6 +22,136 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Fallback exercises básicos se o DB estiver vazio
+  const fallbackExercises = [
+    {
+      id: "fallback-1",
+      name: "Agachamento Livre",
+      category: "Força",
+      muscle_groups: ["Quadríceps", "Glúteos", "Posterior"],
+      difficulty: "Iniciante",
+      equipment: ["Barra", "Anilhas"],
+      instructions: [
+        "Fique em pé com os pés na largura dos ombros",
+        "Desça flexionando joelhos e quadris como se sentasse",
+        "Mantenha o peito erguido e joelhos alinhados",
+        "Volte à posição inicial empurrando com os calcanhares"
+      ],
+      tips: ["Mantenha as costas retas", "Não deixe os joelhos passarem das pontas dos pés"],
+      duration: 0,
+      reps: 12,
+      sets: 3,
+      rest_time: 90,
+      video_url: "",
+      image_url: ""
+    },
+    {
+      id: "fallback-2",
+      name: "Supino com Barra",
+      category: "Força",
+      muscle_groups: ["Peitoral", "Tríceps", "Ombros"],
+      difficulty: "Iniciante",
+      equipment: ["Banco", "Barra", "Anilhas"],
+      instructions: [
+        "Deite no banco com os pés apoiados no chão",
+        "Segure a barra na largura dos ombros",
+        "Desça a barra controladamente até o peito",
+        "Empurre explosivamente de volta à posição inicial"
+      ],
+      tips: ["Mantenha os ombros afastados das orelhas", "Controle a descida para evitar lesões"],
+      duration: 0,
+      reps: 10,
+      sets: 3,
+      rest_time: 120,
+      video_url: "",
+      image_url: ""
+    },
+    {
+      id: "fallback-3",
+      name: "Remada Curvada",
+      category: "Força",
+      muscle_groups: ["Costas", "Bíceps", "Ombros"],
+      difficulty: "Iniciante",
+      equipment: ["Barra", "Anilhas"],
+      instructions: [
+        "Fique em pé com os pés na largura dos quadris",
+        "Incline o tronco mantendo as costas retas",
+        "Puxe a barra em direção ao abdômen",
+        "Contraia as escápulas no topo do movimento"
+      ],
+      tips: ["Mantenha o core contraído", "Evite usar impulso das pernas"],
+      duration: 0,
+      reps: 12,
+      sets: 3,
+      rest_time: 90,
+      video_url: "",
+      image_url: ""
+    },
+    {
+      id: "fallback-4",
+      name: "Prancha",
+      category: "Funcional",
+      muscle_groups: ["Core", "Ombros", "Glúteos"],
+      difficulty: "Iniciante",
+      equipment: [],
+      instructions: [
+        "Apoie-se nos antebraços e ponta dos pés",
+        "Mantenha o corpo em linha reta",
+        "Contraia o abdômen e glúteos",
+        "Segure a posição respirando normalmente"
+      ],
+      tips: ["Não deixe os quadris caírem", "Olhe para o chão para manter a coluna neutra"],
+      duration: 30,
+      reps: 0,
+      sets: 3,
+      rest_time: 60,
+      video_url: "",
+      image_url: ""
+    },
+    {
+      id: "fallback-5",
+      name: "Flexão de Braço",
+      category: "Força",
+      muscle_groups: ["Peitoral", "Tríceps", "Ombros"],
+      difficulty: "Iniciante",
+      equipment: [],
+      instructions: [
+        "Apoie as mãos no chão na largura dos ombros",
+        "Desça o peito em direção ao chão",
+        "Mantenha o corpo reto como uma prancha",
+        "Empurre de volta à posição inicial"
+      ],
+      tips: ["Se difícil, faça com joelhos no chão", "Controle a descida para 2-3 segundos"],
+      duration: 0,
+      reps: 10,
+      sets: 3,
+      rest_time: 60,
+      video_url: "",
+      image_url: ""
+    },
+    {
+      id: "fallback-6",
+      name: "Elevação de Panturrilha",
+      category: "Força",
+      muscle_groups: ["Panturrilhas"],
+      difficulty: "Iniciante",
+      equipment: [],
+      instructions: [
+        "Fique em pé com os pés paralelos",
+        "Eleve os calcanhares o mais alto possível",
+        "Contraia as panturrilhas no topo",
+        "Desça controladamente"
+      ],
+      tips: ["Faça devagar para maior ativação", "Use uma parede para equilíbrio se necessário"],
+      duration: 0,
+      reps: 15,
+      sets: 3,
+      rest_time: 45,
+      video_url: "",
+      image_url: ""
+    }
+  ];
+
   const generateWorkout = async () => {
     setIsGenerating(true);
     try {
@@ -53,43 +183,76 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
         category = 'Funcional'; // Mix of strength and cardio
       }
 
-      // 3. Fetch exercises based on parameters
-      const { data: exercises, error } = await supabase
+      // 3. Fetch exercises based on parameters - TENTATIVA 1: Específica
+      let exercises = await supabase
         .from('exercises')
         .select('*')
         .eq('category', category)
         .eq('difficulty', difficulty)
-        .limit(6); // Suggest 6 exercises
+        .limit(6)
+        .then(({ data, error }) => {
+          if (error) console.warn('Erro na query específica:', error);
+          return data || [];
+        });
 
-      if (error || !exercises || exercises.length === 0) {
-        throw new Error("Não foi possível encontrar exercícios adequados.");
+      // Se não encontrou, TENTATIVA 2: Mais ampla (sem filtros, pega os primeiros 6)
+      if (exercises.length === 0) {
+        exercises = await supabase
+          .from('exercises')
+          .select('*')
+          .limit(6)
+          .then(({ data, error }) => {
+            if (error) console.warn('Erro na query ampla:', error);
+            return data || [];
+          });
+      }
+
+      // Se ainda não encontrou, usa FALLBACK (exercícios básicos pré-definidos)
+      if (exercises.length === 0) {
+        console.warn('Nenhum exercício encontrado no DB - usando fallback');
+        exercises = fallbackExercises.slice(0, 6); // Pega os primeiros 6 do fallback
+        toast({
+          title: "Usando exercícios básicos",
+          description: "Adicione mais exercícios na biblioteca para sugestões personalizadas! 📚",
+        });
       }
 
       // 4. Build the suggested workout object
       const suggestedWorkout = {
         name: `Sugestão para ${student.name} - ${student.goal.replace('_', ' ')}`,
-        description: `Treino gerado por IA com base no objetivo de ${student.goal} e experiência ${experience}.`,
+        description: `Treino gerado por IA com base no objetivo de ${student.goal} e experiência ${experience}. ${exercises.length < 6 ? 'Usando exercícios básicos disponíveis.' : ''}`,
         category: category,
         difficulty: difficulty,
-        exercises: exercises.map(ex => ({
+        exercises: exercises.map((ex, index) => ({
           exercise: ex,
           sets: sets,
-          reps: repRange.split('-')[1], // Use the upper end of the range
+          reps: parseInt(repRange.split('-')[1]) || 12, // Use the upper end of the range
           rest_time: 60,
-          notes: ''
+          notes: `Exercício ${index + 1} - Foque na forma correta.`
         }))
       };
 
       // 5. Navigate to workout creator with the suggestion
-      navigate('/workouts', { state: { suggestedWorkout } });
+      navigate('/workouts', { 
+        state: { 
+          suggestedWorkout,
+          fromSuggestion: true // Flag para indicar que veio da IA
+        } 
+      });
+
+      toast({
+        title: "Sugestão Gerada!",
+        description: `Treino criado com ${exercises.length} exercícios. Edite no criador!`,
+      });
 
     } catch (error: any) {
       console.error("Error generating workout:", error);
       toast({
         title: "Erro na Geração",
-        description: error.message || "Não foi possível gerar a sugestão de treino.",
+        description: "Não foi possível gerar a sugestão. Tente novamente ou crie manualmente no menu Treinos.",
         variant: "destructive"
       });
+    } finally {
       setIsGenerating(false);
     }
   };
