@@ -25,7 +25,8 @@ import {
   MoreVertical,
   CheckCircle,
   AlertCircle,
-  Gift
+  Gift,
+  FileText
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +48,90 @@ interface Challenge {
   trainer_id: string;
 }
 
+// Templates pré-definidos (8 exemplos científicos, baseados em guidelines ACSM/NSCA)
+const CHALLENGE_TEMPLATES = [
+  {
+    title: "30 Dias de Força",
+    description: "Treino diário para ganho de força e massa muscular (ACSM: 3-5x/semana, 8-12 reps).",
+    challenge_type: "individual",
+    category: "Força",
+    goal_value: 30,
+    goal_unit: "dias",
+    prize_description: "Kit de suplementos + consulta gratuita",
+    difficulty: "Intermediário"
+  },
+  {
+    title: "Detox 7 Dias",
+    description: "Desafio de nutrição para desintoxicação e reset metabólico (NSCA: foco em fibras e hidratação).",
+    challenge_type: "individual",
+    category: "Nutrição",
+    goal_value: 7,
+    goal_unit: "dias",
+    prize_description: "Voucher de nutrição esportiva",
+    difficulty: "Iniciante"
+  },
+  {
+    title: "10.000 Passos Diários",
+    description: "Desafio de cardio para melhorar VO2 max e queima calórica (ACSM: 10k passos/dia para saúde cardiovascular).",
+    challenge_type: "individual",
+    category: "Cardio",
+    goal_value: 10000,
+    goal_unit: "passos",
+    prize_description: "Smartwatch básico",
+    difficulty: "Iniciante"
+  },
+  {
+    title: "Flexão Challenge",
+    description: "Melhore força superior com progressão de reps (NSCA: 3 sets, aumentar 10% semanal).",
+    challenge_type: "individual",
+    category: "Força",
+    goal_value: 100,
+    goal_unit: "flexões",
+    prize_description: "Camiseta fitness + shake pós-treino",
+    difficulty: "Iniciante"
+  },
+  {
+    title: "Meditação Diária 10 Min",
+    description: "Reduza estresse e melhore foco (ACSM: 10 min/dia para redução de cortisol).",
+    challenge_type: "individual",
+    category: "Mental",
+    goal_value: 10,
+    goal_unit: "minutos",
+    prize_description: "Acesso a app de meditação",
+    difficulty: "Iniciante"
+  },
+  {
+    title: "Desafio Equipe 21 Dias",
+    description: "Treino em grupo para motivação coletiva (NSCA: treinos em equipe aumentam adesão 40%).",
+    challenge_type: "equipe",
+    category: "Funcional",
+    goal_value: 21,
+    goal_unit: "dias",
+    prize_description: "Encontro em grupo + prêmios coletivos",
+    difficulty: "Intermediário"
+  },
+  {
+    title: "HIIT 4 Semanas",
+    description: "Alta intensidade para perda de gordura (ACSM: HIIT queima 15% mais calorias que cardio steady-state).",
+    challenge_type: "individual",
+    category: "HIIT",
+    goal_value: 16,
+    goal_unit: "sessões",
+    prize_description: "Aulas particulares gratuitas",
+    difficulty: "Avançado"
+  },
+  {
+    title: "Mobilidade Semanal",
+    description: "Melhore amplitude de movimento (NSCA: 3x/semana para reduzir risco de lesão em 25%).",
+    challenge_type: "individual",
+    category: "Flexibilidade",
+    goal_value: 12,
+    goal_unit: "sessões",
+    prize_description: "Kit de yoga básico",
+    difficulty: "Iniciante"
+  }
+];
+
 const Challenges = () => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -54,6 +139,8 @@ const Challenges = () => {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isTemplatesDialogOpen, setIsTemplatesDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   
   // Form state for creating challenges
   const [newChallenge, setNewChallenge] = useState({
@@ -103,7 +190,7 @@ const Challenges = () => {
     }
   };
 
-  const createChallenge = async () => {
+  const createChallenge = async (template?: any) => {
     try {
       const { data: profile } = await supabase
         .from('profiles')
@@ -113,23 +200,40 @@ const Challenges = () => {
 
       if (!profile) return;
 
+      const challengeData = {
+        ...newChallenge,
+        trainer_id: profile.id,
+        goal_value: newChallenge.goal_value ? parseFloat(newChallenge.goal_value) : null,
+        is_active: true
+      };
+
+      // Se veio de template, usa os dados do template
+      if (template) {
+        challengeData.title = template.title;
+        challengeData.description = template.description;
+        challengeData.challenge_type = template.challenge_type;
+        challengeData.category = template.category;
+        challengeData.goal_value = template.goal_value;
+        challengeData.goal_unit = template.goal_unit;
+        challengeData.prize_description = template.prize_description;
+        challengeData.start_date = new Date().toISOString().split('T')[0]; // Início hoje
+        challengeData.end_date = new Date(Date.now() + (template.goal_value * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]; // Fim baseado na meta
+      }
+
       const { error } = await supabase
         .from('challenges')
-        .insert({
-          ...newChallenge,
-          trainer_id: profile.id,
-          goal_value: newChallenge.goal_value ? parseFloat(newChallenge.goal_value) : null,
-          is_active: true
-        });
+        .insert(challengeData);
 
       if (error) throw error;
 
       toast({
         title: "Sucesso!",
-        description: "Desafio criado com sucesso"
+        description: template ? "Desafio criado a partir do template!" : "Desafio criado com sucesso"
       });
 
       setIsCreateDialogOpen(false);
+      setIsTemplatesDialogOpen(false);
+      setSelectedTemplate(null);
       setNewChallenge({
         title: '',
         description: '',
@@ -237,6 +341,67 @@ const Challenges = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Dialog open={isTemplatesDialogOpen} onOpenChange={setIsTemplatesDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <FileText className="mr-2 h-4 w-4" />
+                Templates
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh]">
+              <DialogHeader>
+                <DialogTitle>Templates de Desafios</DialogTitle>
+                <p className="text-sm text-muted-foreground">
+                  Escolha um template para criar um desafio rapidamente (baseados em guidelines ACSM/NSCA)
+                </p>
+              </DialogHeader>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                {CHALLENGE_TEMPLATES.map((template, index) => (
+                  <Card
+                    key={index}
+                    className="cursor-pointer hover:shadow-primary/20 transition-all duration-300 hover:scale-105 group border-primary/20"
+                    onClick={() => {
+                      setSelectedTemplate(template);
+                      setNewChallenge(template); // Preenche o form
+                      setIsTemplatesDialogOpen(false);
+                      setIsCreateDialogOpen(true);
+                    }}
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="text-2xl">{getTypeIcon(template.challenge_type)}</div>
+                        <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                          {template.title}
+                        </CardTitle>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge className="flex items-center gap-1">
+                          {getTypeIcon(template.challenge_type)}
+                          {template.challenge_type}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {template.category}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {template.difficulty}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="text-sm">
+                      <p className="line-clamp-2">{template.description}</p>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="font-medium">Meta: {template.goal_value} {template.goal_unit}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {template.prize_description}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
+          
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-white">
@@ -349,16 +514,12 @@ const Challenges = () => {
                   />
                 </div>
 
-                <Button onClick={createChallenge} className="gradient-primary text-white">
+                <Button onClick={() => createChallenge(selectedTemplate)} className="gradient-primary text-white">
                   Criar Desafio
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
-          <Button variant="outline">
-            <Trophy className="mr-2 h-4 w-4" />
-            Templates
-          </Button>
         </div>
       </div>
 
