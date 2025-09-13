@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Dumbbell
 } from "lucide-react";
+import AssignWorkoutDialog from "@/components/AssignWorkoutDialog";
 
 interface Exercise {
   id: string;
@@ -69,6 +70,8 @@ const Workouts = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutTemplate | null>(null);
 
   // Create template form state
   const [newTemplate, setNewTemplate] = useState({
@@ -238,6 +241,11 @@ const Workouts = () => {
 
   const removeExerciseFromTemplate = (index: number) => {
     setSelectedExercises(selectedExercises.filter((_, i) => i !== index));
+  };
+
+  const handleAssignClick = (template: WorkoutTemplate) => {
+    setSelectedWorkout(template);
+    setIsAssignDialogOpen(true);
   };
 
   const categories = ["all", "Força", "Cardio", "Funcional", "HIIT", "Flexibilidade"];
@@ -498,7 +506,7 @@ const Workouts = () => {
                       <Button variant="outline" size="sm">
                         Visualizar
                       </Button>
-                      <Button size="sm" className="gradient-primary text-white">
+                      <Button size="sm" className="gradient-primary text-white" onClick={() => handleAssignClick(template)}>
                         Atribuir
                       </Button>
                     </div>
@@ -594,6 +602,12 @@ const Workouts = () => {
           </div>
         </TabsContent>
       </Tabs>
+      <AssignWorkoutDialog
+        workoutTemplate={selectedWorkout}
+        open={isAssignDialogOpen}
+        onOpenChange={setIsAssignDialogOpen}
+        onAssigned={fetchData}
+      />
     </div>
   );
 };
