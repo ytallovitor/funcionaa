@@ -144,13 +144,22 @@ const Nutrition = () => {
   const totals = calculateTotals();
 
   const addFood = async (food: Food, quantity: number = 100) => {
-    if (!userProfile) return;
+    const targetStudentId = userProfile?.id; // Use profile ID for current user (student view)
+    
+    if (!targetStudentId) {
+      toast({
+        title: "Erro",
+        description: "Perfil de aluno não encontrado. Faça login novamente.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       const { error } = await supabase
         .from('meal_entries')
         .insert({
-          student_id: userProfile.id, // This should be the selected student ID
+          student_id: targetStudentId,
           food_item_id: food.id,
           quantity_grams: quantity,
           meal_type: selectedMeal,

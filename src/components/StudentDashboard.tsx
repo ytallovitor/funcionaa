@@ -20,6 +20,7 @@ import ChatSystem from "./ChatSystem";
 import BodyCompositionCalculator from "./BodyCompositionCalculator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStudentData } from "@/hooks/useStudentData";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StudentDashboardProps {
   student: {
