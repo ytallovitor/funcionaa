@@ -13,32 +13,26 @@ const StudentPortal = () => {
   const [studentData, setStudentData] = useState<any>(null);
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loginForm, setLoginForm] = useState({ name: "", birthDate: "" });
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { toast } = useToast();
 
   const handleLogin = async () => {
-    console.log('Login attempt with:', { username: loginForm.name, password: loginForm.birthDate });
     setLoading(true);
     try {
       // Authenticate via RPC to bypass RLS safely
-      console.log('Calling RPC fn_student_portal_login...');
       const { data: student, error: loginError } = await supabase
         .rpc('fn_student_portal_login', {
-          p_username: loginForm.name,
-          p_password: loginForm.birthDate,
+          p_username: loginForm.username,
+          p_password: loginForm.password,
         })
         .maybeSingle();
 
-      console.log('Login RPC result:', { student, loginError });
-
       if (loginError) {
-        console.error('Login RPC error:', loginError);
         throw loginError;
       }
 
       if (!student) {
-        console.log('No student found for provided credentials');
         toast({
           title: "Usuário não encontrado",
           description: "Verifique o nome de usuário e senha",
@@ -49,11 +43,10 @@ const StudentPortal = () => {
       }
 
       // Fetch evaluations via RPC (also bypasses RLS but only for this student)
-      console.log('Fetching evaluations via RPC...');
       const { data: evalData, error: evalError } = await supabase
         .rpc('fn_student_evaluations', {
-          p_username: loginForm.name,
-          p_password: loginForm.birthDate,
+          p_username: loginForm.username,
+          p_password: loginForm.password,
         });
 
       if (evalError) throw evalError;
@@ -109,25 +102,25 @@ const StudentPortal = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="name">Nome de Usuário</Label>
+              <Label htmlFor="username">Nome de Usuário</Label>
               <Input
-                id="name"
-                value={loginForm.name}
-                onChange={(e) => setLoginForm({...loginForm, name: e.target.value})}
+                id="username"
+                value={loginForm.username}
+                onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
                 placeholder="Digite seu nome de usuário"
               />
             </div>
             <div>
-              <Label htmlFor="birthDate">Senha</Label>
+              <Label htmlFor="password">Senha</Label>
               <Input
-                id="birthDate"
+                id="password"
                 type="password"
-                value={loginForm.birthDate}
-                onChange={(e) => setLoginForm({...loginForm, birthDate: e.target.value})}
+                value={loginForm.password}
+                onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
                 placeholder="Digite sua senha"
               />
             </div>
-            <Button onClick={handleLogin} className="w-full" disabled={!loginForm.name || !loginForm.birthDate}>
+            <Button onClick={handleLogin} className="w-full" disabled={!loginForm.username || !loginForm.password}>
               Entrar
             </Button>
           </CardContent>
