@@ -1,4 +1,4 @@
-import { Home, Users, PlusCircle, BarChart3, Settings, LogOut, Dumbbell, MessageCircle, Trophy, Nutrition } from "lucide-react";
+import { Home, Users, PlusCircle, BarChart3, Settings, LogOut, Dumbbell, MessageCircle, Trophy, Apple } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -27,7 +27,7 @@ const items = [
 
 const v2Items = [
   { title: "Treinos", url: "/workouts", icon: Dumbbell },
-  { title: "Nutrição", url: "/nutrition", icon: Nutrition },
+  { title: "Nutrição", url: "/nutrition", icon: Apple },
   { title: "Chat", url: "/chat", icon: MessageCircle },
   { title: "Desafios", url: "/challenges", icon: Trophy },
 ];
