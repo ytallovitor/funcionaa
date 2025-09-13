@@ -42,7 +42,7 @@ export function AppSidebar() {
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
       ? "bg-primary text-primary-foreground font-medium"
-      : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
   return (
     <Sidebar
@@ -71,7 +71,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
-                <SidebarMenuItem key={item.title} className="text-sidebar-foreground">
+                <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end className={getNavCls}>
                       <item.icon className="h-4 w-4" />
@@ -89,7 +89,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {v2Items.map((item) => (
-                <SidebarMenuItem key={item.title} className="text-sidebar-foreground">
+                <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} className={getNavCls}>
                       <item.icon className="h-4 w-4" />

@@ -50,6 +50,7 @@ const Reports = () => {
         const { data: evaluations } = await supabase
           .from('evaluations')
           .select(`
+            student_id,
             body_fat_percentage,
             lean_mass,
             fat_weight,
@@ -67,7 +68,7 @@ const Reports = () => {
 
         // Group evaluations by student
         evaluations?.forEach(evaluation => {
-          const studentId = evaluation.students.trainer_id;
+          const studentId = evaluation.student_id;
           if (!studentProgress[studentId]) {
             studentProgress[studentId] = [];
           }
