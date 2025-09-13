@@ -49,6 +49,43 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
   });
 
   useEffect(() => {
+    const fetchLatestEvaluation = async () => {
+      if (!student) return;
+
+      const { data, error } = await supabase
+        .from('evaluations')
+        .select('*')
+        .eq('student_id', student.id)
+        .order('evaluation_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error("Error fetching latest evaluation:", error);
+      }
+
+      if (data) {
+        setFormData({
+          weight: data.weight?.toString() || "",
+          triceps: data.triceps_skinfold?.toString() || "",
+          subscapular: data.subscapular_skinfold?.toString() || "",
+          chest: data.chest_skinfold?.toString() || "",
+          axillary: data.axillary_skinfold?.toString() || "",
+          abdominal: data.abdominal_skinfold?.toString() || "",
+          suprailiac: data.suprailiac_skinfold?.toString() || "",
+          thigh: data.thigh_skinfold?.toString() || ""
+        });
+        toast({
+          title: "Dados carregados",
+          description: "A última avaliação foi pré-carregada para facilitar.",
+        });
+      }
+    };
+
+    fetchLatestEvaluation();
+  }, [student, toast]);
+
+  useEffect(() => {
     if (formData.weight && hasRequiredFields()) {
       calculateMetrics();
     }

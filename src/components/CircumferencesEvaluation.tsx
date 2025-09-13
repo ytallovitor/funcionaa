@@ -42,6 +42,41 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
   });
 
   useEffect(() => {
+    const fetchLatestEvaluation = async () => {
+      if (!student) return;
+
+      const { data, error } = await supabase
+        .from('evaluations')
+        .select('*')
+        .eq('student_id', student.id)
+        .order('evaluation_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error("Error fetching latest evaluation:", error);
+      }
+
+      if (data) {
+        setFormData({
+          weight: data.weight?.toString() || "",
+          waist: data.waist?.toString() || "",
+          neck: data.neck?.toString() || "",
+          hip: data.hip?.toString() || "",
+          rightArm: data.right_arm?.toString() || "",
+          rightForearm: data.right_forearm?.toString() || ""
+        });
+        toast({
+          title: "Dados carregados",
+          description: "A última avaliação foi pré-carregada para facilitar.",
+        });
+      }
+    };
+
+    fetchLatestEvaluation();
+  }, [student, toast]);
+
+  useEffect(() => {
     if (formData.weight && formData.waist && formData.neck && student) {
       calculateMetrics();
     }
