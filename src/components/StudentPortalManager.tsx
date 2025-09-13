@@ -24,6 +24,14 @@ interface StudentPortalManagerProps {
   onPortalCreated?: () => void;
 }
 
+const normalizeString = (str: string) => {
+  return str
+    .normalize("NFD") // Separa acentos das letras
+    .replace(/[\u0300-\u036f]/g, "") // Remove os acentos
+    .toLowerCase()
+    .replace(/\s+/g, ''); // Remove espaços
+};
+
 const StudentPortalManager = ({ student, onPortalCreated }: StudentPortalManagerProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -38,7 +46,7 @@ const StudentPortalManager = ({ student, onPortalCreated }: StudentPortalManager
   });
 
   const generateCredentials = () => {
-    const username = student.name.toLowerCase().replace(/\s+/g, '') + Math.random().toString(36).substr(2, 4);
+    const username = normalizeString(student.name) + Math.random().toString(36).substr(2, 4);
     const password = Math.random().toString(36).substr(2, 8) + Math.random().toString(36).substr(2, 2).toUpperCase();
     
     setFormData({

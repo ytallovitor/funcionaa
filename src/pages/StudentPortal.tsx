@@ -61,11 +61,11 @@ const StudentPortal = () => {
         description: "Bem-vindo ao seu portal de evolução",
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível acessar os dados",
+        description: error.message || "Não foi possível acessar os dados. Verifique suas credenciais e tente novamente.",
         variant: "destructive"
       });
       setLoading(false);
