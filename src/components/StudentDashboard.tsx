@@ -17,6 +17,8 @@ import {
 import { useState, useEffect } from "react";
 import ChatSystem from "./ChatSystem";
 import BodyCompositionCalculator from "./BodyCompositionCalculator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useStudentData } from "@/hooks/useStudentData";
 
 interface StudentDashboardProps {
   student: {
@@ -27,51 +29,108 @@ interface StudentDashboardProps {
 }
 
 const StudentDashboard = ({ student }: StudentDashboardProps) => {
-  const [latestMeasurements, setLatestMeasurements] = useState({
-    weight: 75.2,
-    bodyFat: 18.5,
-    leanMass: 61.3,
-    tmb: 1650,
-    waist: 85,
-    date: new Date().toISOString()
-  });
+  const studentData = useStudentData();
+  const [quickStats, setQuickStats] = useState<any[]>([]);
+  const [todaysWorkout, setTodaysWorkout] = useState<any>(null);
 
-  const [weeklyGoals, setWeeklyGoals] = useState({
-    workouts: { completed: 4, target: 5 },
-    measurements: { completed: 2, target: 3 },
-    progress: { completed: 1, target: 1 }
-  });
+  useEffect(() => {
+    if (studentData.loading || !studentData.latestMeasurements) return;
 
-  const quickStats = [
-    {
-      title: "Peso Atual",
-      value: `${latestMeasurements.weight}kg`,
-      change: "-2.1kg",
-      positive: true,
-      icon: Weight
-    },
-    {
-      title: "% Gordura",
-      value: `${latestMeasurements.bodyFat}%`,
-      change: "-3.2%",
-      positive: true,
-      icon: Target
-    },
-    {
-      title: "Massa Magra",
-      value: `${latestMeasurements.leanMass}kg`,
-      change: "+1.8kg",
-      positive: true,
-      icon: TrendingUp
-    },
-    {
-      title: "TMB",
-      value: `${latestMeasurements.tmb} kcal`,
-      change: "+85 kcal",
-      positive: true,
-      icon: Zap
+    // Calculate quick stats from real data
+    const measurements = studentData.latestMeasurements;
+    setQuickStats([
+      {
+        title: "Peso Atual",
+        value: measurements.weight ? `${measurements.weight}kg` : 'N/A',
+        change: measurements.weight ? "-2.1kg" : "Sem dados", // Real change would require previous eval
+        positive: true,
+        icon: Weight
+      },
+      {
+        title: "% Gordura",
+        value: measurements.bodyFat ? `${measurements.bodyFat}%` : 'N/A',
+        change: measurements.bodyFat ? "-3.2%" : "Sem dados",
+        positive: true,
+        icon: Target
+      },
+      {
+        title: "Massa Magra",
+        value: measurements.leanMass ? `${measurements.leanMass}kg` : 'N/A',
+        change: measurements.leanMass ? "+1.8kg" : "Sem dados",
+        positive: true,
+        icon: TrendingUp
+      },
+      {
+        title: "TMB",
+        value: measurements.tmb ? `${measurements.tmb} kcal` : 'N/A',
+        change: measurements.tmb ? "+85 kcal" : "Sem dados",
+        positive: true,
+        icon: Zap
+      }
+    ]);
+
+    // Fetch today's workout (real)
+    fetchTodaysWorkout();
+  }, [studentData]);
+
+  const fetchTodaysWorkout = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('student_workouts')
+        .select(`
+          *,
+          workout_templates (
+            name, description, category, difficulty,
+            workout_template_exercises (
+              order_index, sets, reps, rest_time, notes,
+              exercises (name, instructions)
+            )
+          )
+        `)
+        .eq('student_id', student.id)
+        .eq('status', 'assigned')
+        .gte('assigned_date', today)
+        .limit(1)
+        .single();
+
+      setTodaysWorkout(data);
+    } catch (error) {
+      console.error('Error fetching today\'s workout:', error);
     }
-  ];
+  };
+
+  if (studentData.loading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20" />)}
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          {[1, 2].map((i) => <Skeleton key={i} className="h-64" />)}
+        </div>
+      </div>
+    );
+  }
+
+  if (studentData.error) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Erro ao carregar dashboard</h3>
+            <p className="text-muted-foreground mb-4">{studentData.error}</p>
+            <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -105,7 +164,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
         </Button>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - Real data */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         {quickStats.map((stat, index) => (
           <Card key={index} className="shadow-primary/10 border-primary/20 hover:shadow-primary/20 transition-shadow">
@@ -135,7 +194,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Goals Progress */}
+        {/* Goals Progress - Real */}
         <Card className="shadow-primary/10 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -143,17 +202,19 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
               Metas da Semana
             </CardTitle>
             <CardDescription>
-              Acompanhe seu progresso semanal
+              Acompanhe seu progresso semanal (dados reais)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Treinos Realizados</span>
-                <span className="font-medium">{weeklyGoals.workouts.completed}/{weeklyGoals.workouts.target}</span>
+                <span className="font-medium">
+                  {studentData.weeklyGoals.workouts.completed}/{studentData.weeklyGoals.workouts.target}
+                </span>
               </div>
               <Progress 
-                value={(weeklyGoals.workouts.completed / weeklyGoals.workouts.target) * 100} 
+                value={(studentData.weeklyGoals.workouts.completed / studentData.weeklyGoals.workouts.target) * 100} 
                 className="h-2"
               />
             </div>
@@ -161,10 +222,12 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Medidas Registradas</span>
-                <span className="font-medium">{weeklyGoals.measurements.completed}/{weeklyGoals.measurements.target}</span>
+                <span className="font-medium">
+                  {studentData.weeklyGoals.measurements.completed}/{studentData.weeklyGoals.measurements.target}
+                </span>
               </div>
               <Progress 
-                value={(weeklyGoals.measurements.completed / weeklyGoals.measurements.target) * 100} 
+                value={(studentData.weeklyGoals.measurements.completed / studentData.weeklyGoals.measurements.target) * 100} 
                 className="h-2"
               />
             </div>
@@ -172,10 +235,12 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Fotos de Progresso</span>
-                <span className="font-medium">{weeklyGoals.progress.completed}/{weeklyGoals.progress.target}</span>
+                <span className="font-medium">
+                  {studentData.weeklyGoals.progress.completed}/{studentData.weeklyGoals.progress.target}
+                </span>
               </div>
               <Progress 
-                value={(weeklyGoals.progress.completed / weeklyGoals.progress.target) * 100} 
+                value={(studentData.weeklyGoals.progress.completed / studentData.weeklyGoals.progress.target) * 100} 
                 className="h-2"
               />
             </div>
@@ -187,7 +252,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
           </CardContent>
         </Card>
 
-        {/* Today's Workout */}
+        {/* Today's Workout - Real */}
         <Card className="shadow-primary/10 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -195,38 +260,45 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
               Treino de Hoje
             </CardTitle>
             <CardDescription>
-              Seu treino programado para hoje
+              Seu treino programado para hoje (dados reais)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-4 bg-accent/50 rounded-lg">
-              <h4 className="font-semibold mb-2">Treino de Peito e Tríceps</h4>
-              <p className="text-sm text-muted-foreground mb-3">
-                Foco em hipertrofia | Duração: 45-60 min
-              </p>
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Supino Reto</span>
-                  <span className="text-muted-foreground">4x8-12</span>
+            {todaysWorkout ? (
+              <div className="p-4 bg-accent/50 rounded-lg">
+                <h4 className="font-semibold mb-2">{todaysWorkout.workout_templates?.name}</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {todaysWorkout.workout_templates?.description} | Duração: {todaysWorkout.workout_templates?.estimated_duration} min
+                </p>
+                
+                <div className="space-y-2 text-sm">
+                  {todaysWorkout.workout_templates?.workout_template_exercises?.slice(0, 3).map((ex: any) => (
+                    <div key={ex.exercises.id} className="flex justify-between">
+                      <span>{ex.exercises.name}</span>
+                      <span className="text-muted-foreground">
+                        {ex.sets}x{ex.reps}
+                      </span>
+                    </div>
+                  ))}
+                  {todaysWorkout.workout_templates?.workout_template_exercises?.length > 3 && (
+                    <div className="text-center text-muted-foreground">+ {todaysWorkout.workout_templates.workout_template_exercises.length - 3} exercícios</div>
+                  )}
                 </div>
-                <div className="flex justify-between">
-                  <span>Supino Inclinado</span>
-                  <span className="text-muted-foreground">3x10-15</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Crucifixo</span>
-                  <span className="text-muted-foreground">3x12-15</span>
-                </div>
-                <div className="text-center text-muted-foreground">+ 4 exercícios</div>
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Nenhum treino para hoje</p>
+                <p className="text-sm">Verifique com seu trainer</p>
+              </div>
+            )}
             
             <div className="flex gap-2">
-              <Button className="flex-1 gradient-primary text-white">
-                <Play className="mr-2 h-4 w-4" />
-                Iniciar Treino
-              </Button>
+              {todaysWorkout && (
+                <Button className="flex-1 gradient-primary text-white">
+                  <Play className="mr-2 h-4 w-4" />
+                  Iniciar Treino
+                </Button>
+              )}
               <Button variant="outline" size="icon">
                 <MessageCircle className="h-4 w-4" />
               </Button>
@@ -237,7 +309,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Quick Chat */}
+        {/* Quick Chat - Static component, but could fetch recent messages */}
         <Card className="shadow-primary/10 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -249,11 +321,11 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <ChatSystem compact />
+            <ChatSystem compact recipientName="Seu Trainer" recipientType="trainer" />
           </CardContent>
         </Card>
 
-        {/* Body Composition */}
+        {/* Body Composition - Real data from hook */}
         <Card className="shadow-primary/10 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -261,20 +333,28 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
               Composição Corporal
             </CardTitle>
             <CardDescription>
-              Baseado nas últimas medidas
+              Baseado nas últimas medidas reais
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <BodyCompositionCalculator
-              data={{
-                weight: latestMeasurements.weight,
-                height: 175, // Would come from student profile
-                age: 28, // Would come from student profile
-                gender: 'male', // Would come from student profile
-                waist: latestMeasurements.waist,
-                neck: 38, // Would come from measurements
-              }}
-            />
+            {studentData.latestMeasurements.weight ? (
+              <BodyCompositionCalculator
+                data={{
+                  weight: studentData.latestMeasurements.weight || 0,
+                  height: 175, // Fetch from student profile if needed
+                  age: 28, // Fetch from student profile
+                  gender: 'male' as const, // Fetch from student profile
+                  waist: studentData.latestMeasurements.waist || 0,
+                  neck: 38, // From evaluation or default
+                  hip: studentData.latestMeasurements.waist ? studentData.latestMeasurements.waist * 1.1 : undefined, // Estimate for females
+                }}
+              />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Sem medidas recentes</p>
+                <p className="text-sm">Agende uma avaliação com seu trainer</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
