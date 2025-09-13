@@ -200,10 +200,81 @@ const Challenges = () => {
 
       if (!profile) return;
 
+      // Validação: Campos obrigatórios (title, description, challenge_type, category, start_date, end_date)
+      if (!newChallenge.title.trim()) {
+        toast({
+          title: "Validação",
+          description: "Título é obrigatório.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!newChallenge.description.trim()) {
+        toast({
+          title: "Validação",
+          description: "Descrição é obrigatória.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!newChallenge.challenge_type) {
+        toast({
+          title: "Validação",
+          description: "Tipo de desafio é obrigatório.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!newChallenge.category.trim()) {
+        toast({
+          title: "Validação",
+          description: "Categoria é obrigatória.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!newChallenge.start_date) {
+        toast({
+          title: "Validação",
+          description: "Data de início é obrigatória.",
+          variant: "destructive"
+        });
+        return;
+      }
+      if (!newChallenge.end_date) {
+        toast({
+          title: "Validação",
+          description: "Data de fim é obrigatória.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      let startDate = newChallenge.start_date;
+      let endDate = newChallenge.end_date;
+
+      // Defaults automáticos para datas se vazias (hoje para start, 30 dias para end)
+      if (!startDate) {
+        startDate = new Date().toISOString().split('T')[0];
+        toast({
+          title: "Aviso",
+          description: "Data de início não informada. Usando hoje como início.",
+        });
+      }
+      if (!endDate) {
+        endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 dias à frente
+        toast({
+          title: "Aviso",
+          description: "Data de fim não informada. Definindo 30 dias a partir de hoje.",
+        });
+      }
+
       const challengeData = {
         ...newChallenge,
         trainer_id: profile.id,
         goal_value: newChallenge.goal_value ? parseFloat(newChallenge.goal_value) : null,
+        start_date: startDate,
+        end_date: endDate,
         is_active: true
       };
 
@@ -224,7 +295,10 @@ const Challenges = () => {
         .from('challenges')
         .insert(challengeData);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase Error Details:', error); // Debug: Mostra erro exato no console
+        throw error;
+      }
 
       toast({
         title: "Sucesso!",
@@ -246,11 +320,11 @@ const Challenges = () => {
         prize_description: ''
       });
       fetchChallenges();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating challenge:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível criar o desafio",
+        description: error.message || "Não foi possível criar o desafio. Verifique os campos e tente novamente.",
         variant: "destructive"
       });
     }
@@ -416,7 +490,7 @@ const Challenges = () => {
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="title">Título</Label>
+                    <Label htmlFor="title">Título *</Label>
                     <Input
                       id="title"
                       value={newChallenge.title}
@@ -425,7 +499,7 @@ const Challenges = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="category">Categoria</Label>
+                    <Label htmlFor="category">Categoria *</Label>
                     <Input
                       id="category"
                       value={newChallenge.category}
@@ -436,7 +510,7 @@ const Challenges = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
+                  <Label htmlFor="description">Descrição *</Label>
                   <Textarea
                     id="description"
                     value={newChallenge.description}
@@ -447,7 +521,7 @@ const Challenges = () => {
 
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="challenge_type">Tipo</Label>
+                    <Label htmlFor="challenge_type">Tipo *</Label>
                     <Select 
                       value={newChallenge.challenge_type} 
                       onValueChange={(value) => setNewChallenge({...newChallenge, challenge_type: value})}
@@ -485,7 +559,7 @@ const Challenges = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="start_date">Data de Início</Label>
+                    <Label htmlFor="start_date">Data de Início *</Label>
                     <Input
                       id="start_date"
                       type="date"
@@ -494,7 +568,7 @@ const Challenges = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="end_date">Data de Fim</Label>
+                    <Label htmlFor="end_date">Data de Fim *</Label>
                     <Input
                       id="end_date"
                       type="date"
@@ -514,7 +588,7 @@ const Challenges = () => {
                   />
                 </div>
 
-                <Button onClick={() => createChallenge(selectedTemplate)} className="gradient-primary text-white">
+                <Button onClick={() => createChallenge(selectedTemplate)} className="gradient-primary text-white" disabled={!newChallenge.title || !newChallenge.description || !newChallenge.challenge_type || !newChallenge.category || !newChallenge.start_date || !newChallenge.end_date}>
                   Criar Desafio
                 </Button>
               </div>
