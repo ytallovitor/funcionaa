@@ -32,7 +32,7 @@ interface TrainerDashboardProps {
 
 const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
   const { user } = useAuth();
-  const statsHook = useStudentStats();
+  const stats = useStudentStats();
   const navigate = useNavigate();
   const [studentsOverview, setStudentsOverview] = useState({
     total: 0,
@@ -44,7 +44,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || statsHook.loading) return;
+    if (!user || stats.loading) return;
 
     const fetchRealData = async () => {
       try {
@@ -61,7 +61,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           return;
         }
 
-        const totalStudents = statsHook.totalStudents;
+        const totalStudents = stats.totalStudents;
 
         const { data: trainerStudents } = await supabase
           .from('students')
@@ -87,7 +87,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
 
         const activeStudents = workoutsCount + evalsCount > 0 ? Math.min(totalStudents, workoutsCount + evalsCount) : 0;
 
-        const needsEvaluation = statsHook.upcomingEvaluations;
+        const needsEvaluation = stats.upcomingEvaluations;
 
         const startOfWeek = new Date();
         startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
@@ -109,7 +109,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
           .select(`
             id, name, age, gender, goal, created_at,
             evaluations (
-              id, evaluation_date, weight, body_fat_percentage, lean_mass,
+              id, evaluation_date, weight, body_fat_percentage,
               order by evaluation_date desc limit 1
             )
           `)
@@ -146,7 +146,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
     };
 
     fetchRealData();
-  }, [user, statsHook]);
+  }, [user, stats]);
 
   const getProgressColor = (progress: string) => {
     switch (progress) {
@@ -286,7 +286,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{statsHook.progressRate}%</div>
+            <div className="text-2xl font-bold text-primary">{stats.progressRate}%</div>
             {studentsOverview.total === 0 ? (
               <p className="text-xs text-muted-foreground mt-1">Adicione alunos para ver progresso</p>
             ) : (
@@ -315,16 +315,17 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
             <div className="space-y-4">
               {recentStudents.length > 0 ? (
                 recentStudents.map((student) => (
-                  <div key={student.id} className="flex items-center justify-between p-4 bg-accent/30 rounded-lg hover:bg-accent/50 transition-colors">
+                  <div key={student.id} className="flex flex-col space-y-3 p-4 bg-accent/30 rounded-lg hover:bg-accent/50 transition-colors">
+                    {/* Header: Avatar + Name + Last Evaluation */}
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback className="gradient-primary text-white">
                           {student.name.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <p className="font-medium">{student.name}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{student.name}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           {student.lastEvaluation 
                             ? `Última: ${new Date(student.lastEvaluation).toLocaleDateString('pt-BR')}`
@@ -334,13 +335,14 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
+                    {/* Stats: Stack vertically on mobile, horizontal on sm+ */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+                      <div className="flex-1 space-y-1">
                         <p className="text-sm font-medium">
                           {student.bodyFat ? `${student.bodyFat}% gordura` : 'Sem dados'}
                         </p>
                         {student.change && (
-                          <p className={`text-xs ${student.change < 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                          <p className={`text-xs ${student.change < 0 ? 'text-green-600' : 'text-orange-600'} truncate`}>
                             {student.change > 0 ? '+' : ''}{student.change}%
                           </p>
                         )}
@@ -351,7 +353,7 @@ const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
                       </Badge>
                       
                       {student.needsAttention && (
-                        <AlertCircle className="h-5 w-5 text-orange-500" />
+                        <AlertCircle className="h-4 w-4 text-orange-500 ml-auto sm:ml-0" />
                       )}
                     </div>
                   </div>
