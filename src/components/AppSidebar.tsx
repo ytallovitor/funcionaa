@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-  useSidebar, // Adicionado o hook useSidebar
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Activity } from "lucide-react";
@@ -36,12 +36,12 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
 
   const getNavCls = ({ isActive }: { isActive: boolean }) => {
-    const baseClasses = "flex items-center gap-3 w-full h-12 px-3 text-sm font-medium transition-all duration-200";
+    const baseClasses = "flex items-center gap-3 w-full h-12 px-3 text-sm font-medium transition-all duration-300 ease-in-out transform";
     const activeClasses = isActive 
-      ? "bg-primary text-primary-foreground font-semibold" 
-      : "text-foreground hover:bg-accent hover:text-accent-foreground";
+      ? "bg-primary text-primary-foreground font-semibold shadow-md ring-1 ring-primary/50"  // Ativo: fundo sólido + sombra + ring
+      : "text-foreground hover:bg-gradient-to-r hover:from-accent/50 hover:to-primary/20 hover:text-accent-foreground hover:scale-105 hover:shadow-lg"; // Hover: gradiente sutil, escala e sombra
     
-    // Garante visibilidade total, sem opacidade condicional excessiva
+    // Garante visibilidade total sempre
     const visibilityClasses = collapsed ? "opacity-100" : "opacity-100";
     
     return `${baseClasses} ${activeClasses} ${visibilityClasses}`;
@@ -49,11 +49,11 @@ export function AppSidebar() {
 
   return (
     <Sidebar
-      className="w-64" // Remove o colapso para ícones apenas - sempre visível com largura fixa
+      className="w-64" // Largura fixa para visibilidade
       collapsible="icon"
       style={{
-        minWidth: '240px', // Largura mínima para garantir espaço para labels
-        maxWidth: '300px', // Largura máxima para não invadir demais
+        minWidth: '240px', // Largura mínima para labels
+        maxWidth: '300px', // Largura máxima
       }}
     >
       <SidebarHeader className="border-b border-sidebar-border p-4">
@@ -79,19 +79,19 @@ export function AppSidebar() {
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="justify-start w-full h-12 p-3 transition-colors duration-200 hover:bg-accent/100">
+                  <SidebarMenuButton asChild className="justify-start w-full h-12 p-3 transition-all duration-300 ease-in-out hover:scale-105 group">
                     <NavLink 
                       to={item.url} 
                       end 
                       className={({ isActive }) => getNavCls({ isActive })} 
                       style={{
-                        opacity: 1, // Força visibilidade total
+                        opacity: 1, // Visibilidade total sempre
                         color: location.pathname === item.url ? 'var(--primary-foreground)' : 'var(--foreground)',
                         backgroundColor: location.pathname === item.url ? 'var(--primary)' : 'transparent',
                       }}
                     >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="ml-3 text-sm font-medium transition-colors duration-200">{item.title}</span>
+                      <item.icon className="h-4 w-4 flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                      <span className="ml-3 text-sm font-medium transition-colors duration-300">{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -111,9 +111,9 @@ export function AppSidebar() {
             variant="ghost"
             size="sm"
             onClick={signOut}
-            className="w-full justify-start hover:bg-destructive/10 hover:text-destructive transition-colors duration-200"
+            className="w-full justify-start hover:bg-destructive/10 hover:text-destructive transition-all duration-300 hover:scale-105"
           >
-            <LogOut className="h-4 w-4 mr-3" />
+            <LogOut className="h-4 w-4 mr-3 transition-transform duration-300 hover:scale-110" />
             Sair
           </Button>
         </div>
