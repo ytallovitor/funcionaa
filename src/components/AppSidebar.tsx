@@ -39,10 +39,10 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
-  const isActive = (path: string) => currentPath === path;
-  const isExpanded = items.some((i) => isActive(i.url));
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive ? "bg-primary text-primary-foreground font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+    isActive
+      ? "bg-primary text-primary-foreground font-medium"
+      : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
   return (
     <Sidebar
