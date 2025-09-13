@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,13 +28,25 @@ interface EditStudentDialogProps {
 const EditStudentDialog = ({ student, open, onOpenChange, onStudentUpdated }: EditStudentDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: student?.name || "",
-    birth_date: student?.birth_date || "",
-    gender: student?.gender || "",
-    goal: student?.goal || "",
-    height: student?.height?.toString() || ""
+    name: "",
+    birth_date: "",
+    gender: "",
+    goal: "",
+    height: ""
   });
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (student) {
+      setFormData({
+        name: student.name || "",
+        birth_date: student.birth_date || "",
+        gender: student.gender || "",
+        goal: student.goal || "",
+        height: student.height?.toString() || ""
+      });
+    }
+  }, [student]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
