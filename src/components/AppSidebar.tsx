@@ -1,4 +1,4 @@
-import { Home, Users, PlusCircle, BarChart3, Settings, LogOut, Dumbbell, MessageCircle, Trophy } from "lucide-react";
+import { Home, Users, PlusCircle, BarChart3, Settings, LogOut, Dumbbell, MessageCircle, Trophy, Nutrition } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -27,6 +27,7 @@ const items = [
 
 const v2Items = [
   { title: "Treinos", url: "/workouts", icon: Dumbbell },
+  { title: "Nutrição", url: "/nutrition", icon: Nutrition },
   { title: "Chat", url: "/chat", icon: MessageCircle },
   { title: "Desafios", url: "/challenges", icon: Trophy },
 ];
@@ -41,7 +42,7 @@ export function AppSidebar() {
   const isActive = (path: string) => currentPath === path;
   const isExpanded = items.some((i) => isActive(i.url));
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive ? "bg-primary text-primary-foreground font-medium" : "text-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+    isActive ? "bg-primary text-primary-foreground font-medium" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
   return (
     <Sidebar
