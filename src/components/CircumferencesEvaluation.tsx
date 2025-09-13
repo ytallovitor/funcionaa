@@ -224,6 +224,9 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
     }
   };
 
+  // Calcular estado do botão disabled
+  const isDisabled = isSubmitting || !formData.weight || !formData.waist || !formData.neck || (student.gender === 'feminino' && !formData.hip);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -331,7 +334,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
               <Button 
                 type="submit" 
                 className="w-full gradient-primary shadow-primary hover:shadow-glow transition-all"
-                disabled={isSubmitting || !formData.weight || !formData.waist || !formData.neck || (student.gender === 'feminino' && !formData.hip)}
+                disabled={isDisabled}
               >
                 {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 <Save className="h-4 w-4 mr-2" />
