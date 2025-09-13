@@ -92,18 +92,24 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
     
     if (!weight || !waist || !neck || !student || isNaN(weight) || isNaN(waist) || isNaN(neck)) return;
 
+    // Converter medidas para inches (fórmula US Navy espera inches, não cm)
+    const heightInches = student.height / 2.54;
+    const waistInches = waist / 2.54;
+    const neckInches = neck / 2.54;
+    const hipInches = hip / 2.54;
+
     let bodyFatPercentage: number;
     
     if (student.gender === 'masculino') {
-      if (waist <= neck) {
+      if (waistInches <= neckInches) {
         toast({
           title: "Atenção",
-          description: "Medida de cintura não pode ser menor ou igual ao pescoço. Verifique as medidas.",
+          description: "Medida de cintura não pode ser menor ou igual ao pescoço. Verifique as medidas (fórmula US Navy).",
           variant: "destructive"
         });
         return;
       }
-      bodyFatPercentage = 86.010 * Math.log10(waist - neck) - 70.041 * Math.log10(student.height) + 36.76;
+      bodyFatPercentage = 86.010 * Math.log10(waistInches - neckInches) - 70.041 * Math.log10(heightInches) + 36.76;
     } else {
       if (!hip || hip <= 0) {
         toast({
@@ -113,7 +119,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
         });
         return;
       }
-      if (waist + hip <= neck) {
+      if (waistInches + hipInches <= neckInches) {
         toast({
           title: "Atenção",
           description: "Medidas inválidas: abdômen + quadril deve ser maior que o pescoço. Verifique.",
@@ -121,14 +127,18 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
         });
         return;
       }
-      bodyFatPercentage = 163.205 * Math.log10(waist + hip - neck) - 97.684 * Math.log10(student.height) - 78.387;
+      bodyFatPercentage = 163.205 * Math.log10(waistInches + hipInches - neckInches) - 97.684 * Math.log10(heightInches) - 78.387;
     }
     
-    bodyFatPercentage = Math.max(3, Math.min(50, bodyFatPercentage));
+    // Limitar %BF a valores realistas (homens: 3-50%, mulheres: 12-50%)
+    const minBF = student.gender === 'masculino' ? 3 : 12;
+    bodyFatPercentage = Math.max(minBF, Math.min(50, bodyFatPercentage));
 
     const fatWeight = (bodyFatPercentage / 100) * weight;
     const leanMass = weight - fatWeight;
 
+    // Taxa Metabólica Basal (BMR) - Equação de Harris-Benedict Revisada (1984)
+    // Altura em cm, peso em kg (correto)
     let bmr: number;
     if (student.gender === 'masculino') {
       bmr = 88.362 + (13.397 * weight) + (4.799 * student.height) - (5.677 * student.age);
@@ -136,6 +146,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
       bmr = 447.593 + (9.247 * weight) + (3.098 * student.height) - (4.330 * student.age);
     }
     
+    // Calorias diárias: BMR × 1.55 (moderadamente ativo, ACSM)
     const dailyCalories = Math.round(bmr * 1.55);
 
     setCalculatedData({
@@ -151,6 +162,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
     e.preventDefault();
     if (!student) return;
 
+    // Validação final
     const weight = parseFloat(formData.weight);
     const waist = parseFloat(formData.waist);
     const neck = parseFloat(formData.neck);
