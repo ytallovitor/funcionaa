@@ -227,24 +227,28 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       if (exercises.length < currentParams.daysPerWeek * 2) {
         const { data: existingFallbackExercises } = await supabase
           .from('exercises')
-          .select('id, name')
+          .select('id, name, category, muscle_groups, difficulty, equipment, instructions, tips, duration, reps, sets, rest_time, video_url, image_url')
           .in('name', scientificFallbackExercises.map(ex => ex.name));
 
+        const existingNames = new Set(existingFallbackExercises?.map(ex => ex.name));
         const exercisesToInsert = scientificFallbackExercises.filter(
-          fbEx => !existingFallbackExercises?.some(ex => ex.name === fbEx.name)
+          fbEx => !existingNames.has(fbEx.name)
         );
 
         if (exercisesToInsert.length > 0) {
-          const { data: insertedExercises, error: insertError } = await supabase
+          const { data: newlyInsertedExercises, error: insertError } = await supabase
             .from('exercises')
             .insert(exercisesToInsert)
-            .select();
+            .select('id, name, category, muscle_groups, difficulty, equipment, instructions, tips, duration, reps, sets, rest_time, video_url, image_url'); // Select all fields to match Exercise interface
 
           if (insertError) throw insertError;
-          exercises = [...exercises, ...insertedExercises];
-        } else {
-          exercises = [...exercises, ...(existingFallbackExercises || [])];
+          exercises = [...exercises, ...newlyInsertedExercises];
         }
+        // Also add existing fallback exercises to the main 'exercises' array if they weren't already in exercisesFromDB
+        const existingButNotFetched = existingFallbackExercises?.filter(
+          ex => !exercises.some(e => e.id === ex.id)
+        ) || [];
+        exercises = [...exercises, ...existingButNotFetched];
 
         toast({
           title: "Exercícios complementares usados",
