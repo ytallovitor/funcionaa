@@ -92,8 +92,6 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
     
     if (!weight || !waist || !neck || !student || isNaN(weight) || isNaN(waist) || isNaN(neck)) return;
 
-    // Método da Marinha dos EUA (US Navy Method) para % de Gordura Corporal
-    // Validação: Hodgdon & Beckett (1994) - Journal of Applied Physiology
     let bodyFatPercentage: number;
     
     if (student.gender === 'masculino') {
@@ -126,14 +124,11 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
       bodyFatPercentage = 163.205 * Math.log10(waist + hip - neck) - 97.684 * Math.log10(student.height) - 78.387;
     }
     
-    // Limitar %BF a valores realistas (0-50%)
-    bodyFatPercentage = Math.max(3, Math.min(50, bodyFatPercentage)); // Mínimo 3% para homens, 12% para mulheres em geral
+    bodyFatPercentage = Math.max(3, Math.min(50, bodyFatPercentage));
 
     const fatWeight = (bodyFatPercentage / 100) * weight;
     const leanMass = weight - fatWeight;
 
-    // Taxa Metabólica Basal (BMR) - Equação de Harris-Benedict Revisada (1984)
-    // Validação: Roza & de Almeida (1990) - American Journal of Clinical Nutrition
     let bmr: number;
     if (student.gender === 'masculino') {
       bmr = 88.362 + (13.397 * weight) + (4.799 * student.height) - (5.677 * student.age);
@@ -141,8 +136,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
       bmr = 447.593 + (9.247 * weight) + (3.098 * student.height) - (4.330 * student.age);
     }
     
-    // Calorias diárias: BMR × fator de atividade (1.55 = moderadamente ativo, ACSM)
-    const dailyCalories = Math.round(bmr * 1.55); // Ajustável com base no nível de atividade
+    const dailyCalories = Math.round(bmr * 1.55);
 
     setCalculatedData({
       bodyFatPercentage,
@@ -157,7 +151,6 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
     e.preventDefault();
     if (!student) return;
 
-    // Validação final
     const weight = parseFloat(formData.weight);
     const waist = parseFloat(formData.waist);
     const neck = parseFloat(formData.neck);
@@ -189,7 +182,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
         .insert({
           student_id: student.id,
           evaluation_method: 'circumferences',
-          evaluation_date: new Date().toISOString().split('T')[0], // Data atual
+          evaluation_date: new Date().toISOString().split('T')[0],
           weight,
           waist,
           neck,
@@ -201,7 +194,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
           lean_mass: calculatedData.leanMass,
           bmr: calculatedData.bmr,
           daily_calories: calculatedData.dailyCalories,
-          skinfold_protocol: null // Não aplicável para circunferências
+          skinfold_protocol: null
         });
 
       if (error) throw error;
