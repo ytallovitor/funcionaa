@@ -26,7 +26,7 @@ interface Message {
   sender_type: 'trainer' | 'student';
   timestamp: string;
   message_type: 'text' | 'image' | 'voice' | 'video';
-  read: boolean;
+  is_read: boolean;
 }
 
 interface ChatSystemProps {
@@ -49,42 +49,78 @@ const ChatSystem = ({
   const [isTyping, setIsTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Mock messages for demo
   useEffect(() => {
-    const mockMessages: Message[] = [
-      {
-        id: "1",
-        content: "Olá! Como foi o treino de hoje?",
-        sender_id: "trainer-1",
-        sender_name: "Carlos Silva",
-        sender_type: "trainer",
-        timestamp: new Date(Date.now() - 3600000).toISOString(),
-        message_type: "text",
-        read: true
+    if (!conversationId || !user) return;
+
+    // Fetch initial messages
+    fetchMessages();
+
+    // Realtime subscription
+    const channel = supabase.channel('messages', {
+      config: {
+        broadcast: {
+          ack: true,
+        },
       },
-      {
-        id: "2", 
-        content: "Foi excelente! Consegui aumentar a carga no supino.",
-        sender_id: "student-1",
-        sender_name: "João",
-        sender_type: "student", 
-        timestamp: new Date(Date.now() - 3000000).toISOString(),
-        message_type: "text",
-        read: true
-      },
-      {
-        id: "3",
-        content: "Perfeito! Vamos ajustar o treino da próxima semana então. 💪",
-        sender_id: "trainer-1", 
-        sender_name: "Carlos Silva",
-        sender_type: "trainer",
-        timestamp: new Date(Date.now() - 1800000).toISOString(),
-        message_type: "text",
-        read: false
-      }
-    ];
-    setMessages(mockMessages);
-  }, []);
+    });
+
+    channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setMessages(prev => [payload.new, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setMessages(prev => 
+            prev.map(m => m.id === payload.new.id ? { ...m, is_read: payload.new.is_read } : m)
+          );
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime subscribed to messages');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, user]);
+
+  const fetchMessages = async () => {
+    if (!conversationId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          profiles (full_name)
+        `)
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const transformedMessages: Message[] = data?.map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender_id: msg.sender_id,
+        sender_name: msg.profiles?.full_name || 'Usuário',
+        sender_type: msg.sender_type as 'trainer' | 'student',
+        timestamp: msg.created_at,
+        message_type: msg.message_type as 'text' | 'image' | 'voice' | 'video',
+        is_read: msg.is_read || false
+      })) || [];
+
+      setMessages(transformedMessages);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as mensagens",
+        variant: "destructive"
+      });
+    }
+  };
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -93,36 +129,51 @@ const ChatSystem = ({
   }, [messages]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || !conversationId) return;
 
-    const message: Message = {
-      id: Math.random().toString(),
+    const message: Omit<Message, 'id' | 'timestamp' | 'is_read'> = {
       content: newMessage,
       sender_id: user.id,
       sender_name: user.email?.split("@")[0] || "Você",
-      sender_type: "student", // This would be determined by user role
+      sender_type: "trainer", // Assuming trainer view; adjust based on user role
       timestamp: new Date().toISOString(),
       message_type: "text",
-      read: false
+      is_read: false
     };
 
-    setMessages(prev => [...prev, message]);
-    setNewMessage("");
-    
-    // Simulate trainer response
-    setTimeout(() => {
-      const response: Message = {
-        id: Math.random().toString(),
-        content: "Recebido! Vou analisar e te responder em breve.",
-        sender_id: "trainer-1",
-        sender_name: recipientName,
-        sender_type: "trainer",
-        timestamp: new Date().toISOString(),
-        message_type: "text",
-        read: false
-      };
-      setMessages(prev => [...prev, response]);
-    }, 2000);
+    try {
+      const { data: newMsg, error } = await supabase
+        .from('messages')
+        .insert({ ...message, conversation_id: conversationId })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setMessages(prev => [...prev, { ...message, id: newMsg.id, is_read: false }]);
+      setNewMessage("");
+      
+      // Mark as read for current user (optional: mark only after sending)
+      if (newMsg.id) {
+        await supabase
+          .from('messages')
+          .update({ is_read: true })
+          .eq('id', newMsg.id);
+      }
+
+      toast({
+        title: "Mensagem enviada!",
+        description: "Sua mensagem foi enviada com sucesso"
+      });
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível enviar a mensagem",
+        variant: "destructive"
+      });
+    }
   };
 
   const formatTime = (timestamp: string) => {
@@ -157,24 +208,35 @@ const ChatSystem = ({
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.sender_type === 'student' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${message.sender_type === 'trainer' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg p-2 ${
-                      message.sender_type === 'student'
+                    className={`max-w-[80%] rounded-lg p-2 break-words ${
+                      message.sender_type === 'trainer'
                         ? 'gradient-primary text-white'
                         : 'bg-muted'
                     }`}
                   >
                     <p className="text-sm">{message.content}</p>
                     <p className={`text-xs mt-1 ${
-                      message.sender_type === 'student' ? 'text-white/70' : 'text-muted-foreground'
+                      message.sender_type === 'trainer' ? 'text-white/70' : 'text-muted-foreground'
                     }`}>
                       {formatTime(message.timestamp)}
                     </p>
                   </div>
                 </div>
               ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-muted rounded-lg p-2">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-100"></div>
+                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-200"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </ScrollArea>
           <div className="p-3 border-t">
@@ -237,10 +299,10 @@ const ChatSystem = ({
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.sender_type === 'student' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${message.sender_type === 'trainer' ? 'justify-end' : 'justify-start'}`}
             >
               <div className="flex items-end gap-2 max-w-[70%]">
-                {message.sender_type === 'trainer' && (
+                {message.sender_type !== 'trainer' && (
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="text-xs bg-muted">
                       {message.sender_name.charAt(0)}
@@ -248,15 +310,15 @@ const ChatSystem = ({
                   </Avatar>
                 )}
                 <div
-                  className={`rounded-lg p-3 ${
-                    message.sender_type === 'student'
+                  className={`rounded-lg p-3 max-w-[80%] break-words ${
+                    message.sender_type === 'trainer'
                       ? 'gradient-primary text-white'
                       : 'bg-muted'
                   }`}
                 >
                   <p>{message.content}</p>
                   <p className={`text-xs mt-1 ${
-                    message.sender_type === 'student' ? 'text-white/70' : 'text-muted-foreground'
+                    message.sender_type === 'trainer' ? 'text-white/70' : 'text-muted-foreground'
                   }`}>
                     {formatTime(message.timestamp)}
                   </p>
@@ -266,7 +328,7 @@ const ChatSystem = ({
           ))}
           
           {isTyping && (
-            <div className="flex items-center gap-2">
+            <div className="flex justify-start">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="text-xs bg-muted">
                   {recipientName.charAt(0)}
