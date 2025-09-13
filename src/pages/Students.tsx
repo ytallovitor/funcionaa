@@ -320,19 +320,21 @@ const Students = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Stats: Stack in 1 column on mobile, 2 cols on sm+ */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"> {/* Changed to 1 col on mobile */}
-                <div className="text-center p-3 bg-accent/50 rounded-lg">
-                  <p className="text-xs sm:text-sm text-muted-foreground">Peso</p>
-                  <p className="text-sm sm:text-base font-semibold text-primary"> {/* Smaller font on mobile */}
-                    {student.weight ? `${student.weight}kg` : '-'}
-                  </p>
-                </div>
-                <div className="text-center p-3 bg-accent/50 rounded-lg">
-                  <p className="text-xs sm:text-sm text-muted-foreground">% Gordura</p>
-                  <p className="text-sm sm:text-base font-semibold text-primary"> {/* Smaller font on mobile */}
-                    {student.bodyFat ? `${student.bodyFat}%` : '-'}
-                  </p>
+              {/* Stats: Stack in 1 column on mobile, 2 cols on sm+ with overflow protection */}
+              <div className="min-w-0 overflow-hidden">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="text-center p-3 bg-accent/50 rounded-lg">
+                    <p className="text-xs sm:text-sm text-muted-foreground">Peso</p>
+                    <p className="text-sm sm:text-base font-semibold text-primary">
+                      {student.weight ? `${student.weight}kg` : '-'}
+                    </p>
+                  </div>
+                  <div className="text-center p-3 bg-accent/50 rounded-lg">
+                    <p className="text-xs sm:text-sm text-muted-foreground">% Gordura</p>
+                    <p className="text-xs sm:text-base font-semibold text-primary truncate">
+                      {student.bodyFat ? `${student.bodyFat}%` : '-'}
+                    </p>
+                  </div>
                 </div>
               </div>
               
