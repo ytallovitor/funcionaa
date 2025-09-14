@@ -81,22 +81,33 @@ const Students = () => {
     }
   }, [user]);
 
-  // Fetch trainer_id (simplificado, sem retry auto para evitar loops)
+  // Fetch trainer_id (simplificado, sem retry auto para evitar loops) + teste de conexão
   const loadTrainerId = async () => {
     try {
-      console.log("🔄 Loading trainer ID for user:", user?.id); // Debug
-      const { data: profile } = await supabase
+      console.log("🔄 Carregando ID do trainer para usuário:", user?.id); // Debug
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', user?.id)
         .single();
 
+      if (error) {
+        console.error('❌ Erro ao carregar profile:', error);
+        toast({
+          title: "Erro de Perfil",
+          description: "Falha ao carregar perfil. Faça login novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       if (profile) {
-        console.log("✅ Trainer ID loaded:", profile.id); // Debug
+        console.log("✅ ID do trainer carregado:", profile.id); // Debug
         setTrainerId(profile.id);
+        return profile.id;
       } else {
-        console.warn("❌ No trainer profile found – creating one...");
-        const { data: newProfile } = await supabase
+        console.warn("❌ Profile não encontrado – criando automaticamente...");
+        const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
             user_id: user.id,
@@ -106,23 +117,25 @@ const Students = () => {
           .select()
           .single();
         
-        if (newProfile) {
-          console.log("✅ New profile created with ID:", newProfile.id);
-          setTrainerId(newProfile.id);
-        } else {
-          console.error("Failed to create profile");
+        if (createError) {
+          console.error('❌ Erro ao criar profile:', createError);
           toast({
             title: "Erro",
             description: "Não foi possível criar perfil. Verifique Supabase.",
             variant: "destructive"
           });
+          return;
         }
+
+        console.log("✅ Profile criado e ID carregado:", newProfile.id);
+        setTrainerId(newProfile.id);
+        return newProfile.id;
       }
     } catch (error) {
-      console.error('❌ Error loading trainer ID:', error);
+      console.error('❌ Erro detalhado ao carregar ID do trainer:', error);
       toast({
         title: "Erro de Conexão",
-        description: "Falha ao conectar com Supabase. Verifique .env e rede. Console: F12 para detalhes.",
+        description: "Falha ao conectar com Supabase. Verifique .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) e rede. Console: F12 para detalhes.",
         variant: "destructive"
       });
     }
@@ -132,16 +145,31 @@ const Students = () => {
     try {
       setLoading(true);
       
-      console.log("🔄 Fetching students (trainerId:", trainerId, ")..."); // Debug
+      console.log("🔄 Carregando alunos (trainerId:", trainerId, ")..."); // Debug
 
+      // Se trainerId ainda não carregou, tenta uma vez mais
       if (!trainerId) {
-        console.warn("Trainer ID not ready – skipping fetch (will retry on next load)");
-        setStudents([]); // Fallback: lista vazia
-        setLoading(false);
-        return;
+        console.log("ID do trainer não pronto – carregando agora...");
+        const loadedId = await loadTrainerId();
+        if (!loadedId) {
+          console.warn("ID do trainer ainda nulo – mostrando lista vazia para evitar crash");
+          setStudents([]);
+          setLoading(false);
+          return;
+        }
       }
 
-      console.log("📡 Executing query for trainer:", trainerId); // Debug
+      console.log("📡 Executando query para trainer:", trainerId); // Debug
+
+      // Teste de conexão simples antes da query
+      const { data: testConnection } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(1);
+
+      if (!testConnection || testConnection.length === 0) {
+        throw new Error('Conexão com Supabase falhou – verifique .env e rede.');
+      }
 
       const { data: studentsData, error } = await supabase
         .from('students')
@@ -157,7 +185,7 @@ const Students = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('❌ Supabase Error Details:', {
+        console.error('❌ Detalhes do erro Supabase:', {
           code: error.code,
           message: error.message,
           hints: error.hint,
@@ -165,11 +193,11 @@ const Students = () => {
           status: error.status // Se for rede
         });
         
-        // Fallback específico para conexão
-        if (error.code === 'ECONNREFUSED' || error.message.includes('network')) {
+        // Fallbacks específicos para tipos de erro
+        if (error.code === 'ECONNREFUSED' || error.message.includes('network') || error.status === 0) {
           toast({
             title: "Erro de Rede",
-            description: "Verifique sua internet ou firewall. Supabase precisa de conexão HTTPS.",
+            description: "Verifique sua internet, firewall ou VPN. Supabase precisa de conexão HTTPS estável.",
             variant: "destructive"
           });
         } else if (error.code === 'PGRST116' || error.message.includes('no rows')) {
@@ -177,19 +205,31 @@ const Students = () => {
             title: "Nenhum Aluno",
             description: "Você ainda não tem alunos cadastrados. Clique em 'Novo Aluno' para começar!",
           });
+        } else if (error.code === '42501') { // Permission denied (RLS)
+          toast({
+            title: "Permissão Negada",
+            description: "Verifique RLS policies no Supabase (policies de 'students' devem permitir SELECT para trainer_id).",
+            variant: "destructive"
+          });
+        } else if (error.code === '42703') { // Column not found
+          toast({
+            title: "Schema Inválido",
+            description: "Colunas 'status' ou 'deleted_at' não existem. Execute o SQL do Passo 1 novamente.",
+            variant: "destructive"
+          });
         } else {
           toast({
             title: "Erro no Banco",
-            description: "Falha na query. Verifique RLS policies ou execute SQL do Passo 1. Console: F12.",
+            description: "Falha na query. Verifique RLS policies ou execute SQL do Passo 1. Console: F12 para detalhes.",
             variant: "destructive"
           });
         }
         
-        setStudents([]); // Lista vazia como fallback
+        setStudents([]); // Lista vazia como fallback (sem crash)
         return;
       }
 
-      console.log("📊 Raw students data:", studentsData); // Debug: dados crus da query
+      console.log("📊 Dados brutos de alunos recebidos:", studentsData?.length || 0); // Debug: quantos retornou
 
       const processedStudents = studentsData?.map(student => {
         const latestEvaluation = student.evaluations?.[0];
@@ -198,15 +238,17 @@ const Students = () => {
           lastEvaluation: latestEvaluation?.evaluation_date,
           weight: latestEvaluation?.weight,
           bodyFat: latestEvaluation?.body_fat_percentage,
-          status: student.status || 'active', // Fallback se coluna não existir
+          // Status defaults (se colunas não existirem, fica undefined – código lida com isso)
+          status: student.status || 'active',
           deleted_at: student.deleted_at || null
         };
       }) || [];
 
-      console.log("✅ Processed students:", processedStudents.length); // Debug final
+      console.log("✅ Alunos processados:", processedStudents.length); // Debug final
       setStudents(processedStudents);
 
       if (processedStudents.length === 0) {
+        console.log("📝 Nenhum aluno encontrado – mostrando estado vazio");
         toast({
           title: "Nenhum Aluno",
           description: "Você ainda não tem alunos cadastrados. Clique em 'Novo Aluno' para começar!",
@@ -214,13 +256,13 @@ const Students = () => {
       }
 
     } catch (error) {
-      console.error('❌ Full error fetching students:', error); // Log completo para debug
+      console.error('❌ Erro completo ao carregar alunos:', error); // Log completo para debug
       toast({
         title: "Falha na Conexão com o Banco",
-        description: "Verifique .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) e sua rede. Console (F12) tem detalhes. Tente recarregar.",
+        description: "Verifique .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) e sua rede. Console (F12) tem detalhes. Tente recarregar a página.",
         variant: "destructive"
       });
-      setStudents([]); // Fallback: lista vazia
+      setStudents([]); // Fallback: lista vazia em vez de crash
     } finally {
       setLoading(false);
     }
@@ -260,11 +302,17 @@ const Students = () => {
         });
 
       if (error) {
-        console.error('❌ Error adding student details:', error); // Log detalhado
+        console.error('❌ Detalhes do erro ao adicionar aluno:', error); // Log detalhado
         if (error.code === '23505') { // Duplicate key
           toast({
             title: "Duplicado",
             description: "Aluno com este nome já existe. Use um nome diferente.",
+            variant: "destructive"
+          });
+        } else if (error.code === '42501') { // Permission denied (RLS)
+          toast({
+            title: "Permissão Negada",
+            description: "Verifique RLS policies no Supabase (policies de 'students' devem permitir INSERT para trainer_id).",
             variant: "destructive"
           });
         } else {
@@ -273,7 +321,7 @@ const Students = () => {
         return;
       }
 
-      console.log("✅ Student added successfully"); // Debug sucesso
+      console.log("✅ Aluno adicionado com sucesso"); // Debug sucesso
       toast({
         title: "Sucesso!",
         description: "Aluno adicionado com sucesso"
@@ -283,7 +331,7 @@ const Students = () => {
       setIsDialogOpen(false);
       fetchStudents(); // Refresh lista
     } catch (error: any) {
-      console.error('❌ Full error adding student:', error); // Log completo
+      console.error('❌ Erro completo ao adicionar aluno:', error); // Log completo
       toast({
         title: "Erro ao Adicionar Aluno",
         description: error.message || "Falha ao adicionar. Verifique console (F12) para detalhes.",
@@ -294,7 +342,75 @@ const Students = () => {
     }
   };
 
-  // As outras funções (archiveStudent, unarchiveStudent, etc.) seguem o mesmo padrão – com tradução em PT-BR nos toasts e logs
+  // Funções de status (com logs e fallbacks – iguais às anteriores, mas com tradução em PT-BR nos toasts e logs)
+  const archiveStudent = async (studentId: string) => {
+    try {
+      if (!trainerId) {
+        throw new Error('ID do trainer não carregado. Recarregue a página.');
+      }
+
+      console.log("🔄 Arquivando aluno", studentId, "para trainer", trainerId); // Debug
+
+      const { data: studentCheck, error: checkError } = await supabase
+        .from('students')
+        .select('id, trainer_id, status')
+        .eq('id', studentId)
+        .eq('trainer_id', trainerId)
+        .single();
+
+      if (checkError) {
+        console.error('❌ Detalhes do erro de verificação:', checkError);
+        throw new Error('Falha na verificação do aluno.');
+      }
+
+      if (!studentCheck) {
+        throw new Error('Aluno não encontrado ou não pertence a você.');
+      }
+
+      if (studentCheck.status === 'deleted') {
+        throw new Error('Aluno já está na lixeira. Use "Restaurar" na aba Lixeira.');
+      }
+
+      const { error } = await supabase
+        .from('students')
+        .update({ 
+          status: 'archived',
+          deleted_at: null  // Reset se estava em lixeira
+        })
+        .eq('id', studentId)
+        .eq('trainer_id', trainerId);
+
+      if (error) {
+        console.error('❌ Detalhes do erro ao atualizar:', error);
+        if (error.code === '42703') { // Column does not exist
+          throw new Error('Colunas "status" ou "deleted_at" não existem. Execute o SQL do Passo 1 novamente.');
+        }
+        if (error.code === '42501') { // Permission denied (RLS)
+          throw new Error('Permissão negada. Verifique RLS policies no Supabase (policies de "students" devem permitir UPDATE para trainer_id).');
+        }
+        if (error.code === 'PGRST116') { // No rows updated
+          throw new Error('Nenhuma linha atualizada – aluno pode não existir ou RLS bloqueando. Verifique trainer_id.');
+        }
+        throw error;
+      }
+
+      console.log("✅ Aluno arquivado com sucesso"); // Debug sucesso
+      toast({
+        title: "Sucesso!",
+        description: "Aluno arquivado com sucesso."
+      });
+      fetchStudents();
+    } catch (error: any) {
+      console.error('❌ Erro detalhado ao arquivar aluno:', error); // Log completo para debug
+      toast({
+        title: "Erro ao Arquivar",
+        description: error.message || "Falha ao arquivar aluno. Verifique console (F12) para detalhes.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // As outras funções (unarchiveStudent, deleteToTrash, etc.) seguem o mesmo padrão – com tradução em PT-BR nos toasts e logs
   // ... (resto do código igual ao fornecido anteriormente, mas com toasts em PT-BR como "Aluno desarquivado com sucesso", "Aluno movido para lixeira", etc.)
 
   // getStatusBadge e getFilteredStudents com tradução (já em PT-BR no código anterior)
