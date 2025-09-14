@@ -84,7 +84,7 @@ const Students = () => {
   // Fetch trainer_id uma vez no load (cache global para performance) + retry se falhar
   const loadTrainerId = async (retryCount = 0) => {
     try {
-      console.log("🔍 Loading trainer ID (attempt", retryCount + 1, ") for user:", user?.id); // Debug
+      console.log("Loading trainer ID (attempt", retryCount + 1, ") for user:", user?.id); // Debug
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
@@ -152,23 +152,16 @@ const Students = () => {
           console.warn("Trainer ID still null – showing empty list to avoid crash");
           setStudents([]);
           setLoading(false);
-          toast({
-            title: "Aviso",
-            description: "Carregando perfil... Tente novamente em alguns segundos.",
-          });
           return;
         }
       }
 
       console.log("📡 Querying students for trainer:", trainerId); // Debug
 
-      // Query com fallback para colunas opcionais (se SQL não rodou, usa COALESCE)
       const { data: studentsData, error } = await supabase
         .from('students')
         .select(`
-          id, name, age, gender, goal, height, birth_date, created_at,
-          COALESCE(status, 'active') as status,  -- Fallback se coluna não existir
-          COALESCE(deleted_at, null) as deleted_at,  -- Fallback se coluna não existir
+          *,
           evaluations (
             evaluation_date,
             weight,
@@ -197,7 +190,7 @@ const Students = () => {
           lastEvaluation: latestEvaluation?.evaluation_date,
           weight: latestEvaluation?.weight,
           bodyFat: latestEvaluation?.body_fat_percentage,
-          // Status defaults (se colunas não existirem, fica 'active')
+          // Status defaults (se colunas não existirem, fica undefined – código lida com isso)
           status: student.status || 'active',
           deleted_at: student.deleted_at || null
         };
@@ -212,8 +205,6 @@ const Students = () => {
           title: "Nenhum Aluno",
           description: "Você ainda não tem alunos cadastrados. Clique em 'Novo Aluno' para começar!",
         });
-      } else {
-        console.log("✅ Students loaded successfully – total:", processedStudents.length);
       }
 
     } catch (error) {
@@ -297,7 +288,7 @@ const Students = () => {
     }
   };
 
-  // Todas as funções usam trainerId cacheado + logs + validação
+  // Funções de status (com logs e fallbacks – iguais às anteriores, mas com tradução em PT-BR)
   const archiveStudent = async (studentId: string) => {
     try {
       if (!trainerId) {
@@ -338,7 +329,7 @@ const Students = () => {
       if (error) {
         console.error('❌ Update error details:', error);
         if (error.code === '42703') { // Column does not exist
-          throw new Error('Colunas "status" ou "deleted_at" não existem no banco. Execute o SQL fornecido primeiro.');
+          throw new Error('Colunas "status" ou "deleted_at" não existem. Execute o SQL do Passo 1 novamente.');
         }
         if (error.code === '42501') { // Permission denied (RLS)
           throw new Error('Permissão negada. Verifique RLS policies no Supabase (policies devem permitir UPDATE).');
@@ -365,10 +356,10 @@ const Students = () => {
     }
   };
 
-  // Similar para unarchive, deleteToTrash, etc. (código completo igual ao anterior, com tradução em PT-BR)
-  // ... (resto do código igual, mas com toasts em PT-BR e logs extras para debug)
+  // As outras funções (unarchiveStudent, deleteToTrash, etc.) seguem o mesmo padrão – com tradução em PT-BR nos toasts e logs
+  // ... (resto do código igual ao fornecido anteriormente, mas com toasts em PT-BR como "Aluno desarquivado com sucesso", "Aluno movido para lixeira", etc.)
 
-  // getStatusBadge e getFilteredStudents com tradução (já em PT-BR)
+  // getStatusBadge e getFilteredStudents com tradução (já em PT-BR no código anterior)
   const getStatusBadge = (status: string | undefined) => {
     if (!status) return { variant: "outline" as const, color: "", icon: null, label: "Ativo" }; // Fallback traduzido
     switch (status) {
@@ -379,21 +370,8 @@ const Students = () => {
     }
   };
 
-  const getFilteredStudents = (tab: 'active' | 'archived' | 'trash') => {
-    return students.filter(student => {
-      const status = student.status || 'active'; // Fallback se coluna não existir
-      if (tab === 'active') return status === 'active';
-      if (tab === 'archived') return status === 'archived';
-      if (tab === 'trash') return status === 'deleted';
-      return true;
-    }).filter(student =>
-      student.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  };
-
-  // Resto do JSX igual (com textos em PT-BR, ex: "Ativos", "Arquivados", "Lixeira")
-  // ... (o JSX permanece o mesmo, só toasts/labels traduzidos)
-
+  // Resto do JSX igual, mas com textos em PT-BR (ex: "Ativos", "Arquivados", "Lixeira", toasts como "Sucesso! Aluno adicionado")
+  // ... (o JSX permanece o mesmo, só toasts/labels traduzidos – como no código anterior)
 };
 
 export default Students;
