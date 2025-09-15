@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom"; // Import useParams
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,11 +93,11 @@ const Workouts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = true);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutTemplate | null>(null);
-  const [workoutToEdit, setWorkoutToEdit: any] = useState<WorkoutTemplate | null>(null);
+  const [workoutToEdit, setWorkoutToEdit] = useState<WorkoutTemplate | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -489,13 +489,6 @@ const Workouts = () => {
         open={isAssignDialogOpen}
         onOpenChange={setIsAssignDialogOpen}
         onAssigned={fetchData}
-      />
-
-      <EditStudentDialog
-        student={editingStudent}
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        onStudentUpdated={fetchData}
       />
     </div>
   );
