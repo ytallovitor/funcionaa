@@ -469,7 +469,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       <Label htmlFor="physical_activity_work">Atividade Física no Trabalho</Label>
                       <Select
                         value={formData.physical_activity_work || ""}
-                        onValueChange={(value) => updateFormData('physical_activity_work', value)}
+                        onChange={(e) => updateFormData('physical_activity_work', value)}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Seu trabalho envolve movimento?" />
@@ -488,7 +488,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       <Label htmlFor="sleep_quality">Qualidade do Sono (subjetiva)</Label>
                       <Select
                         value={formData.sleep_quality || ""}
-                        onValueChange={(value) => updateFormData('sleep_quality', value)}
+                        onChange={(e) => updateFormData('sleep_quality', value)}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Como você dorme?" />
@@ -515,47 +515,11 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       />
                     </div>
                   </div>
-                  <div className="grid md:grid-cols-2 gap-4 mt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="stress_level">Nível de Estresse Atual</Label>
-                      <Select
-                        value={formData.stress_level || ""}
-                        onValueChange={(value) => updateFormData('stress_level', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Como está seu estresse?" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="baixo">Baixo (gerencio bem o estresse)</SelectItem>
-                          <SelectItem value="moderado">Moderado (estresse gerenciável)</SelectItem>
-                          <SelectItem value="alto">Alto (estresse constante, afeta minha rotina)</SelectItem>
-                          <SelectItem value="muito_alto">Muito Alto (estresse extremo, ansiedade/pânico)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="alcohol_consumption">Consumo de Álcool</Label>
-                      <Select
-                        value={formData.alcohol_consumption || ""}
-                        onValueChange={(value) => updateFormData('alcohol_consumption', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Você consome álcool?" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="nenhum">Nenhum consumo</SelectItem>
-                          <SelectItem value="ocasional">Ocasional (fins de semana, social)</SelectItem>
-                          <SelectItem value="moderado">Moderado (algumas vezes por semana)</SelectItem>
-                          <SelectItem value="frequente">Frequente (diário ou quase)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
                   <div className="space-y-2 mt-4">
                     <Label htmlFor="smoking_status">Status de Tabagismo</Label>
                     <Select
                       value={formData.smoking_status || ""}
-                      onValueChange={(value) => updateFormData('smoking_status', value)}
+                      onChange={(e) => updateFormData('smoking_status', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Você fuma?" />
@@ -593,8 +557,8 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         <TooltipContent>
                           <p>Base para periodização: Objetivos SMART (Specific, Measurable, Achievable, Relevant, Time-bound) - NSCA.</p>
                         </TooltipContent>
-                      </TooltipProvider>
-                    </Tooltip>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="specific_fitness_goals">Metas Específicas de Fitness</Label>
@@ -619,7 +583,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       <Label htmlFor="training_frequency">Frequência de Treino Desejada</Label>
                       <Select
                         value={formData.training_frequency || ""}
-                        onValueChange={(value) => updateFormData('training_frequency', value)}
+                        onChange={(e) => updateFormData('training_frequency', value)}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Quantas vezes por semana?" />
@@ -636,7 +600,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                     <Label htmlFor="preferred_training_times">Horários Preferidos para Treino</Label>
                     <Select
                       value={formData.preferred_training_times || ""}
-                      onValueChange={(value) => updateFormData('preferred_training_times', value)}
+                      onChange={(e) => updateFormData('preferred_training_times', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Quando você pode treinar?" />

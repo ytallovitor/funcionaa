@@ -35,7 +35,7 @@ interface Student {
   id: string;
   name: string;
   age: number;
-  gender: string;
+  gender: 'masculino' | 'feminino';
   goal: string;
   height: number;
   birth_date?: string;
@@ -396,7 +396,7 @@ const Students = () => {
     try {
       const { error } = await supabase
         .from('students')
-        .update({ status: 'archived' })
+        .update({ status: 'archived' } as any)
         .eq('id', studentId);
 
       if (error) throw error;
@@ -411,7 +411,7 @@ const Students = () => {
     try {
       const { error } = await supabase
         .from('students')
-        .update({ status: 'active' })
+        .update({ status: 'active' } as any)
         .eq('id', studentId);
 
       if (error) throw error;
@@ -583,13 +583,13 @@ const Students = () => {
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="active" className="text-sm">
+          <TabsTrigger value="active">
             Ativos ({getFilteredStudents('active').length})
           </TabsTrigger>
-          <TabsTrigger value="archived" className="text-sm">
+          <TabsTrigger value="archived">
             Arquivados ({getFilteredStudents('archived').length})
           </TabsTrigger>
-          <TabsTrigger value="trash" className="text-sm">
+          <TabsTrigger value="trash">
             Lixeira ({getFilteredStudents('trash').length})
           </TabsTrigger>
         </TabsList>
@@ -615,7 +615,7 @@ const Students = () => {
                 const daysSinceLastEval = hasEvaluation ? Math.floor((new Date().getTime() - new Date(student.lastEvaluation).getTime()) / (1000 * 60 * 60 * 24)) : null;
 
                 return (
-                  <Card key={student.id} className="shadow-primary/10 border-primary/20 hover:shadow-primary/20 transition-all">
+                  <Card key={student.id} className="shadow-primary/10 border-primary/20">
                     <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
@@ -629,7 +629,7 @@ const Students = () => {
                               {statusBadge.label}
                             </Badge>
                             <span className="text-sm text-muted-foreground">
-                              {student.age} anos • {student.gender} • {student.goal.replace('_', ' ')}
+                              {student.age} anos • {student.goal.replace('_', ' ')}
                             </span>
                           </div>
                         </div>
@@ -663,16 +663,9 @@ const Students = () => {
                             <Dumbbell className="mr-2 h-3 w-3" />
                             Gerenciar Treinos
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
-                            setAnamnesisStudent(student);
-                            setIsAnamnesisOpen(true);
-                          }}>
+                          <DropdownMenuItem onClick={() => {}}>
                             <FileText className="mr-2 h-3 w-3" />
                             Anamnese
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Activity className="mr-2 h-3 w-3" />
-                            Avaliações
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => archiveStudent(student.id)}>
@@ -825,7 +818,7 @@ const Students = () => {
               <Archive className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-medium text-muted-foreground">Nenhum aluno arquivado</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Alunos arquivados aparecem aqui quando você arquivar um ativo
+                Alunos na lixeira aparecem aqui. Eles podem ser restaurados ou excluídos definitivamente
               </p>
               <Button variant="outline" onClick={() => setActiveTab('active')}>
                 Ver Alunos Ativos
@@ -956,7 +949,7 @@ const Students = () => {
                   goal: formData.goal,
                   height: parseFloat(formData.height),
                   age: age
-                })
+                } as any)
                 .eq('id', editingStudent.id)
                 .then(({ error }) => {
                   if (error) {
@@ -1039,14 +1032,8 @@ const Students = () => {
                 Cancelar
               </Button>
               <Button type="submit" className="flex-1 gradient-primary" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Atualizando...
-                  </>
-                ) : (
-                  "Atualizar"
-                )}
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Atualizar
               </Button>
             </div>
           </form>
@@ -1076,18 +1063,6 @@ const Students = () => {
               Atribuir Treino
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isAnamnesisOpen} onOpenChange={setIsAnamnesisOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Anamnese de {anamnesisStudent?.name}</DialogTitle>
-            <DialogDescription>
-              Complete o histórico médico e objetivos do aluno
-            </DialogDescription>
-          </DialogHeader>
-          <AnamnesisForm student={anamnesisStudent} open={isAnamnesisOpen} onOpenChange={setIsAnamnesisOpen} />
         </DialogContent>
       </Dialog>
 

@@ -19,6 +19,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+interface Message {
+  id: string;
+  content: string;
+  sender_id: string;
+  sender_name: string;
+  sender_type: 'trainer' | 'student';
+  timestamp: string;
+  message_type: 'text' | 'image' | 'voice' | 'video';
+  is_read: boolean;
+}
+
 interface Conversation {
   id: string;
   name: string;
@@ -31,12 +42,6 @@ interface Conversation {
 
 interface DatabaseConversation {
     id: string;
-    name: string;
-    type: 'trainer' | 'student';
-    lastMessage: string;
-    timestamp: string;
-    unread: number;
-    online: boolean;
     students: {
         name: string;
     } | null;
@@ -116,8 +121,8 @@ const Chat = () => {
         const lastMessage = conv.messages?.[0];
         return {
           id: conv.id,
-          name: (conv.students as any)?.name || (conv.profiles as any)?.full_name || 'Conversa',
-          type: conv.students ? 'student' : 'trainer',
+          name: (conv.students?.name || conv.profiles?.full_name || 'Conversa') as string,
+          type: conv.students ? 'student' : 'trainer' as 'trainer' | 'student',
           lastMessage: lastMessage?.content || 'Sem mensagens',
           timestamp: lastMessage?.created_at ? new Date(lastMessage.created_at).toLocaleString('pt-BR', { 
             hour: '2-digit', 
