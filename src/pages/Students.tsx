@@ -30,6 +30,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import StudentPortalManager from "@/components/StudentPortalManager"; // Importando o componente
+import AnamnesisForm from "@/components/AnamnesisForm"; // Importando o componente
 
 interface Student {
   id: string;
@@ -48,7 +50,6 @@ interface Student {
 }
 
 const Students = () => {
-  // Estado único para cada variável (sem duplicatas)
   const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'trash'>('active');
   const [searchTerm, setSearchTerm] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
@@ -75,12 +76,18 @@ const Students = () => {
 
   useEffect(() => {
     if (user) {
-      loadTrainerId();
-      fetchStudents();
+      const initializeTrainerAndStudents = async () => {
+        const id = await loadTrainerId();
+        if (id) {
+          setTrainerId(id);
+          await fetchStudents(id);
+        }
+      };
+      initializeTrainerAndStudents();
     }
   }, [user]);
 
-  const loadTrainerId = async (retryCount = 0) => {
+  const loadTrainerId = async (retryCount = 0): Promise<string | null> => {
     try {
       console.log(`🔄 Tentativa ${retryCount + 1}: Carregando ID do trainer para user: ${user?.id}`);
       const { data: profile, error } = await supabase
@@ -93,28 +100,27 @@ const Students = () => {
         console.error(`❌ Erro ao carregar profile (tentativa ${retryCount + 1}):`, error);
         if (retryCount < 2) {
           setTimeout(() => loadTrainerId(retryCount + 1), 1000);
-          return;
+          return null;
         }
         toast({
           title: "Erro de Perfil",
           description: "Falha ao carregar perfil. Faça login novamente.",
           variant: "destructive"
         });
-        return;
+        return null;
       }
 
       if (profile) {
         console.log(`✅ ID do trainer carregado: ${profile.id}`);
-        setTrainerId(profile.id);
         return profile.id;
       } else {
         console.warn(`❌ Profile não encontrado – criando automaticamente (tentativa ${retryCount + 1})...`);
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
-            user_id: user.id,
-            full_name: user.user_metadata?.full_name || user.email || 'Personal Trainer',
-            email: user.email || ''
+            user_id: user!.id,
+            full_name: user!.user_metadata?.full_name || user!.email || 'Personal Trainer',
+            email: user!.email || ''
           })
           .select()
           .single();
@@ -123,18 +129,17 @@ const Students = () => {
           console.error(`❌ Erro ao criar profile (tentativa ${retryCount + 1}):`, createError);
           if (retryCount < 2) {
             setTimeout(() => loadTrainerId(retryCount + 1), 1000);
-            return;
+            return null;
           }
           toast({
             title: "Erro",
             description: "Não foi possível criar perfil. Verifique Supabase.",
             variant: "destructive"
           });
-          return;
+          return null;
         }
 
         console.log(`✅ Profile criado e ID carregado: ${newProfile.id}`);
-        setTrainerId(newProfile.id);
         return newProfile.id;
       }
     } catch (error) {
@@ -144,51 +149,15 @@ const Students = () => {
         description: "Falha ao conectar com Supabase. Verifique .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) e rede. Console: F12 para detalhes.",
         variant: "destructive"
       });
+      return null;
     }
   };
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (currentTrainerId: string) => {
     try {
       setLoading(true);
       
-      console.log(`🔄 Carregando alunos (trainerId: ${trainerId})...`);
-
-      // Teste de conexão rápido
-      const { data: testConnection, error: testError } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1);
-
-      if (testError) {
-        console.error('❌ Teste de conexão falhou:', testError);
-        toast({
-          title: "Conexão com Banco Falhou",
-          description: `Erro: ${testError.message}. Verifique .env (URL e ANON KEY) e rede. Console (F12) tem detalhes. Tente recarregar a página.`,
-          variant: "destructive"
-        });
-        setStudents([]);
-        setLoading(false);
-        return;
-      }
-
-      console.log("✅ Conexão OK – prosseguindo com query de alunos...");
-
-      if (!trainerId) {
-        console.log("ID do trainer não pronto – carregando agora...");
-        const loadedId = await loadTrainerId(0);
-        if (!loadedId) {
-          console.warn("ID do trainer ainda nulo após retry – mostrando lista vazia para evitar crash");
-          setStudents([]);
-          setLoading(false);
-          toast({
-            title: "Aviso",
-            description: "ID do trainer não disponível. Mostrando lista vazia – adicione um aluno para testar.",
-          });
-          return;
-        }
-      }
-
-      console.log(`📡 Executando query para trainer: ${trainerId}`);
+      console.log(`🔄 Carregando alunos (trainerId: ${currentTrainerId})...`);
 
       const { data: studentsData, error } = await supabase
         .from('students')
@@ -200,7 +169,7 @@ const Students = () => {
             body_fat_percentage
           )
         `)
-        .eq('trainer_id', trainerId)
+        .eq('trainer_id', currentTrainerId)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -209,29 +178,28 @@ const Students = () => {
           message: error.message,
           hints: error.hint,
           details: error.details,
-          status: (error as any).status // Cast to any to access status
+          status: (error as any).status 
         });
         
-        // Fallbacks específicos
         if (error.code === 'ECONNREFUSED' || error.message.includes('network') || (error as any).status === 0) {
           toast({
             title: "Erro de Rede",
             description: "Verifique sua internet, firewall ou VPN. Supabase precisa de conexão HTTPS estável. Tente novamente em 10s.",
             variant: "destructive"
           });
-          setTimeout(() => fetchStudents(), 10000); // Retry em 10s se rede
+          setTimeout(() => fetchStudents(currentTrainerId), 10000);
         } else if (error.code === 'PGRST116' || error.message.includes('no rows')) {
           toast({
             title: "Nenhum Aluno",
             description: "Você ainda não tem alunos cadastrados. Clique em 'Novo Aluno' para começar!",
           });
-        } else if (error.code === '42501') { // Permission denied (RLS)
+        } else if (error.code === '42501') {
           toast({
             title: "Permissão Negada",
             description: "Verifique RLS policies no Supabase (policies de 'students' devem permitir SELECT para trainer_id). Rode o SQL do Passo 1 novamente.",
             variant: "destructive"
           });
-        } else if (error.code === '42703') { // Column not found
+        } else if (error.code === '42703') {
           toast({
             title: "Schema Inválido",
             description: "Colunas 'status' ou 'deleted_at' não existem. Execute o SQL do Passo 1 novamente.",
@@ -245,7 +213,7 @@ const Students = () => {
           });
         }
         
-        setStudents([]); // Lista vazia como fallback (sem crash)
+        setStudents([]);
         return;
       }
 
@@ -258,7 +226,7 @@ const Students = () => {
           lastEvaluation: latestEvaluation?.evaluation_date,
           weight: latestEvaluation?.weight,
           bodyFat: latestEvaluation?.body_fat_percentage,
-          status: student.status || 'active', // Fallback se coluna não existir
+          status: student.status || 'active',
           deleted_at: student.deleted_at || null
         };
       }) || [];
@@ -357,7 +325,7 @@ const Students = () => {
 
       setFormData({ name: "", birth_date: "", gender: "", goal: "", height: "" });
       setIsDialogOpen(false);
-      fetchStudents();
+      fetchStudents(trainerId);
     } catch (error: any) {
       console.error('❌ Erro completo ao adicionar aluno:', error);
       toast({
@@ -401,7 +369,7 @@ const Students = () => {
 
       if (error) throw error;
       toast({ title: "Sucesso!", description: "Aluno arquivado" });
-      fetchStudents();
+      fetchStudents(trainerId!);
     } catch (error) {
       toast({ title: "Erro", description: "Falha ao arquivar aluno", variant: "destructive" });
     }
@@ -416,30 +384,11 @@ const Students = () => {
 
       if (error) throw error;
       toast({ title: "Sucesso!", description: "Aluno restaurado" });
-      fetchStudents();
+      fetchStudents(trainerId!);
     } catch (error) {
       toast({ title: "Erro", description: "Falha ao restaurar aluno", variant: "destructive" });
     }
   };
-
-  // Placeholder para componentes não implementados (evita erros de "not defined")
-  const StudentPortalManager = ({ student, onPortalCreated }: any) => (
-    <div className="mt-3 p-3 bg-accent/50 rounded-md">
-      <Button variant="outline" size="sm" className="w-full">
-        <Dumbbell className="mr-2 h-3 w-3" />
-        Gerenciar Portal
-      </Button>
-    </div>
-  );
-
-  const AnamnesisForm = ({ student, open, onOpenChange }: any) => (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Anamnese para {student?.name}</p>
-      <Button onClick={() => onOpenChange(false)} className="w-full gradient-primary">
-        Salvar Anamnese
-      </Button>
-    </div>
-  );
 
   if (loading) {
     return (
@@ -474,6 +423,8 @@ const Students = () => {
   }
 
   const filteredStudents = getFilteredStudents(activeTab);
+  const studentToDelete = students.find(s => s.id === deletingStudent);
+  const isPermanentlyDeleting = studentToDelete?.status === 'deleted';
 
   return (
     <div className="space-y-6">
@@ -711,13 +662,13 @@ const Students = () => {
                           <div className="text-sm">
                             <span className="font-medium">Peso:</span> {student.weight} kg • {student.bodyFat}% gordura
                           </div>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => { /* TODO: Navigate to evaluation page for this student */ }}>
                             <Calendar className="h-3 w-3 mr-1" />
                             Nova Avaliação
                           </Button>
                         </div>
                       )}
-                      <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
+                      <StudentPortalManager student={student} onPortalCreated={() => fetchStudents(trainerId!)} />
                     </CardContent>
                   </Card>
                 );
@@ -823,7 +774,7 @@ const Students = () => {
                         )}
                       </div>
                     </div>
-                    <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
+                    <StudentPortalManager student={student} onPortalCreated={() => fetchStudents(trainerId!)} />
                   </CardContent>
                 </Card>
               ))}
@@ -876,7 +827,7 @@ const Students = () => {
                           </span>
                         </div>
                       </div>
-                    </div>
+                    </CardHeader>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
@@ -913,7 +864,7 @@ const Students = () => {
                         )}
                       </div>
                     </div>
-                    <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
+                    <StudentPortalManager student={student} onPortalCreated={() => fetchStudents(trainerId!)} />
                   </CardContent>
                 </Card>
               ))}
@@ -971,7 +922,7 @@ const Students = () => {
                       description: "Aluno atualizado com sucesso"
                     });
                     setIsEditDialogOpen(false);
-                    fetchStudents();
+                    fetchStudents(trainerId!);
                   }
                 });
             }
@@ -1094,25 +1045,53 @@ const Students = () => {
       <AlertDialog open={!!deletingStudent} onOpenChange={() => setDeletingStudent(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar {isPermanentlyDeleting ? "Exclusão Definitiva" : "Exclusão"}</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação é irreversível. O aluno "{students.find(s => s.id === deletingStudent)?.name}" será removido permanentemente.
+              {isPermanentlyDeleting
+                ? `Esta ação é irreversível. O aluno "${studentToDelete?.name}" será removido permanentemente do banco de dados.`
+                : `Esta ação moverá o aluno "${studentToDelete?.name}" para a lixeira. Você poderá restaurá-lo depois.`
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
+            <AlertDialogAction onClick={async () => {
               if (deletingStudent) {
-                // Implementar lógica de deleção (mudar status para "deleted")
-                toast({
-                  title: "Excluído!",
-                  description: "Aluno removido da lixeira permanentemente."
-                });
-                setDeletingStudent(null);
-                fetchStudents();
+                try {
+                  if (isPermanentlyDeleting) {
+                    const { error } = await supabase
+                      .from('students')
+                      .delete()
+                      .eq('id', deletingStudent);
+                    if (error) throw error;
+                    toast({
+                      title: "Sucesso!",
+                      description: "Aluno excluído permanentemente."
+                    });
+                  } else {
+                    const { error } = await supabase
+                      .from('students')
+                      .update({ status: 'deleted', deleted_at: new Date().toISOString() })
+                      .eq('id', deletingStudent);
+                    if (error) throw error;
+                    toast({
+                      title: "Sucesso!",
+                      description: "Aluno movido para a lixeira."
+                    });
+                  }
+                  setDeletingStudent(null);
+                  fetchStudents(trainerId!);
+                } catch (error: any) {
+                  console.error('Error handling student deletion:', error);
+                  toast({
+                    title: "Erro",
+                    description: error.message || "Falha ao processar exclusão do aluno.",
+                    variant: "destructive"
+                  });
+                }
               }
             }}>
-              Excluir Definitivamente
+              {isPermanentlyDeleting ? "Excluir Definitivamente" : "Mover para Lixeira"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
