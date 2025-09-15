@@ -209,11 +209,11 @@ const Students = () => {
           message: error.message,
           hints: error.hint,
           details: error.details,
-          status: error.status // Se for rede
+          status: (error as any).status // Cast to any to access status
         });
         
         // Fallbacks específicos
-        if (error.code === 'ECONNREFUSED' || error.message.includes('network') || error.status === 0) {
+        if (error.code === 'ECONNREFUSED' || error.message.includes('network') || (error as any).status === 0) {
           toast({
             title: "Erro de Rede",
             description: "Verifique sua internet, firewall ou VPN. Supabase precisa de conexão HTTPS estável. Tente novamente em 10s.",
@@ -633,59 +633,6 @@ const Students = () => {
                             </span>
                           </div>
                         </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => {
-                            setEditingStudent(student);
-                            setFormData({
-                              name: student.name,
-                              birth_date: student.birth_date || "",
-                              gender: student.gender,
-                              goal: student.goal,
-                              height: student.height.toString()
-                            });
-                            setIsEditDialogOpen(true);
-                          }}>
-                            <Edit className="mr-2 h-3 w-3" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
-                            setManagingWorkoutsFor(student);
-                            setIsWorkoutManagerOpen(true);
-                          }}>
-                            <Dumbbell className="mr-2 h-3 w-3" />
-                            Gerenciar Treinos
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
-                            setAnamnesisStudent(student);
-                            setIsAnamnesisOpen(true);
-                          }}>
-                            <FileText className="mr-2 h-3 w-3" />
-                            Anamnese
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Activity className="mr-2 h-3 w-3" />
-                            Avaliações
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => archiveStudent(student.id)}>
-                            <Archive className="mr-2 h-3 w-3" />
-                            Arquivar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => {
-                            setDeletingStudent(student.id);
-                          }}>
-                            <Trash2 className="mr-2 h-3 w-3" />
-                            Mover para Lixeira
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
                       </DropdownMenu>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -770,55 +717,28 @@ const Students = () => {
                           </span>
                         </div>
                       </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => {
-                          setEditingStudent(student);
-                          setIsEditDialogOpen(true);
-                        }}>
-                          <Edit className="mr-2 h-3 w-3" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => unarchiveStudent(student.id)}>
-                          <Check className="mr-2 h-3 w-3" />
-                          Restaurar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => {
-                          setDeletingStudent(student.id);
-                        }}>
-                          <Trash2 className="mr-2 h-3 w-3" />
-                          Mover para Lixeira
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm">
-                        <span className="font-medium">Altura:</span> {student.height} cm
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                          <span className="font-medium">Altura:</span> {student.height} cm
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium">Última Avaliação:</span>
+                          {student.lastEvaluation ? (
+                            <span className="text-green-600">
+                              {Math.floor((new Date().getTime() - new Date(student.lastEvaluation).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
+                            </span>
+                          ) : (
+                            <span className="text-red-600">Sem avaliação</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-sm">
-                        <span className="font-medium">Última Avaliação:</span>
-                        {student.lastEvaluation ? (
-                          <span className="text-green-600">
-                            {Math.floor((new Date().getTime() - new Date(student.lastEvaluation).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
-                          </span>
-                        ) : (
-                          <span className="text-red-600">Sem avaliação</span>
-                        )}
-                      </div>
-                    </div>
-                    <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
-                  </CardContent>
-                </Card>
-              ))}
+                      <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12">
@@ -868,55 +788,28 @@ const Students = () => {
                           </span>
                         </div>
                       </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => {
-                          setEditingStudent(student);
-                          setIsEditDialogOpen(true);
-                        }}>
-                          <Edit className="mr-2 h-3 w-3" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => unarchiveStudent(student.id)}>
-                          <Check className="mr-2 h-3 w-3" />
-                          Restaurar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => {
-                          setDeletingStudent(student.id);
-                        }}>
-                          <Trash2 className="mr-2 h-3 w-3" />
-                          Excluir Definitivamente
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm">
-                        <span className="font-medium">Altura:</span> {student.height} cm
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                          <span className="font-medium">Altura:</span> {student.height} cm
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium">Removido em:</span>
+                          {student.deleted_at ? (
+                            <span className="text-red-600">
+                              {new Date(student.deleted_at).toLocaleDateString('pt-BR')}
+                            </span>
+                          ) : (
+                            <span className="text-red-600">Sem data</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-sm">
-                        <span className="font-medium">Removido em:</span>
-                        {student.deleted_at ? (
-                          <span className="text-red-600">
-                            {new Date(student.deleted_at).toLocaleDateString('pt-BR')}
-                          </span>
-                        ) : (
-                          <span className="text-red-600">Sem data</span>
-                        )}
-                      </div>
-                    </div>
-                    <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
-                  </CardContent>
-                </Card>
-              ))}
+                      <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-12">

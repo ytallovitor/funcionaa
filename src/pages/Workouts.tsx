@@ -14,7 +14,7 @@ import ExerciseLibrary from "@/components/ExerciseLibrary";
 import WorkoutCreator from "@/components/WorkoutCreator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast"; // Keep this for shadcn toast
 import { 
   Plus, 
   Search, 
@@ -30,6 +30,7 @@ import {
 import AssignWorkoutDialog from "@/components/AssignWorkoutDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
+// Re-declarando interfaces para garantir consistência e evitar conflitos
 interface Exercise {
   id: string;
   name: string;
@@ -38,62 +39,50 @@ interface Exercise {
   difficulty: string;
   equipment: string[];
   instructions: string[];
-  tips: string[];
-  sets?: number;
-  reps?: number;
-  rest_time?: number;
-  duration?: number;
-  video_url?: string;
-  image_url?: string;
+  tips: string[] | null; // Make tips nullable
+  sets?: number | null; // Make sets nullable
+  reps?: number | null; // Make reps nullable
+  rest_time?: number | null; // Make rest_time nullable
+  duration?: number | null; // Make duration nullable
+  video_url?: string | null;
+  image_url?: string | null;
 }
 
 interface WorkoutExercise {
-  id?: string; // Added for existing workout_template_exercises
+  id?: string;
   exercise: Exercise;
   sets: number;
   reps: number;
-  weight_kg?: number;
-  duration?: number;
+  weight_kg?: number | null;
+  duration?: number | null;
   rest_time: number;
-  notes?: string;
+  notes?: string | null;
   order_index: number;
 }
 
 interface WorkoutTemplate {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   category: string;
   difficulty: string;
-  estimated_duration: number;
-  equipment_needed: string[];
-  is_public: boolean;
-  workout_template_exercises?: WorkoutExercise[]; // Use WorkoutExercise for nested exercises
-}
-
-interface WorkoutTemplateExerciseFromSupabase {
-    id: string;
-    order_index: number;
-    sets?: number;
-    reps?: number;
-    weight_kg?: number;
-    duration?: number;
-    rest_time?: number;
-    notes?: string;
-    exercises: Exercise;
+  estimated_duration: number | null;
+  equipment_needed: string[] | null;
+  is_public: boolean | null;
+  workout_template_exercises?: WorkoutExercise[];
 }
 
 const Workouts = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { workoutId: editingWorkoutId } = useParams<{ workoutId: string }>(); // Get workoutId from URL for editing
+  const { workoutId: editingWorkoutId } = useParams<{ workoutId: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState(editingWorkoutId ? "creator" : "templates"); // Set tab to creator if editing
+  const [activeTab, setActiveTab] = useState(editingWorkoutId ? "creator" : "templates");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
-  const [loading, setLoading] = true);
+  const [loading, setLoading] = useState(true); // Corrected useState initialization
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutTemplate | null>(null);
@@ -111,9 +100,8 @@ const Workouts = () => {
       const foundWorkout = workoutTemplates.find(wt => wt.id === editingWorkoutId);
       if (foundWorkout) {
         setWorkoutToEdit(foundWorkout);
-        setActiveTab("creator"); // Ensure creator tab is active when editing
+        setActiveTab("creator");
       } else {
-        // If not found, navigate back to templates and show error
         toast({
           title: "Erro",
           description: "Treino não encontrado para edição.",
@@ -122,7 +110,7 @@ const Workouts = () => {
         navigate('/workouts');
       }
     } else if (!editingWorkoutId && activeTab === "creator") {
-      setWorkoutToEdit(null); // Clear editing state if not in edit mode
+      setWorkoutToEdit(null);
     }
   }, [editingWorkoutId, workoutTemplates, navigate, toast]);
 

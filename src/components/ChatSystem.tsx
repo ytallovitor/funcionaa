@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { toast } from "sonner"; // Import toast from sonner
 
 interface Message {
   id: string;
@@ -29,11 +29,7 @@ interface Message {
   is_read: boolean;
 }
 
-interface Toast {
-  title?: string;
-  description?: string;
-  variant?: "default" | "destructive"
-}
+// Removed custom Toast interface as sonner's toast is used directly
 
 interface ChatSystemProps {
   conversationId?: string;
@@ -74,7 +70,7 @@ const ChatSystem = ({
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new as Message;
-          setMessages(prev => [newMsg, ...prev]);
+          setMessages(prev => [...prev, newMsg]); // Add new message to the end
         } else if (payload.eventType === 'UPDATE') {
           setMessages(prev => 
             prev.map(m => m.id === (payload.new as Message).id ? { ...m, is_read: (payload.new as Message).is_read } : m)
@@ -111,7 +107,7 @@ const ChatSystem = ({
         id: msg.id,
         content: msg.content,
         sender_id: msg.sender_id,
-        sender_name: msg.profiles?.full_name || 'Usuário',
+        sender_name: (msg.profiles as { full_name: string } | null)?.full_name || 'Usuário',
         sender_type: msg.sender_type as 'trainer' | 'student',
         timestamp: msg.created_at,
         message_type: msg.message_type as 'text' | 'image' | 'voice' | 'video',
@@ -121,11 +117,7 @@ const ChatSystem = ({
       setMessages(transformedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
-      const toastOptions: Toast = {
-        description: "Não foi possível carregar as mensagens",
-        variant: "destructive"
-      };
-      toast(toastOptions);
+      toast.error("Não foi possível carregar as mensagens"); // Using sonner toast
     }
   };
 
@@ -171,19 +163,12 @@ const ChatSystem = ({
               .update({ is_read: true })
               .eq('id', newMsg.id);
 
-          const toastOptions: Toast = {
-              description: "Sua mensagem foi enviada com sucesso"
-          };
-          toast(toastOptions);
+          toast.success("Sua mensagem foi enviada com sucesso"); // Using sonner toast
       }
 
     } catch (error) {
       console.error('Error sending message:', error);
-      const toastOptions: Toast = {
-        description: "Não foi possível enviar a mensagem",
-        variant: "destructive"
-      };
-      toast(toastOptions);
+      toast.error("Não foi possível enviar a mensagem"); // Using sonner toast
     }
   };
 

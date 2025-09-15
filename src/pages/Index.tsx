@@ -129,7 +129,7 @@ const Index = () => {
         id: userProfile.id,
         name: userProfile.full_name || 'Personal Trainer',
         email: userProfile.email
-      } as Trainer}
+      }}
     />
   );
 };

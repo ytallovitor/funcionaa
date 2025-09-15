@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Wand2, ArrowRight, Check, AlertCircle, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner"; // Import toast from sonner
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
@@ -53,7 +53,7 @@ interface WorkoutSuggestionDialogProps {
 
 const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogProps) => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  // const { toast } = useToast(); // Removed custom useToast
   const { user } = useAuth();
   const [step, setStep] = useState<'initial' | 'params' | 'generating'>('initial');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -283,11 +283,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
 
     if (error) {
       console.error("Error fetching trainer profile:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar o perfil do treinador. Tente novamente.",
-        variant: "destructive"
-      });
+      toast.error("Não foi possível carregar o perfil do treinador. Tente novamente."); // Using sonner toast
       return;
     }
     setTrainerId(profile.id);
@@ -357,11 +353,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
 
   const generateScientificWorkout = async (currentParams: WorkoutParams, anamnesis: AnamnesisData | null) => {
     if (!trainerId) {
-      toast({
-        title: "Erro",
-        description: "ID do treinador não encontrado. Faça login novamente.",
-        variant: "destructive"
-      });
+      toast.error("ID do treinador não encontrado. Faça login novamente."); // Using sonner toast
       setIsGenerating(false);
       return;
     }
@@ -414,10 +406,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
         ) || [];
         exercises = [...exercises, ...existingButNotFetched];
 
-        toast({
-          title: "Exercícios complementares usados",
-          description: "A biblioteca foi complementada com exercícios científicos padrão (ACSM/NSCA)."
-        });
+        toast.info("A biblioteca foi complementada com exercícios científicos padrão (ACSM/NSCA)."); // Using sonner toast
       }
 
       // Filtra exercícios com base em equipamentos e grupos musculares excluídos
@@ -581,8 +570,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
         if (exercisesError) throw exercisesError;
       }
 
-      toast({
-        title: "Treinos Criados com Sucesso!",
+      toast.success("Treinos Criados com Sucesso!", { // Using sonner toast
         description: `${currentParams.daysPerWeek} treinos completos inseridos no banco! Visualize e edite no menu Treinos.`,
       });
 
@@ -597,11 +585,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       onClose();
     } catch (error: any) {
       console.error("Error generating and inserting workout:", error);
-      toast({
-        title: "Erro na Criação",
-        description: error.message || "Não foi possível gerar o treino. Verifique os dados e tente novamente.",
-        variant: "destructive"
-      });
+      toast.error(error.message || "Não foi possível gerar o treino. Verifique os dados e tente novamente."); // Using sonner toast
       setStep('initial');
     } finally {
       setIsGenerating(false);
@@ -616,10 +600,9 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
 
       if (!hasAnamnesisFilled) {
         setStep('params');
-        toast({
-          title: "Anamnese incompleta detectada",
+        toast.warning("Anamnese incompleta detectada", { // Using sonner toast
           description: "Vamos coletar detalhes adicionais para um treino mais preciso. Preencha os parâmetros abaixo.",
-          icon: <AlertCircle className="h-4 w-4" />
+          // icon: <AlertCircle className="h-4 w-4" /> // Removed icon prop
         });
         return;
       }
@@ -627,11 +610,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       await generateScientificWorkout(params, anamnesis);
     } catch (error: any) {
       console.error("Error generating workout:", error);
-      toast({
-        title: "Erro na Geração",
-        description: error.message || "Não foi possível gerar a sugestão. Verifique os dados e tente novamente.",
-        variant: "destructive"
-      });
+      toast.error(error.message || "Não foi possível gerar a sugestão. Verifique os dados e tente novamente."); // Using sonner toast
     } finally {
       setIsGenerating(false);
     }
@@ -639,15 +618,15 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
 
   const handleParamsSubmit = async () => {
     if (params.daysPerWeek < 1 || params.daysPerWeek > 7) {
-      toast({ title: "Inválido", description: "Dias de treino deve ser entre 1 e 7.", variant: "destructive" });
+      toast.error("Dias de treino deve ser entre 1 e 7."); // Using sonner toast
       return;
     }
     if (!params.workoutType) {
-      toast({ title: "Inválido", description: "Tipo de treino é obrigatório.", variant: "destructive" });
+      toast.error("Tipo de treino é obrigatório."); // Using sonner toast
       return;
     }
     if (!params.focusArea) {
-      toast({ title: "Inválido", description: "Foco principal é obrigatório.", variant: "destructive" });
+      toast.error("Foco principal é obrigatório."); // Using sonner toast
       return;
     }
 
@@ -657,11 +636,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       await generateScientificWorkout(params, anamnesis);
     } catch (error: any) {
       console.error("Error with params:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Falha ao gerar treino com parâmetros. Tente novamente.",
-        variant: "destructive"
-      });
+      toast.error(error.message || "Falha ao gerar treino com parâmetros. Tente novamente."); // Using sonner toast
       setStep('initial');
     }
   };
