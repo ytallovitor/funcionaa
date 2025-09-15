@@ -51,11 +51,7 @@ const Reports = () => {
         const { data: evaluations } = await supabase
           .from('evaluations')
           .select(`
-            student_id,
-            body_fat_percentage,
-            lean_mass,
-            fat_weight,
-            evaluation_date,
+            *,
             students!inner(trainer_id)
           `)
           .eq('students.trainer_id', profile.id)

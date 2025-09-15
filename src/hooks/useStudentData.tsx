@@ -104,7 +104,7 @@ export function useStudentData() {
         console.error('Error fetching student data:', error);
         setData(prev => ({ ...prev, loading: false, error: error.message }));
         toast({
-          description: <>Erro ao carregar dados: <span className="font-medium">{error.message || "Tente novamente mais tarde"}</span></>
+          description: <>Erro ao carregar dados: {(error as Error).message || "Tente novamente mais tarde"}</>
         });
       }
     };
