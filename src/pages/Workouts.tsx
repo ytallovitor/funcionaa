@@ -42,17 +42,21 @@ interface Exercise {
   sets?: number;
   reps?: number;
   rest_time?: number;
+  duration?: number;
+  video_url?: string;
+  image_url?: string;
 }
 
-interface WorkoutTemplateExercise {
-  id: string; // Add ID for deletion
+interface WorkoutExercise {
+  id?: string; // Added for existing workout_template_exercises
   exercise: Exercise;
-  order_index: number;
-  sets?: number;
-  reps?: number;
+  sets: number;
+  reps: number;
   weight_kg?: number;
-  rest_time?: number;
+  duration?: number;
+  rest_time: number;
   notes?: string;
+  order_index: number;
 }
 
 interface WorkoutTemplate {
@@ -64,7 +68,19 @@ interface WorkoutTemplate {
   estimated_duration: number;
   equipment_needed: string[];
   is_public: boolean;
-  workout_template_exercises?: WorkoutTemplateExercise[];
+  workout_template_exercises?: WorkoutExercise[]; // Use WorkoutExercise for nested exercises
+}
+
+interface WorkoutTemplateExerciseFromSupabase {
+    id: string;
+    order_index: number;
+    sets?: number;
+    reps?: number;
+    weight_kg?: number;
+    duration?: number;
+    rest_time?: number;
+    notes?: string;
+    exercises: Exercise;
 }
 
 const Workouts = () => {
@@ -81,7 +97,7 @@ const Workouts = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutTemplate | null>(null);
-  const [workoutToEdit, setWorkoutToEdit] = useState<WorkoutTemplate | null>(null);
+  const [workoutToEdit, setWorkoutToEdit: any] = useState<WorkoutTemplate | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -132,6 +148,7 @@ const Workouts = () => {
             sets,
             reps,
             weight_kg,
+            duration,
             rest_time,
             notes,
             exercises (*)
@@ -140,7 +157,9 @@ const Workouts = () => {
         .eq('trainer_id', profile?.id);
 
       if (templatesError) throw templatesError;
-      setWorkoutTemplates(templates || []);
+      
+      const typedTemplates = templates as WorkoutTemplate[];
+      setWorkoutTemplates(typedTemplates || []);
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -409,7 +428,9 @@ const Workouts = () => {
                 <Activity className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-primary">{workoutTemplates.length}</div>
+                <div className="text-2xl font-bold text-primary">
+                  {workoutTemplates.length}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Modelos de treino criados
                 </p>
@@ -468,6 +489,13 @@ const Workouts = () => {
         open={isAssignDialogOpen}
         onOpenChange={setIsAssignDialogOpen}
         onAssigned={fetchData}
+      />
+
+      <EditStudentDialog
+        student={editingStudent}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onStudentUpdated={fetchData}
       />
     </div>
   );

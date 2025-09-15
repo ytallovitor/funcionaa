@@ -21,6 +21,12 @@ interface StudentData {
   error: string | null;
 }
 
+interface Toast {
+  title?: string;
+  description?: string;
+  variant?: "default" | "destructive"
+}
+
 export function useStudentData() {
   const [data, setData] = useState<StudentData>({
     latestMeasurements: {},
@@ -103,9 +109,10 @@ export function useStudentData() {
       } catch (error: any) {
         console.error('Error fetching student data:', error);
         setData(prev => ({ ...prev, loading: false, error: error.message }));
-        toast({
-          description: <>Erro ao carregar dados: {(error as Error).message || "Tente novamente mais tarde"}</>
-        });
+        const toastOptions: Toast = {
+          description: `Erro ao carregar dados: ${error.message || "Tente novamente mais tarde"}`
+        };
+        toast(toastOptions);
       }
     };
 

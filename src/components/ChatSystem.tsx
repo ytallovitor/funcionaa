@@ -29,6 +29,12 @@ interface Message {
   is_read: boolean;
 }
 
+interface Toast {
+  title?: string;
+  description?: string;
+  variant?: "default" | "destructive"
+}
+
 interface ChatSystemProps {
   conversationId?: string;
   recipientName?: string;
@@ -67,10 +73,11 @@ const ChatSystem = ({
     channel
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setMessages(prev => [payload.new, ...prev]);
+          const newMsg = payload.new as Message;
+          setMessages(prev => [newMsg, ...prev]);
         } else if (payload.eventType === 'UPDATE') {
           setMessages(prev => 
-            prev.map(m => m.id === payload.new.id ? { ...m, is_read: payload.new.is_read } : m)
+            prev.map(m => m.id === (payload.new as Message).id ? { ...m, is_read: (payload.new as Message).is_read } : m)
           );
         }
       })
@@ -114,11 +121,11 @@ const ChatSystem = ({
       setMessages(transformedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
-      toast({
-        title: "Erro",
+      const toastOptions: Toast = {
         description: "Não foi possível carregar as mensagens",
         variant: "destructive"
-      });
+      };
+      toast(toastOptions);
     }
   };
 
@@ -131,48 +138,52 @@ const ChatSystem = ({
   const sendMessage = async () => {
     if (!newMessage.trim() || !user || !conversationId) return;
 
-    const message: Omit<Message, 'id' | 'timestamp' | 'is_read'> = {
+    const messageToSend: Omit<Message, 'id' | 'timestamp' | 'is_read'> = {
       content: newMessage,
       sender_id: user.id,
       sender_name: user.email?.split("@")[0] || "Você",
       sender_type: "trainer", // Assuming trainer view; adjust based on user role
-      timestamp: new Date().toISOString(),
-      message_type: "text",
-      is_read: false
+      message_type: "text" as 'text',
     };
 
     try {
       const { data: newMsg, error } = await supabase
         .from('messages')
-        .insert({ ...message, conversation_id: conversationId })
+        .insert({ ...messageToSend, conversation_id: conversationId })
         .select()
         .single();
 
       if (error) throw error;
 
-      setMessages(prev => [...prev, { ...message, id: newMsg.id, is_read: false }]);
-      setNewMessage("");
-      
-      // Mark as read for current user (optional: mark only after sending)
-      if (newMsg.id) {
-        await supabase
-          .from('messages')
-          .update({ is_read: true })
-          .eq('id', newMsg.id);
-      }
+      if (newMsg) {
+          const fullMessage: Message = {
+              ...messageToSend,
+              id: newMsg.id,
+              is_read: false,
+              timestamp: newMsg.created_at
+          };
+          setMessages(prev => [...prev, fullMessage]);
+          setNewMessage("");
 
-      toast({
-        title: "Mensagem enviada!",
-        description: "Sua mensagem foi enviada com sucesso"
-      });
+          // Mark as read for current user (optional: mark only after sending)
+          await supabase
+              .from('messages')
+              .update({ is_read: true })
+              .eq('id', newMsg.id);
+
+          const toastOptions: Toast = {
+              description: "Sua mensagem foi enviada com sucesso"
+          };
+          toast(toastOptions);
+      }
 
     } catch (error) {
       console.error('Error sending message:', error);
-      toast({
-        title: "Erro",
+      const toastOptions: Toast = {
         description: "Não foi possível enviar a mensagem",
         variant: "destructive"
-      });
+      };
+      toast(toastOptions);
     }
   };
 

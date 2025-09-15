@@ -13,7 +13,7 @@ interface Student {
   id: string;
   name: string;
   age: number;
-  gender: string;
+  gender: 'masculino' | 'feminino';
   goal: string;
   height: number;
 }
@@ -57,7 +57,7 @@ const Evaluation = () => {
         .single();
 
       if (error) throw error;
-      setStudent(studentData);
+      setStudent(studentData as Student);
     } catch (error) {
       console.error('Error fetching student:', error);
       toast({

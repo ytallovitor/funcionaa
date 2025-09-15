@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -17,7 +18,6 @@ import ChatSystem from "@/components/ChatSystem";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
 
 interface Conversation {
   id: string;
@@ -27,6 +27,28 @@ interface Conversation {
   timestamp: string;
   unread: number;
   online: boolean;
+}
+
+interface DatabaseConversation {
+    id: string;
+    name: string;
+    type: 'trainer' | 'student';
+    lastMessage: string;
+    timestamp: string;
+    unread: number;
+    online: boolean;
+    students: {
+        name: string;
+    } | null;
+    profiles: {
+        full_name: string;
+    } | null;
+    messages: {
+        content: string;
+        created_at: string;
+        is_read: boolean;
+        sender_type: string;
+    }[] | null;
 }
 
 const Chat = () => {
@@ -39,12 +61,9 @@ const Chat = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
+    if (user) {
+      fetchConversations();
     }
-
-    fetchConversations();
   }, [user, navigate]);
 
   const fetchConversations = async () => {
@@ -93,11 +112,11 @@ const Chat = () => {
       if (error) throw error;
 
       // Transform data with fallback (otimização para evitar crashes)
-      const transformedConversations = conversationsData?.map(conv => {
+      const transformedConversations: Conversation[] = (conversationsData as any[])?.map(conv => {
         const lastMessage = conv.messages?.[0];
         return {
           id: conv.id,
-          name: conv.students?.name || conv.profiles?.full_name || 'Conversa',
+          name: (conv.students as any)?.name || (conv.profiles as any)?.full_name || 'Conversa',
           type: conv.students ? 'student' : 'trainer',
           lastMessage: lastMessage?.content || 'Sem mensagens',
           timestamp: lastMessage?.created_at ? new Date(lastMessage.created_at).toLocaleString('pt-BR', { 
@@ -108,7 +127,7 @@ const Chat = () => {
           }) : 'Sem mensagens',
           unread: conv.messages?.filter((m: any) => !m.is_read).length || 0,
           online: Math.random() > 0.5 // Mock online status; implement Presence for real-time
-        };
+        } as Conversation;
       }) || [];
 
       setConversations(transformedConversations);

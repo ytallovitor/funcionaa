@@ -148,7 +148,10 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
       'current_medications',
       'main_goal'
     ];
-    return required.every(field => data[field as keyof AnamnesisData]?.trim());
+    return required.every(field => {
+      const value = data[field as keyof AnamnesisData];
+      return typeof value === 'string' ? value.trim() !== '' : value !== undefined;
+    });
   };
 
   useEffect(() => {
@@ -300,8 +303,8 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         type="number"
                         min="0"
                         max="10"
-                        value={formData.current_pain_level || ""}
-                        onChange={(e) => updateFormData('current_pain_level', parseInt(e.target.value) || undefined)}
+                        value={formData.current_pain_level === undefined ? "" : formData.current_pain_level}
+                        onChange={(e) => updateFormData('current_pain_level', e.target.value === "" ? undefined : parseInt(e.target.value))}
                         placeholder="0 = Sem dor, 10 = Dor insuportável"
                         required
                       />
@@ -506,8 +509,8 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         type="number"
                         min="0"
                         max="24"
-                        value={formData.average_sleep_hours || ""}
-                        onChange={(e) => updateFormData('average_sleep_hours', parseInt(e.target.value) || undefined)}
+                        value={formData.average_sleep_hours === undefined ? "" : formData.average_sleep_hours}
+                        onChange={(e) => updateFormData('average_sleep_hours', e.target.value === "" ? undefined : parseInt(e.target.value))}
                         placeholder="Ex: 7 horas"
                       />
                     </div>
@@ -531,42 +534,6 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="diet_type">Tipo de Dieta Atual</Label>
-                      <Select
-                        value={formData.diet_type || ""}
-                        onValueChange={(value) => updateFormData('diet_type', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Como você se alimenta?" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="omnivoro">Omnívoro</SelectItem>
-                          <SelectItem value="vegetariano">Vegetariano</SelectItem>
-                          <SelectItem value="vegano">Vegano</SelectItem>
-                          <SelectItem value="low_carb">Low Carb/Keto</SelectItem>
-                          <SelectItem value="outra">Outra (especifique no campo abaixo)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-4 mt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="smoking_status">Status de Tabagismo</Label>
-                      <Select
-                        value={formData.smoking_status || ""}
-                        onValueChange={(value) => updateFormData('smoking_status', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Você fuma?" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="nunca">Nunca fumei</SelectItem>
-                          <SelectItem value="ex_fumante">Ex-fumante (há quanto tempo?)</SelectItem>
-                          <SelectItem value="fumante_atual">Fumante atual (quantos cigarros/dia?)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
                       <Label htmlFor="alcohol_consumption">Consumo de Álcool</Label>
                       <Select
                         value={formData.alcohol_consumption || ""}
@@ -583,6 +550,22 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="smoking_status">Status de Tabagismo</Label>
+                    <Select
+                      value={formData.smoking_status || ""}
+                      onValueChange={(value) => updateFormData('smoking_status', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Você fuma?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nunca">Nunca fumei</SelectItem>
+                        <SelectItem value="ex_fumante">Ex-fumante (há quanto tempo?)</SelectItem>
+                        <SelectItem value="fumante_atual">Fumante atual (quantos cigarros/dia?)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -610,8 +593,8 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         <TooltipContent>
                           <p>Base para periodização: Objetivos SMART (Specific, Measurable, Achievable, Relevant, Time-bound) - NSCA.</p>
                         </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                      </TooltipProvider>
+                    </Tooltip>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="specific_fitness_goals">Metas Específicas de Fitness</Label>
@@ -682,8 +665,8 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         <TooltipContent>
                           <p>Essencial para adaptações: 70% dos desistentes citam barreiras logísticas (NSCA study).</p>
                         </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                      </TooltipProvider>
+                    </Tooltip>
                   </div>
                 </div>
               </>
@@ -702,5 +685,3 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
     </TooltipProvider>
   );
 };
-
-export default AnamnesisForm;

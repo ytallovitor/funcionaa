@@ -18,6 +18,20 @@ interface AnalyticsData {
   loading: boolean;
 }
 
+interface StudentEvaluation {
+    student_id: string;
+    body_fat_percentage: number | null;
+    lean_mass: number | null;
+    fat_weight: number | null;
+    evaluation_date: string;
+}
+
+interface StudentWithEvaluations {
+    id: string;
+    name: string;
+    evaluations: StudentEvaluation[] | null;
+}
+
 const Reports = () => {
   const { user } = useAuth();
   const stats = useStudentStats();
@@ -48,15 +62,24 @@ const Reports = () => {
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-        const { data: evaluations } = await supabase
+        const { data: evaluations, error: evaluationsError } = await supabase
           .from('evaluations')
           .select(`
-            *,
+            student_id,
+            body_fat_percentage,
+            lean_mass,
+            fat_weight,
+            evaluation_date,
             students!inner(trainer_id)
           `)
           .eq('students.trainer_id', profile.id)
           .gte('evaluation_date', sixMonthsAgo.toISOString().split('T')[0])
           .order('evaluation_date', { ascending: true });
+
+        if (evaluationsError) {
+          console.error("Error fetching evaluations:", evaluationsError);
+          return;
+        }
 
         // Calculate analytics
         let bodyFatChanges: number[] = [];
