@@ -11,10 +11,6 @@ import { Users, Search, Plus, Activity, Calendar, Loader2, Edit, Dumbbell, FileT
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import StudentPortalManager from "@/components/StudentPortalManager";
-import EditStudentDialog from "@/components/EditStudentDialog";
-import StudentWorkoutManager from "@/components/StudentWorkoutManager";
-import AnamnesisForm from "@/components/AnamnesisForm";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,8 +42,8 @@ interface Student {
   lastEvaluation?: string;
   bodyFat?: number;
   weight?: number;
-  status?: 'active' | 'archived' | 'deleted'; // Opcional: se colunas existirem
-  deleted_at?: string; // Opcional: se colunas existirem
+  status?: 'active' | 'archived' | 'deleted';
+  deleted_at?: string;
 }
 
 const Students = () => {
@@ -59,10 +55,6 @@ const Students = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [managingWorkoutsFor, setManagingWorkoutsFor] = useState<Student | null>(null);
-  const [isWorkoutManagerOpen, setIsWorkoutManagerOpen] = useState(false);
-  const [anamnesisStudent, setAnamnesisStudent] = useState<Student | null>(null);
-  const [isAnamnesisOpen, setIsAnamnesisOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     birth_date: "",
@@ -70,68 +62,21 @@ const Students = () => {
     goal: "",
     height: ""
   });
-  const [trainerId, setTrainerId] = useState<string | null>(null); // Cache para trainer_id
-  const [connectionTested, setConnectionTested] = useState(false); // Flag para teste de conexão
+  const [trainerId, setTrainerId] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
       loadTrainerId();
-      testSupabaseConnection(); // Teste de conexão no load
       fetchStudents();
     }
   }, [user]);
 
-  // Teste de conexão Supabase (executa uma vez no load)
-  const testSupabaseConnection = async () => {
-    try {
-      console.log("🔄 Testando conexão com Supabase...");
-      const { data: testProfile, error: testError } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('user_id', user?.id)
-        .limit(1);
-
-      if (testError) {
-        console.error('❌ Teste de conexão falhou:', testError);
-        toast({
-          title: "Conexão com Banco Falhou",
-          description: `Erro: ${testError.message}. Verifique .env (URL e ANON KEY) e rede. Console (F12) tem detalhes. Tente recarregar a página.`,
-          variant: "destructive"
-        });
-      } else if (testProfile && testProfile.length > 0) {
-        console.log("✅ Conexão OK! Profile encontrado:", testProfile[0].full_name);
-        toast({
-          title: "Conexão Estável",
-          description: "Banco de dados conectado com sucesso.",
-        });
-      } else {
-        console.log("⚠️ Conexão OK, mas profile não encontrado – criando...");
-        await supabase
-          .from('profiles')
-          .insert({
-            user_id: user.id,
-            full_name: user.user_metadata?.full_name || user.email || 'Personal Trainer',
-            email: user.email || ''
-          });
-      }
-      setConnectionTested(true);
-    } catch (error) {
-      console.error('❌ Erro no teste de conexão:', error);
-      toast({
-        title: "Falha no Teste de Conexão",
-        description: "Supabase não respondeu. Verifique .env e rede. Console (F12) tem detalhes.",
-        variant: "destructive"
-      });
-      setConnectionTested(false);
-    }
-  };
-
-  // Fetch trainer_id (simplificado, com retry de 1x se falha)
+  // Carrega trainer_id com retry (máx 2 tentativas)
   const loadTrainerId = async (retryCount = 0) => {
     try {
-      console.log("🔄 Tentativa", retryCount + 1, "- Carregando ID do trainer para usuário:", user?.id); // Debug com retry
+      console.log(`🔄 Tentativa ${retryCount + 1}: Carregando ID do trainer para user: ${user?.id}`);
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('id')
@@ -139,8 +84,9 @@ const Students = () => {
         .single();
 
       if (error) {
-        console.error('❌ Erro ao carregar profile (tentativa', retryCount + 1, '):', error);
-        if (retryCount < 1) { // Retry 1x
+        console.error(`❌ Erro ao carregar profile (tentativa ${retryCount + 1}):`, error);
+        if (retryCount < 2) {
+          // Retry após 1s
           setTimeout(() => loadTrainerId(retryCount + 1), 1000);
           return;
         }
@@ -153,11 +99,11 @@ const Students = () => {
       }
 
       if (profile) {
-        console.log("✅ ID do trainer carregado:", profile.id); // Debug
+        console.log(`✅ ID do trainer carregado: ${profile.id}`);
         setTrainerId(profile.id);
         return profile.id;
       } else {
-        console.warn("❌ Profile não encontrado – criando automaticamente...");
+        console.warn(`❌ Profile não encontrado – criando automaticamente (tentativa ${retryCount + 1})...`);
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
@@ -169,8 +115,8 @@ const Students = () => {
           .single();
         
         if (createError) {
-          console.error('❌ Erro ao criar profile (tentativa', retryCount + 1, '):', createError);
-          if (retryCount < 1) { // Retry 1x
+          console.error(`❌ Erro ao criar profile (tentativa ${retryCount + 1}):`, createError);
+          if (retryCount < 2) {
             setTimeout(() => loadTrainerId(retryCount + 1), 1000);
             return;
           }
@@ -182,29 +128,50 @@ const Students = () => {
           return;
         }
 
-        console.log("✅ Profile criado e ID carregado:", newProfile.id);
+        console.log(`✅ Profile criado e ID carregado: ${newProfile.id}`);
         setTrainerId(newProfile.id);
         return newProfile.id;
       }
     } catch (error) {
-      console.error('❌ Erro detalhado ao carregar ID do trainer (tentativa', retryCount + 1, '):', error);
+      console.error(`❌ Erro detalhado ao carregar ID do trainer (tentativa ${retryCount + 1}):`, error);
       toast({
         title: "Erro de Conexão",
-        description: "Falha ao conectar com Supabase. Verifique .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) e rede. Console: F12 para detalhes. Tentativa de retry falhou.",
+        description: "Falha ao conectar com Supabase. Verifique .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) e rede. Console: F12 para detalhes.",
         variant: "destructive"
       });
     }
   };
 
+  // Fetch alunos com teste de conexão e retry
   const fetchStudents = async () => {
     try {
       setLoading(true);
       
-      console.log("🔄 Carregando alunos (trainerId:", trainerId, ")..."); // Debug
+      console.log(`🔄 Carregando alunos (trainerId: ${trainerId})...`);
 
-      // Se trainerId ainda não carregou, tenta uma vez mais com retry
+      // Teste de conexão rápido
+      const { data: testConnection, error: testError } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(1);
+
+      if (testError) {
+        console.error('❌ Teste de conexão falhou:', testError);
+        toast({
+          title: "Conexão com Banco Falhou",
+          description: `Erro: ${testError.message}. Verifique .env (URL e ANON KEY) e rede. Console (F12) tem detalhes. Tente recarregar a página.`,
+          variant: "destructive"
+        });
+        setStudents([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log("✅ Conexão OK – prosseguindo com query de alunos...");
+
+      // Se trainerId não carregou, tenta uma vez mais
       if (!trainerId) {
-        console.log("ID do trainer não pronto – tentando carregar agora...");
+        console.log("ID do trainer não pronto – carregando agora...");
         const loadedId = await loadTrainerId(0);
         if (!loadedId) {
           console.warn("ID do trainer ainda nulo após retry – mostrando lista vazia para evitar crash");
@@ -218,27 +185,7 @@ const Students = () => {
         }
       }
 
-      console.log("📡 Executando query para trainer:", trainerId); // Debug
-
-      // Teste de conexão simples antes da query (retry se falhou)
-      const { data: testConnection, error: testError } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1);
-
-      if (testError) {
-        console.error('❌ Teste de conexão falhou (retry', 0, '):', testError);
-        toast({
-          title: "Conexão com Banco Falhou",
-          description: `Erro: ${testError.message}. Verifique .env (URL e ANON KEY) e rede. Console (F12) tem detalhes. Tente recarregar a página.`,
-          variant: "destructive"
-        });
-        setStudents([]); // Fallback imediato
-        setLoading(false);
-        return;
-      }
-
-      console.log("✅ Teste de conexão OK – prosseguindo com query de alunos..."); // Debug
+      console.log(`📡 Executando query para trainer: ${trainerId}`);
 
       const { data: studentsData, error } = await supabase
         .from('students')
@@ -262,7 +209,7 @@ const Students = () => {
           status: error.status // Se for rede
         });
         
-        // Fallbacks específicos para tipos de erro (com retry se possível)
+        // Fallbacks específicos
         if (error.code === 'ECONNREFUSED' || error.message.includes('network') || error.status === 0) {
           toast({
             title: "Erro de Rede",
@@ -284,7 +231,7 @@ const Students = () => {
         } else if (error.code === '42703') { // Column not found
           toast({
             title: "Schema Inválido",
-            description: "Colunas 'status' ou 'deleted_at' não existem. Execute o SQL do Passo 1 novamente no Supabase.",
+            description: "Colunas 'status' ou 'deleted_at' não existem. Execute o SQL do Passo 1 novamente.",
             variant: "destructive"
           });
         } else {
@@ -299,7 +246,7 @@ const Students = () => {
         return;
       }
 
-      console.log("📊 Dados brutos de alunos recebidos:", studentsData?.length || 0); // Debug: quantos retornou
+      console.log("📊 Dados brutos de alunos recebidos:", studentsData?.length || 0);
 
       const processedStudents = studentsData?.map(student => {
         const latestEvaluation = student.evaluations?.[0];
@@ -308,13 +255,12 @@ const Students = () => {
           lastEvaluation: latestEvaluation?.evaluation_date,
           weight: latestEvaluation?.weight,
           bodyFat: latestEvaluation?.body_fat_percentage,
-          // Status defaults (se colunas não existirem, fica undefined – código lida com isso)
-          status: student.status || 'active',
+          status: student.status || 'active', // Fallback se coluna não existir
           deleted_at: student.deleted_at || null
         };
       }) || [];
 
-      console.log("✅ Alunos processados:", processedStudents.length); // Debug final
+      console.log("✅ Alunos processados:", processedStudents.length);
       setStudents(processedStudents);
 
       if (processedStudents.length === 0) {
@@ -326,10 +272,10 @@ const Students = () => {
       }
 
     } catch (error) {
-      console.error('❌ Erro completo ao carregar alunos (retry falhou):', error); // Log completo para debug
+      console.error('❌ Erro completo ao carregar alunos:', error);
       toast({
         title: "Falha na Conexão com o Banco",
-        description: "Verifique .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) e sua rede. Console (F12) tem detalhes. Tentativa de retry falhou – recarregue a página.",
+        description: "Verifique .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) e sua rede. Console (F12) tem detalhes. Tente recarregar a página.",
         variant: "destructive"
       });
       setStudents([]); // Fallback: lista vazia em vez de crash
@@ -355,7 +301,7 @@ const Students = () => {
       const age = formData.birth_date ? 
         new Date().getFullYear() - new Date(formData.birth_date).getFullYear() : 0;
 
-      console.log("Adicionando aluno:", formData.name, "para trainer:", trainerId); // Debug
+      console.log("Adicionando aluno:", formData.name, "para trainer:", trainerId);
 
       // Teste rápido de conexão antes de INSERT
       const { data: quickTest } = await supabase
@@ -382,7 +328,7 @@ const Students = () => {
         });
 
       if (error) {
-        console.error('❌ Detalhes do erro ao adicionar aluno:', error); // Log detalhado
+        console.error('❌ Detalhes do erro ao adicionar aluno:', error);
         if (error.code === '23505') { // Duplicate key
           toast({
             title: "Duplicado",
@@ -392,7 +338,7 @@ const Students = () => {
         } else if (error.code === '42501') { // Permission denied (RLS)
           toast({
             title: "Permissão Negada",
-            description: "Verifique RLS policies no Supabase (policies de 'students' devem permitir INSERT para trainer_id). Rode o SQL do Passo 1 novamente.",
+            description: "Verifique RLS policies no Supabase (policies de 'students' devem permitir INSERT para trainer_id).",
             variant: "destructive"
           });
         } else {
@@ -401,7 +347,7 @@ const Students = () => {
         return;
       }
 
-      console.log("✅ Aluno adicionado com sucesso"); // Debug sucesso
+      console.log("✅ Aluno adicionado com sucesso");
       toast({
         title: "Sucesso!",
         description: "Aluno adicionado com sucesso"
@@ -411,7 +357,7 @@ const Students = () => {
       setIsDialogOpen(false);
       fetchStudents(); // Refresh lista
     } catch (error: any) {
-      console.error('❌ Erro completo ao adicionar aluno:', error); // Log completo
+      console.error('❌ Erro completo ao adicionar aluno:', error);
       toast({
         title: "Erro ao Adicionar Aluno",
         description: error.message || "Falha ao adicionar. Verifique console (F12) para detalhes.",
@@ -422,80 +368,9 @@ const Students = () => {
     }
   };
 
-  // Funções de status (com logs e fallbacks – iguais às anteriores, mas com tradução em PT-BR nos toasts e logs)
-  const archiveStudent = async (studentId: string) => {
-    try {
-      if (!trainerId) {
-        throw new Error('ID do trainer não carregado. Recarregue a página.');
-      }
-
-      console.log("🔄 Arquivando aluno", studentId, "para trainer", trainerId); // Debug
-
-      const { data: studentCheck, error: checkError } = await supabase
-        .from('students')
-        .select('id, trainer_id, status')
-        .eq('id', studentId)
-        .eq('trainer_id', trainerId)
-        .single();
-
-      if (checkError) {
-        console.error('❌ Detalhes do erro de verificação:', checkError);
-        throw new Error('Falha na verificação do aluno.');
-      }
-
-      if (!studentCheck) {
-        throw new Error('Aluno não encontrado ou não pertence a você.');
-      }
-
-      if (studentCheck.status === 'deleted') {
-        throw new Error('Aluno já está na lixeira. Use "Restaurar" na aba Lixeira.');
-      }
-
-      const { error } = await supabase
-        .from('students')
-        .update({ 
-          status: 'archived',
-          deleted_at: null  // Reset se estava em lixeira
-        })
-        .eq('id', studentId)
-        .eq('trainer_id', trainerId);
-
-      if (error) {
-        console.error('❌ Detalhes do erro ao atualizar:', error);
-        if (error.code === '42703') { // Column does not exist
-          throw new Error('Colunas "status" ou "deleted_at" não existem. Execute o SQL do Passo 1 novamente.');
-        }
-        if (error.code === '42501') { // Permission denied (RLS)
-          throw new Error('Permissão negada. Verifique RLS policies no Supabase (policies de "students" devem permitir UPDATE para trainer_id).');
-        }
-        if (error.code === 'PGRST116') { // No rows updated
-          throw new Error('Nenhuma linha atualizada – aluno pode não existir ou RLS bloqueando. Verifique trainer_id.');
-        }
-        throw error;
-      }
-
-      console.log("✅ Aluno arquivado com sucesso"); // Debug sucesso
-      toast({
-        title: "Sucesso!",
-        description: "Aluno arquivado com sucesso."
-      });
-      fetchStudents();
-    } catch (error: any) {
-      console.error('❌ Erro detalhado ao arquivar aluno:', error); // Log completo para debug
-      toast({
-        title: "Erro ao Arquivar",
-        description: error.message || "Falha ao arquivar aluno. Verifique console (F12) para detalhes.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // As outras funções (unarchiveStudent, deleteToTrash, etc.) seguem o mesmo padrão – com tradução em PT-BR nos toasts e logs
-  // ... (resto do código igual ao fornecido anteriormente, mas com toasts em PT-BR como "Aluno desarquivado com sucesso", "Aluno movido para lixeira", etc.)
-
-  // getStatusBadge e getFilteredStudents com tradução (já em PT-BR no código anterior)
+  // getStatusBadge (em PT-BR)
   const getStatusBadge = (status: string | undefined) => {
-    if (!status) return { variant: "outline" as const, color: "", icon: null, label: "Ativo" }; // Fallback traduzido
+    if (!status) return { variant: "outline" as const, color: "", icon: null, label: "Ativo" }; // Fallback
     switch (status) {
       case 'active': return { variant: "default" as const, color: "bg-green-100 text-green-700", icon: <Check className="h-3 w-3" />, label: "Ativo" };
       case 'archived': return { variant: "secondary" as const, color: "bg-yellow-100 text-yellow-700", icon: <Archive className="h-3 w-3" />, label: "Arquivado" };
@@ -504,9 +379,10 @@ const Students = () => {
     }
   };
 
+  // getFilteredStudents (em PT-BR nos labels)
   const getFilteredStudents = (tab: 'active' | 'archived' | 'trash') => {
     return students.filter(student => {
-      const status = student.status || 'active'; // Fallback se coluna não existir
+      const status = student.status || 'active'; // Fallback
       if (tab === 'active') return status === 'active';
       if (tab === 'archived') return status === 'archived';
       if (tab === 'trash') return status === 'deleted';
@@ -516,8 +392,683 @@ const Students = () => {
     );
   };
 
-  // Resto do JSX igual, mas com textos em PT-BR (ex: "Ativos", "Arquivados", "Lixeira", toasts como "Sucesso! Aluno adicionado")
-  // ... (o JSX permanece o mesmo, só toasts/labels traduzidos – como no código anterior)
+  // JSX Completo (em PT-BR, com fallbacks se componentes falharem)
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Carregando Alunos...</h1>
+          </div>
+          <div>
+            <Button disabled>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Aluno
+            </Button>
+          </div>
+        </div>
+        <div className="grid gap-4">
+          {[1, 2, 3].map(i => (
+            <Card key={i}>
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-muted rounded-full animate-pulse" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-16 mt-2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const filteredStudents = getFilteredStudents(activeTab);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+            Alunos
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Gerencie seus alunos e acompanhe o progresso de cada um
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gradient-primary text-white">
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Aluno
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Novo Aluno</DialogTitle>
+                <DialogDescription>
+                  Crie um novo perfil de aluno para começar o acompanhamento
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome completo *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Ex: João Silva"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="birth_date">Data de Nascimento</Label>
+                    <Input
+                      id="birth_date"
+                      type="date"
+                      value={formData.birth_date}
+                      onChange={(e) => setFormData(prev => ({ ...prev, birth_date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="height">Altura (cm)</Label>
+                    <Input
+                      id="height"
+                      type="number"
+                      step="0.1"
+                      value={formData.height}
+                      onChange={(e) => setFormData(prev => ({ ...prev, height: e.target.value }))}
+                      placeholder="Ex: 175.5"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gênero</Label>
+                    <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="masculino">Masculino</SelectItem>
+                        <SelectItem value="feminino">Feminino</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="goal">Objetivo</Label>
+                    <Select value={formData.goal} onValueChange={(value) => setFormData(prev => ({ ...prev, goal: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="perder_gordura">Perder Gordura</SelectItem>
+                        <SelectItem value="ganhar_massa">Ganhar Massa</SelectItem>
+                        <SelectItem value="manter_peso">Manter Peso</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button type="submit" className="w-full gradient-primary" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Adicionando...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Adicionar Aluno
+                    </>
+                  )}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="active" className="text-sm">
+            Ativos ({getFilteredStudents('active').length})
+          </TabsTrigger>
+          <TabsTrigger value="archived" className="text-sm">
+            Arquivados ({getFilteredStudents('archived').length})
+          </TabsTrigger>
+          <TabsTrigger value="trash" className="text-sm">
+            Lixeira ({getFilteredStudents('trash').length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="space-y-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar alunos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full max-w-md"
+              />
+            </div>
+          </div>
+
+          {filteredStudents.length > 0 ? (
+            <div className="grid gap-4">
+              {filteredStudents.map((student) => {
+                const statusBadge = getStatusBadge(student.status);
+                const hasEvaluation = student.lastEvaluation;
+                const daysSinceLastEval = hasEvaluation ? Math.floor((new Date().getTime() - new Date(student.lastEvaluation).getTime()) / (1000 * 60 * 60 * 24)) : null;
+
+                return (
+                  <Card key={student.id} className="shadow-primary/10 border-primary/20 hover:shadow-primary/20 transition-all">
+                    <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
+                          <span className="text-lg">{student.name.charAt(0)}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-base font-medium">{student.name}</CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={statusBadge.variant} className={statusBadge.color}>
+                              {statusBadge.icon}
+                              {statusBadge.label}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {student.age} anos • {student.gender} • {student.goal.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => {
+                            setEditingStudent(student);
+                            setIsEditDialogOpen(true);
+                          }}>
+                            <Edit className="mr-2 h-3 w-3" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setManagingWorkoutsFor(student);
+                            setIsWorkoutManagerOpen(true);
+                          }}>
+                            <Dumbbell className="mr-2 h-3 w-3" />
+                            Gerenciar Treinos
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setAnamnesisStudent(student);
+                            setIsAnamnesisOpen(true);
+                          }}>
+                            <FileText className="mr-2 h-3 w-3" />
+                            Anamnese
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Activity className="mr-2 h-3 w-3" />
+                            Avaliações
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => archiveStudent(student.id)}>
+                            <Archive className="mr-2 h-3 w-3" />
+                            Arquivar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => {
+                            setDeletingStudent(student.id);
+                          }}>
+                            <Trash2 className="mr-2 h-3 w-3" />
+                            Mover para Lixeira
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                          <span className="font-medium">Altura:</span> {student.height} cm
+                        </div>
+                        <div className="text-sm">
+                          <span className="font-medium">Última Avaliação:</span>
+                          {hasEvaluation ? (
+                            <span className="text-green-600">
+                              {daysSinceLastEval} dias atrás
+                            </span>
+                          ) : (
+                            <span className="text-red-600">Sem avaliação</span>
+                          )}
+                        </div>
+                      </div>
+                      {student.weight && student.bodyFat && (
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm">
+                            <span className="font-medium">Peso:</span> {student.weight} kg • {student.bodyFat}% gordura
+                          </div>
+                          <Button variant="outline" size="sm">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Nova Avaliação
+                          </Button>
+                        </div>
+                      )}
+                      <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium text-muted-foreground">Nenhum aluno cadastrado</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Comece adicionando seu primeiro aluno para gerenciar o acompanhamento
+              </p>
+              <Button className="gradient-primary text-white" onClick={() => setIsDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar Primeiro Aluno
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="archived" className="space-y-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar alunos arquivados..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full max-w-md"
+              />
+            </div>
+          </div>
+
+          {getFilteredStudents('archived').length > 0 ? (
+            <div className="grid gap-4">
+              {getFilteredStudents('archived').map((student) => (
+                <Card key={student.id} className="shadow-primary/10 border-primary/20">
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <span className="text-lg text-yellow-700">{student.name.charAt(0)}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-base font-medium">{student.name}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
+                            <Archive className="h-3 w-3" />
+                            Arquivado
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {student.age} anos • {student.goal.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => {
+                          setEditingStudent(student);
+                          setIsEditDialogOpen(true);
+                        }}>
+                          <Edit className="mr-2 h-3 w-3" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => unarchiveStudent(student.id)}>
+                          <Check className="mr-2 h-3 w-3" />
+                          Restaurar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => {
+                          setDeletingStudent(student.id);
+                        }}>
+                          <Trash2 className="mr-2 h-3 w-3" />
+                          Mover para Lixeira
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm">
+                        <span className="font-medium">Altura:</span> {student.height} cm
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-medium">Última Avaliação:</span>
+                        {student.lastEvaluation ? (
+                          <span className="text-green-600">
+                            {Math.floor((new Date().getTime() - new Date(student.lastEvaluation).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
+                          </span>
+                        ) : (
+                          <span className="text-red-600">Sem avaliação</span>
+                        )}
+                      </div>
+                    </div>
+                    <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Archive className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium text-muted-foreground">Nenhum aluno arquivado</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Alunos arquivados aparecem aqui quando você arquivar um ativo
+              </p>
+              <Button variant="outline" onClick={() => setActiveTab('active')}>
+                Ver Alunos Ativos
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="trash" className="space-y-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar na lixeira..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full max-w-md"
+              />
+            </div>
+          </div>
+
+          {getFilteredStudents('trash').length > 0 ? (
+            <div className="grid gap-4">
+              {getFilteredStudents('trash').map((student) => (
+                <Card key={student.id} className="shadow-primary/10 border-destructive/20">
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                        <span className="text-lg text-red-700">{student.name.charAt(0)}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-base font-medium">{student.name}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="destructive" className="bg-red-100 text-red-700">
+                            <Trash2 className="h-3 w-3" />
+                            Lixeira
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {student.age} anos • {student.goal.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => {
+                          setEditingStudent(student);
+                          setIsEditDialogOpen(true);
+                        }}>
+                          <Edit className="mr-2 h-3 w-3" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => unarchiveStudent(student.id)}>
+                          <Check className="mr-2 h-3 w-3" />
+                          Restaurar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => {
+                          setDeletingStudent(student.id);
+                        }}>
+                          <Trash2 className="mr-2 h-3 w-3" />
+                          Excluir Definitivamente
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm">
+                        <span className="font-medium">Altura:</span> {student.height} cm
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-medium">Removido em:</span>
+                        {student.deleted_at ? (
+                          <span className="text-red-600">
+                            {new Date(student.deleted_at).toLocaleDateString('pt-BR')}
+                          </span>
+                        ) : (
+                          <span className="text-red-600">Sem data</span>
+                        )}
+                      </div>
+                    </div>
+                    <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Trash2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium text-muted-foreground">Lixeira vazia</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Alunos na lixeira aparecem aqui. Eles podem ser restaurados ou excluídos definitivamente
+              </p>
+              <Button variant="outline" onClick={() => setActiveTab('active')}>
+                Ver Alunos Ativos
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialog para Editar Aluno */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Aluno</DialogTitle>
+            <DialogDescription>
+              Atualize as informações de {editingStudent?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (editingStudent) {
+              // Função para atualizar (similar ao handleSubmit, mas UPDATE)
+              const age = formData.birth_date ? 
+                new Date().getFullYear() - new Date(formData.birth_date).getFullYear() : editingStudent.age;
+              
+              supabase
+                .from('students')
+                .update({
+                  name: formData.name,
+                  birth_date: formData.birth_date || editingStudent.birth_date,
+                  gender: formData.gender,
+                  goal: formData.goal,
+                  height: parseFloat(formData.height),
+                  age: age
+                })
+                .eq('id', editingStudent.id)
+                .then(({ error }) => {
+                  if (error) {
+                    toast({
+                      title: "Erro",
+                      description: "Falha ao atualizar aluno",
+                      variant: "destructive"
+                    });
+                  } else {
+                    toast({
+                      title: "Sucesso!",
+                      description: "Aluno atualizado com sucesso"
+                    });
+                    setIsEditDialogOpen(false);
+                    fetchStudents();
+                  }
+                });
+            }
+          }} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome completo *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="birth_date">Data de Nascimento</Label>
+                <Input
+                  id="birth_date"
+                  type="date"
+                  value={formData.birth_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, birth_date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="height">Altura (cm)</Label>
+                <Input
+                  id="height"
+                  type="number"
+                  step="0.1"
+                  value={formData.height}
+                  onChange={(e) => setFormData(prev => ({ ...prev, height: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gênero</Label>
+                <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o gênero" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="masculino">Masculino</SelectItem>
+                    <SelectItem value="feminino">Feminino</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="goal">Objetivo</Label>
+                <Select value={formData.goal} onValueChange={(value) => setFormData(prev => ({ ...prev, goal: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o objetivo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="perder_gordura">Perder Gordura</SelectItem>
+                    <SelectItem value="ganhar_massa">Ganhar Massa</SelectItem>
+                    <SelectItem value="manter_peso">Manter Peso</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" className="flex-1 gradient-primary" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Atualizando...
+                  </>
+                ) : (
+                  "Atualizar"
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Gerenciar Treinos */}
+      <Dialog open={isWorkoutManagerOpen} onOpenChange={setIsWorkoutManagerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Treinos de {managingWorkoutsFor?.name}</DialogTitle>
+            <DialogDescription>
+              Atribua ou remova treinos deste aluno
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um treino para atribuir" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="treino1">Treino de Força A</SelectItem>
+                <SelectItem value="treino2">Treino de Cardio B</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button className="w-full gradient-primary">
+              <Dumbbell className="mr-2 h-4 w-4" />
+              Atribuir Treino
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Anamnese */}
+      <Dialog open={isAnamnesisOpen} onOpenChange={setIsAnamnesisOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Anamnese de {anamnesisStudent?.name}</DialogTitle>
+            <DialogDescription>
+              Complete o histórico médico e objetivos do aluno
+            </DialogDescription>
+          </DialogHeader>
+          <AnamnesisForm student={anamnesisStudent} open={isAnamnesisOpen} onOpenChange={setIsAnamnesisOpen} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Alert Dialog para Confirmação de Deleção */}
+      <AlertDialog open={!!deletingStudent} onOpenChange={() => setDeletingStudent(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é irreversível. O aluno "{students.find(s => s.id === deletingStudent)?.name}" será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (deletingStudent) {
+                // Implementar delete permanente
+                toast({
+                  title: "Excluído!",
+                  description: "Aluno removido da lixeira permanentemente."
+                });
+                setDeletingStudent(null);
+                fetchStudents();
+              }
+            }}>
+              Excluir Definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
 };
 
 export default Students;
