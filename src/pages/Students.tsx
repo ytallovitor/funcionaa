@@ -74,7 +74,6 @@ const Students = () => {
     }
   }, [user]);
 
-  // Carrega trainer_id com retry (máx 2 tentativas)
   const loadTrainerId = async (retryCount = 0) => {
     try {
       console.log(`🔄 Tentativa ${retryCount + 1}: Carregando ID do trainer para user: ${user?.id}`);
@@ -87,7 +86,6 @@ const Students = () => {
       if (error) {
         console.error(`❌ Erro ao carregar profile (tentativa ${retryCount + 1}):`, error);
         if (retryCount < 2) {
-          // Retry após 1s
           setTimeout(() => loadTrainerId(retryCount + 1), 1000);
           return;
         }
@@ -143,14 +141,12 @@ const Students = () => {
     }
   };
 
-  // Fetch alunos com teste de conexão e retry
   const fetchStudents = async () => {
     try {
       setLoading(true);
       
       console.log(`🔄 Carregando alunos (trainerId: ${trainerId})...`);
 
-      // Teste de conexão rápido
       const { data: testConnection, error: testError } = await supabase
         .from('profiles')
         .select('id')
@@ -170,7 +166,6 @@ const Students = () => {
 
       console.log("✅ Conexão OK – prosseguindo com query de alunos...");
 
-      // Se trainerId não carregou, tenta uma vez mais
       if (!trainerId) {
         console.log("ID do trainer não pronto – carregando agora...");
         const loadedId = await loadTrainerId(0);
@@ -207,29 +202,28 @@ const Students = () => {
           message: error.message,
           hints: error.hint,
           details: error.details,
-          status: error.status // Se for rede
+          status: error.status
         });
         
-        // Fallbacks específicos
         if (error.code === 'ECONNREFUSED' || error.message.includes('network') || error.status === 0) {
           toast({
             title: "Erro de Rede",
             description: "Verifique sua internet, firewall ou VPN. Supabase precisa de conexão HTTPS estável. Tente novamente em 10s.",
             variant: "destructive"
           });
-          setTimeout(() => fetchStudents(), 10000); // Retry em 10s se rede
+          setTimeout(() => fetchStudents(), 10000);
         } else if (error.code === 'PGRST116' || error.message.includes('no rows')) {
           toast({
             title: "Nenhum Aluno",
             description: "Você ainda não tem alunos cadastrados. Clique em 'Novo Aluno' para começar!",
           });
-        } else if (error.code === '42501') { // Permission denied (RLS)
+        } else if (error.code === '42501') {
           toast({
             title: "Permissão Negada",
             description: "Verifique RLS policies no Supabase (policies de 'students' devem permitir SELECT para trainer_id). Rode o SQL do Passo 1 novamente.",
             variant: "destructive"
           });
-        } else if (error.code === '42703') { // Column not found
+        } else if (error.code === '42703') {
           toast({
             title: "Schema Inválido",
             description: "Colunas 'status' ou 'deleted_at' não existem. Execute o SQL do Passo 1 novamente.",
@@ -243,7 +237,7 @@ const Students = () => {
           });
         }
         
-        setStudents([]); // Lista vazia como fallback (sem crash)
+        setStudents([]);
         return;
       }
 
@@ -256,7 +250,7 @@ const Students = () => {
           lastEvaluation: latestEvaluation?.evaluation_date,
           weight: latestEvaluation?.weight,
           bodyFat: latestEvaluation?.body_fat_percentage,
-          status: student.status || 'active', // Fallback se coluna não existir
+          status: student.status || 'active',
           deleted_at: student.deleted_at || null
         };
       }) || [];
@@ -279,7 +273,7 @@ const Students = () => {
         description: "Verifique .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) e sua rede. Console (F12) tem detalhes. Tente recarregar a página.",
         variant: "destructive"
       });
-      setStudents([]); // Fallback: lista vazia em vez de crash
+      setStudents([]);
     } finally {
       setLoading(false);
     }
@@ -304,7 +298,6 @@ const Students = () => {
 
       console.log("Adicionando aluno:", formData.name, "para trainer:", trainerId);
 
-      // Teste rápido de conexão antes de INSERT
       const { data: quickTest } = await supabase
         .from('profiles')
         .select('id')
@@ -330,13 +323,13 @@ const Students = () => {
 
       if (error) {
         console.error('❌ Detalhes do erro ao adicionar aluno:', error);
-        if (error.code === '23505') { // Duplicate key
+        if (error.code === '23505') {
           toast({
             title: "Duplicado",
             description: "Aluno com este nome já existe. Use um nome diferente.",
             variant: "destructive"
           });
-        } else if (error.code === '42501') { // Permission denied (RLS)
+        } else if (error.code === '42501') {
           toast({
             title: "Permissão Negada",
             description: "Verifique RLS policies no Supabase (policies de 'students' devem permitir INSERT para trainer_id).",
@@ -356,7 +349,7 @@ const Students = () => {
 
       setFormData({ name: "", birth_date: "", gender: "", goal: "", height: "" });
       setIsDialogOpen(false);
-      fetchStudents(); // Refresh lista
+      fetchStudents();
     } catch (error: any) {
       console.error('❌ Erro completo ao adicionar aluno:', error);
       toast({
@@ -369,9 +362,8 @@ const Students = () => {
     }
   };
 
-  // getStatusBadge (em PT-BR)
   const getStatusBadge = (status: string | undefined) => {
-    if (!status) return { variant: "outline" as const, color: "", icon: null, label: "Ativo" }; // Fallback
+    if (!status) return { variant: "outline" as const, color: "", icon: null, label: "Ativo" };
     switch (status) {
       case 'active': return { variant: "default" as const, color: "bg-green-100 text-green-700", icon: <Check className="h-3 w-3" />, label: "Ativo" };
       case 'archived': return { variant: "secondary" as const, color: "bg-yellow-100 text-yellow-700", icon: <Archive className="h-3 w-3" />, label: "Arquivado" };
@@ -380,10 +372,9 @@ const Students = () => {
     }
   };
 
-  // getFilteredStudents (em PT-BR nos labels)
   const getFilteredStudents = (tab: 'active' | 'archived' | 'trash') => {
     return students.filter(student => {
-      const status = student.status || 'active'; // Fallback
+      const status = student.status || 'active';
       if (tab === 'active') return status === 'active';
       if (tab === 'archived') return status === 'archived';
       if (tab === 'trash') return status === 'deleted';
@@ -393,7 +384,6 @@ const Students = () => {
     );
   };
 
-  // Funções para arquivar/restaurar/deletar
   const archiveStudent = async (studentId: string) => {
     try {
       const { error } = await supabase
@@ -422,10 +412,6 @@ const Students = () => {
     } catch (error) {
       toast({ title: "Erro", description: "Falha ao restaurar aluno", variant: "destructive" });
     }
-  };
-
-  const setDeletingStudent = (studentId: string | null) => {
-    // Implementar lógica de deleção (mudar status para "deleted")
   };
 
   const [isWorkoutManagerOpen, setIsWorkoutManagerOpen] = useState(false);
@@ -459,84 +445,83 @@ const Students = () => {
                 <DialogDescription>
                   Crie um novo perfil de aluno para começar o acompanhamento
                 </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome completo *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Ex: João Silva"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nome completo *</Label>
+                    <Label htmlFor="birth_date">Data de Nascimento</Label>
                     <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Ex: João Silva"
+                      id="birth_date"
+                      type="date"
+                      value={formData.birth_date}
+                      onChange={(e) => setFormData(prev => ({ ...prev, birth_date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="height">Altura (cm)</Label>
+                    <Input
+                      id="height"
+                      type="number"
+                      step="0.1"
+                      value={formData.height}
+                      onChange={(e) => setFormData(prev => ({ ...prev, height: e.target.value }))}
+                      placeholder="Ex: 175.5"
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="birth_date">Data de Nascimento</Label>
-                      <Input
-                        id="birth_date"
-                        type="date"
-                        value={formData.birth_date}
-                        onChange={(e) => setFormData(prev => ({ ...prev, birth_date: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="height">Altura (cm)</Label>
-                      <Input
-                        id="height"
-                        type="number"
-                        step="0.1"
-                        value={formData.height}
-                        onChange={(e) => setFormData(prev => ({ ...prev, height: e.target.value }))}
-                        placeholder="Ex: 175.5"
-                        required
-                      />
-                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gênero</Label>
+                    <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o gênero" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="masculino">Masculino</SelectItem>
+                        <SelectItem value="feminino">Feminino</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="gender">Gênero</Label>
-                      <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o gênero" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="masculino">Masculino</SelectItem>
-                          <SelectItem value="feminino">Feminino</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="goal">Objetivo</Label>
-                      <Select value={formData.goal} onValueChange={(value) => setFormData(prev => ({ ...prev, goal: value }))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o objetivo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="perder_gordura">Perder Gordura</SelectItem>
-                          <SelectItem value="ganhar_massa">Ganhar Massa</SelectItem>
-                          <SelectItem value="manter_peso">Manter Peso</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="goal">Objetivo</Label>
+                    <Select value={formData.goal} onValueChange={(value) => setFormData(prev => ({ ...prev, goal: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o objetivo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="perder_gordura">Perder Gordura</SelectItem>
+                        <SelectItem value="ganhar_massa">Ganhar Massa</SelectItem>
+                        <SelectItem value="manter_peso">Manter Peso</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Button type="submit" className="w-full gradient-primary" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Adicionando...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Adicionar Aluno
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </DialogContent>
-            </DialogTrigger>
+                </div>
+                <Button type="submit" className="w-full gradient-primary" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Adicionando...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Adicionar Aluno
+                    </>
+                  )}
+                </Button>
+              </form>
+            </DialogContent>
           </Dialog>
         </div>
       </div>
@@ -604,6 +589,13 @@ const Students = () => {
                           <DropdownMenuLabel>Ações</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => {
                             setEditingStudent(student);
+                            setFormData({
+                              name: student.name,
+                              birth_date: student.birth_date || "",
+                              gender: student.gender,
+                              goal: student.goal,
+                              height: student.height.toString()
+                            });
                             setIsEditDialogOpen(true);
                           }}>
                             <Edit className="mr-2 h-3 w-3" />
@@ -778,7 +770,7 @@ const Students = () => {
               <Archive className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-medium text-muted-foreground">Nenhum aluno arquivado</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Alunos na lixeira aparecem aqui. Eles podem ser restaurados ou excluídos definitivamente
+                Alunos arquivados aparecem aqui quando você arquivar um ativo
               </p>
               <Button variant="outline" onClick={() => setActiveTab('active')}>
                 Ver Alunos Ativos
@@ -802,7 +794,6 @@ const Students = () => {
 
           {getFilteredStudents('trash').length > 0 ? (
             <div className="grid gap-4">
-
               {getFilteredStudents('trash').map((student) => (
                 <Card key={student.id} className="shadow-primary/10 border-destructive/20">
                   <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
@@ -887,7 +878,6 @@ const Students = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog para Editar Aluno */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -899,7 +889,6 @@ const Students = () => {
           <form onSubmit={(e) => {
             e.preventDefault();
             if (editingStudent) {
-              // Função para atualizar (similar ao handleSubmit, mas UPDATE)
               const age = formData.birth_date ? 
                 new Date().getFullYear() - new Date(formData.birth_date).getFullYear() : editingStudent.age;
               
@@ -1009,7 +998,6 @@ const Students = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para Gerenciar Treinos */}
       <Dialog open={isWorkoutManagerOpen} onOpenChange={setIsWorkoutManagerOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1036,7 +1024,6 @@ const Students = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para Anamnese */}
       <Dialog open={isAnamnesisOpen} onOpenChange={setIsAnamnesisOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -1049,7 +1036,6 @@ const Students = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Alert Dialog para Confirmação de Deleção */}
       <AlertDialog open={!!deletingStudent} onOpenChange={() => setDeletingStudent(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1062,7 +1048,6 @@ const Students = () => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
               if (deletingStudent) {
-                // Implementar lógica de deleção (mudar status para "deleted")
                 toast({
                   title: "Excluído!",
                   description: "Aluno removido da lixeira permanentemente."
