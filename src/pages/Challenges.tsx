@@ -152,6 +152,7 @@ const Challenges = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'active' | 'finished' | 'drafts'>('active');
+  const [searchTerm, setSearchTerm] = useState("");
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -659,7 +660,17 @@ const Challenges = () => {
                     className="cursor-pointer hover:shadow-primary/20 transition-all duration-300 hover:scale-105 group border-primary/20"
                     onClick={() => {
                       setSelectedTemplate(template);
-                      setNewChallenge(template);
+                      setNewChallenge({
+                        title: template.title,
+                        description: template.description,
+                        challenge_type: template.challenge_type,
+                        category: template.category,
+                        start_date: new Date().toISOString().split('T')[0], // Default to today
+                        end_date: new Date(Date.now() + (template.goal_value || 0) * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default end date based on goal_value
+                        goal_value: template.goal_value?.toString() || '',
+                        goal_unit: template.goal_unit || '',
+                        prize_description: template.prize_description || ''
+                      });
                       setIsTemplatesDialogOpen(false);
                       setIsCreateDialogOpen(true);
                     }}

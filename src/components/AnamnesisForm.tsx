@@ -636,7 +636,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                     <Label htmlFor="preferred_training_times">Horários Preferidos para Treino</Label>
                     <Select
                       value={formData.preferred_training_times || ""}
-                      onChange={(e) => updateFormData('preferred_training_times', value)}
+                      onValueChange={(value) => updateFormData('preferred_training_times', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Quando você pode treinar?" />
@@ -685,3 +685,5 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
     </TooltipProvider>
   );
 };
+
+export default AnamnesisForm;

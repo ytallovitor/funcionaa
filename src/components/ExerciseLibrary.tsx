@@ -25,13 +25,13 @@ interface Exercise {
   difficulty: string;
   equipment: string[];
   instructions: string[];
-  tips: string[];
-  duration: number; // in seconds for cardio, sets for strength
-  reps?: number;
-  sets?: number;
-  rest_time?: number;
-  video_url?: string;
-  image_url?: string;
+  tips: string[] | null; // Made nullable for consistency
+  duration?: number | null; // Made nullable for consistency
+  reps?: number | null; // Made nullable for consistency
+  sets?: number | null; // Made nullable for consistency
+  rest_time?: number | null; // Made nullable for consistency
+  video_url?: string | null;
+  image_url?: string | null;
 }
 
 interface ExerciseLibraryProps {
@@ -208,7 +208,7 @@ const ExerciseLibrary = ({ onSelectExercise, compact = false }: ExerciseLibraryP
                       {exercise.sets} séries x {exercise.reps} reps
                     </div>
                   )}
-                  {exercise.duration > 0 && (
+                  {exercise.duration && (
                     <div className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
                       {Math.round(exercise.duration / 60)} min
@@ -285,7 +285,7 @@ const ExerciseLibrary = ({ onSelectExercise, compact = false }: ExerciseLibraryP
                 <div>
                   <h4 className="font-semibold mb-2">Dicas</h4>
                   <ul className="text-sm space-y-1 text-muted-foreground">
-                    {selectedExercise.tips.map((tip, index) => (
+                    {selectedExercise.tips?.map((tip, index) => (
                       <li key={index} className="flex gap-2">
                         <span className="text-primary">•</span>
                         {tip}

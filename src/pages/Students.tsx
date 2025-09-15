@@ -633,6 +633,61 @@ const Students = () => {
                             </span>
                           </div>
                         </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => {
+                            setEditingStudent(student);
+                            setFormData({
+                              name: student.name,
+                              birth_date: student.birth_date || "",
+                              gender: student.gender,
+                              goal: student.goal,
+                              height: student.height.toString()
+                            });
+                            setIsEditDialogOpen(true);
+                          }}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setAnamnesisStudent(student);
+                            setIsAnamnesisOpen(true);
+                          }}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            Anamnese
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setManagingWorkoutsFor(student);
+                            setIsWorkoutManagerOpen(true);
+                          }}>
+                            <Dumbbell className="mr-2 h-4 w-4" />
+                            Gerenciar Treinos
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {student.status === 'active' ? (
+                            <DropdownMenuItem onClick={() => archiveStudent(student.id)}>
+                              <Archive className="mr-2 h-4 w-4" />
+                              Arquivar
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => unarchiveStudent(student.id)}>
+                              <Activity className="mr-2 h-4 w-4" />
+                              Desarquivar
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeletingStudent(student.id)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
                       </DropdownMenu>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -717,28 +772,61 @@ const Students = () => {
                           </span>
                         </div>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm">
-                          <span className="font-medium">Altura:</span> {student.height} cm
-                        </div>
-                        <div className="text-sm">
-                          <span className="font-medium">Última Avaliação:</span>
-                          {student.lastEvaluation ? (
-                            <span className="text-green-600">
-                              {Math.floor((new Date().getTime() - new Date(student.lastEvaluation).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
-                            </span>
-                          ) : (
-                            <span className="text-red-600">Sem avaliação</span>
-                          )}
-                        </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => {
+                          setEditingStudent(student);
+                          setFormData({
+                            name: student.name,
+                            birth_date: student.birth_date || "",
+                            gender: student.gender,
+                            goal: student.goal,
+                            height: student.height.toString()
+                          });
+                          setIsEditDialogOpen(true);
+                        }}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => unarchiveStudent(student.id)}>
+                          <Activity className="mr-2 h-4 w-4" />
+                          Desarquivar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeletingStudent(student.id)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm">
+                        <span className="font-medium">Altura:</span> {student.height} cm
                       </div>
-                      <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                      <div className="text-sm">
+                        <span className="font-medium">Última Avaliação:</span>
+                        {student.lastEvaluation ? (
+                          <span className="text-green-600">
+                            {Math.floor((new Date().getTime() - new Date(student.lastEvaluation).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
+                          </span>
+                        ) : (
+                          <span className="text-red-600">Sem avaliação</span>
+                        )}
+                      </div>
+                    </div>
+                    <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : (
             <div className="text-center py-12">
@@ -788,28 +876,47 @@ const Students = () => {
                           </span>
                         </div>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm">
-                          <span className="font-medium">Altura:</span> {student.height} cm
-                        </div>
-                        <div className="text-sm">
-                          <span className="font-medium">Removido em:</span>
-                          {student.deleted_at ? (
-                            <span className="text-red-600">
-                              {new Date(student.deleted_at).toLocaleDateString('pt-BR')}
-                            </span>
-                          ) : (
-                            <span className="text-red-600">Sem data</span>
-                          )}
-                        </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => unarchiveStudent(student.id)}>
+                          <Activity className="mr-2 h-4 w-4" />
+                          Restaurar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeletingStudent(student.id)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Excluir Definitivamente
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm">
+                        <span className="font-medium">Altura:</span> {student.height} cm
                       </div>
-                      <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                      <div className="text-sm">
+                        <span className="font-medium">Removido em:</span>
+                        {student.deleted_at ? (
+                          <span className="text-red-600">
+                            {new Date(student.deleted_at).toLocaleDateString('pt-BR')}
+                          </span>
+                        ) : (
+                          <span className="text-red-600">Sem data</span>
+                        )}
+                      </div>
+                    </div>
+                    <StudentPortalManager student={student} onPortalCreated={fetchStudents} />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : (
             <div className="text-center py-12">

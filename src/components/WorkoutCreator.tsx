@@ -33,13 +33,13 @@ interface Exercise {
   difficulty: string;
   equipment: string[];
   instructions: string[];
-  tips: string[];
-  duration: number; // in seconds for cardio, sets for strength
-  reps?: number;
-  sets?: number;
-  rest_time?: number;
-  video_url?: string;
-  image_url?: string;
+  tips: string[] | null; // Made nullable for consistency
+  duration?: number | null; // Made nullable for consistency
+  reps?: number | null; // Made nullable for consistency
+  sets?: number | null; // Made nullable for consistency
+  rest_time?: number | null; // Made nullable for consistency
+  video_url?: string | null;
+  image_url?: string | null;
 }
 
 interface WorkoutExercise {
@@ -47,22 +47,22 @@ interface WorkoutExercise {
   exercise: Exercise;
   sets: number;
   reps: number;
-  weight_kg?: number;
-  duration?: number;
+  weight_kg?: number | null;
+  duration?: number | null;
   rest_time: number;
-  notes?: string;
+  notes?: string | null;
   order_index: number;
 }
 
 interface WorkoutTemplate {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   category: string;
   difficulty: string;
-  estimated_duration: number;
-  equipment_needed: string[];
-  is_public: boolean;
+  estimated_duration: number | null;
+  equipment_needed: string[] | null;
+  is_public: boolean | null;
   workout_template_exercises?: WorkoutExercise[]; // Use WorkoutExercise for nested exercises
 }
 

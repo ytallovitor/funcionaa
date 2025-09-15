@@ -32,7 +32,17 @@ interface StudentWithEvaluations {
     evaluations: StudentEvaluation[] | null;
 }
 
-const Reports = () => {
+interface Trainer {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface TrainerDashboardProps {
+  trainer: Trainer;
+}
+
+const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
   const { user } = useAuth();
   const stats = useStudentStats();
   const [analytics, setAnalytics] = useState<AnalyticsData>({
@@ -373,4 +383,4 @@ const Reports = () => {
   );
 };
 
-export default Reports;
+export default TrainerDashboard;
