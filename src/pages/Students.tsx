@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Student {
   id: string;
@@ -392,40 +393,46 @@ const Students = () => {
     );
   };
 
-  // JSX Completo (em PT-BR, com fallbacks se componentes falharem)
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Carregando Alunos...</h1>
-          </div>
-          <div>
-            <Button disabled>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Aluno
-            </Button>
-          </div>
-        </div>
-        <div className="grid gap-4">
-          {[1, 2, 3].map(i => (
-            <Card key={i}>
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 bg-muted rounded-full animate-pulse" />
-                  <Skeleton className="h-4 w-32" />
-                </div>
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-16 mt-2" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // Funções para arquivar/restaurar/deletar
+  const archiveStudent = async (studentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('students')
+        .update({ status: 'archived' })
+        .eq('id', studentId);
 
-  const filteredStudents = getFilteredStudents(activeTab);
+      if (error) throw error;
+      toast({ title: "Sucesso!", description: "Aluno arquivado" });
+      fetchStudents();
+    } catch (error) {
+      toast({ title: "Erro", description: "Falha ao arquivar aluno", variant: "destructive" });
+    }
+  };
+
+  const unarchiveStudent = async (studentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('students')
+        .update({ status: 'active' })
+        .eq('id', studentId);
+
+      if (error) throw error;
+      toast({ title: "Sucesso!", description: "Aluno restaurado" });
+      fetchStudents();
+    } catch (error) {
+      toast({ title: "Erro", description: "Falha ao restaurar aluno", variant: "destructive" });
+    }
+  };
+
+  const setDeletingStudent = (studentId: string | null) => {
+    // Implementar lógica de deleção (mudar status para "deleted")
+  };
+
+  const [isWorkoutManagerOpen, setIsWorkoutManagerOpen] = useState(false);
+  const [managingWorkoutsFor, setManagingWorkoutsFor] = useState<Student | null>(null);
+
+  const [isAnamnesisOpen, setIsAnamnesisOpen] = useState(false);
+  const [anamnesisStudent, setAnamnesisStudent] = useState<Student | null>(null);
 
   return (
     <div className="space-y-6">
@@ -452,83 +459,84 @@ const Students = () => {
                 <DialogDescription>
                   Crie um novo perfil de aluno para começar o acompanhamento
                 </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome completo *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Ex: João Silva"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="birth_date">Data de Nascimento</Label>
+                    <Label htmlFor="name">Nome completo *</Label>
                     <Input
-                      id="birth_date"
-                      type="date"
-                      value={formData.birth_date}
-                      onChange={(e) => setFormData(prev => ({ ...prev, birth_date: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="height">Altura (cm)</Label>
-                    <Input
-                      id="height"
-                      type="number"
-                      step="0.1"
-                      value={formData.height}
-                      onChange={(e) => setFormData(prev => ({ ...prev, height: e.target.value }))}
-                      placeholder="Ex: 175.5"
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Ex: João Silva"
                       required
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gênero</Label>
-                    <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="masculino">Masculino</SelectItem>
-                        <SelectItem value="feminino">Feminino</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="birth_date">Data de Nascimento</Label>
+                      <Input
+                        id="birth_date"
+                        type="date"
+                        value={formData.birth_date}
+                        onChange={(e) => setFormData(prev => ({ ...prev, birth_date: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="height">Altura (cm)</Label>
+                      <Input
+                        id="height"
+                        type="number"
+                        step="0.1"
+                        value={formData.height}
+                        onChange={(e) => setFormData(prev => ({ ...prev, height: e.target.value }))}
+                        placeholder="Ex: 175.5"
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="goal">Objetivo</Label>
-                    <Select value={formData.goal} onValueChange={(value) => setFormData(prev => ({ ...prev, goal: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="perder_gordura">Perder Gordura</SelectItem>
-                        <SelectItem value="ganhar_massa">Ganhar Massa</SelectItem>
-                        <SelectItem value="manter_peso">Manter Peso</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">Gênero</Label>
+                      <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o gênero" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="masculino">Masculino</SelectItem>
+                          <SelectItem value="feminino">Feminino</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="goal">Objetivo</Label>
+                      <Select value={formData.goal} onValueChange={(value) => setFormData(prev => ({ ...prev, goal: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o objetivo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="perder_gordura">Perder Gordura</SelectItem>
+                          <SelectItem value="ganhar_massa">Ganhar Massa</SelectItem>
+                          <SelectItem value="manter_peso">Manter Peso</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </div>
-                <Button type="submit" className="w-full gradient-primary" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Adicionando...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Adicionar Aluno
-                    </>
-                  )}
-                </Button>
-              </form>
-            </DialogContent>
+                  <Button type="submit" className="w-full gradient-primary" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Adicionando...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Adicionar Aluno
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </DialogContent>
+            </DialogTrigger>
           </Dialog>
         </div>
       </div>
@@ -770,7 +778,7 @@ const Students = () => {
               <Archive className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-medium text-muted-foreground">Nenhum aluno arquivado</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Alunos arquivados aparecem aqui quando você arquivar um ativo
+                Alunos na lixeira aparecem aqui. Eles podem ser restaurados ou excluídos definitivamente
               </p>
               <Button variant="outline" onClick={() => setActiveTab('active')}>
                 Ver Alunos Ativos
@@ -794,6 +802,7 @@ const Students = () => {
 
           {getFilteredStudents('trash').length > 0 ? (
             <div className="grid gap-4">
+
               {getFilteredStudents('trash').map((student) => (
                 <Card key={student.id} className="shadow-primary/10 border-destructive/20">
                   <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
@@ -1053,7 +1062,7 @@ const Students = () => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
               if (deletingStudent) {
-                // Implementar delete permanente
+                // Implementar lógica de deleção (mudar status para "deleted")
                 toast({
                   title: "Excluído!",
                   description: "Aluno removido da lixeira permanentemente."
