@@ -48,6 +48,7 @@ interface Student {
 }
 
 const Students = () => {
+  // Estado único para cada variável (sem duplicatas)
   const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'trash'>('active');
   const [searchTerm, setSearchTerm] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
@@ -420,9 +421,6 @@ const Students = () => {
       toast({ title: "Erro", description: "Falha ao restaurar aluno", variant: "destructive" });
     }
   };
-
-  const [isWorkoutManagerOpen, setIsWorkoutManagerOpen] = useState(false);
-  const [isAnamnesisOpen, setIsAnamnesisOpen] = useState(false);
 
   // Placeholder para componentes não implementados (evita erros de "not defined")
   const StudentPortalManager = ({ student, onPortalCreated }: any) => (
