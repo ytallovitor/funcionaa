@@ -303,7 +303,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         type="number"
                         min="0"
                         max="10"
-                        value={formData.current_pain_level === undefined ? "" : formData.current_pain_level}
+                        value={formData.current_pain_level === undefined ? "" : String(formData.current_pain_level)}
                         onChange={(e) => updateFormData('current_pain_level', e.target.value === "" ? undefined : parseInt(e.target.value))}
                         placeholder="0 = Sem dor, 10 = Dor insuportável"
                         required
@@ -509,7 +509,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         type="number"
                         min="0"
                         max="24"
-                        value={formData.average_sleep_hours === undefined ? "" : formData.average_sleep_hours}
+                        value={formData.average_sleep_hours === undefined ? "" : String(formData.average_sleep_hours)}
                         onChange={(e) => updateFormData('average_sleep_hours', e.target.value === "" ? undefined : parseInt(e.target.value))}
                         placeholder="Ex: 7 horas"
                       />
@@ -593,8 +593,8 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         <TooltipContent>
                           <p>Base para periodização: Objetivos SMART (Specific, Measurable, Achievable, Relevant, Time-bound) - NSCA.</p>
                         </TooltipContent>
-                      </TooltipProvider>
-                    </Tooltip>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="specific_fitness_goals">Metas Específicas de Fitness</Label>
@@ -636,7 +636,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                     <Label htmlFor="preferred_training_times">Horários Preferidos para Treino</Label>
                     <Select
                       value={formData.preferred_training_times || ""}
-                      onValueChange={(value) => updateFormData('preferred_training_times', value)}
+                      onChange={(e) => updateFormData('preferred_training_times', value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Quando você pode treinar?" />
@@ -665,8 +665,8 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         <TooltipContent>
                           <p>Essencial para adaptações: 70% dos desistentes citam barreiras logísticas (NSCA study).</p>
                         </TooltipContent>
-                      </TooltipProvider>
-                    </Tooltip>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
               </>

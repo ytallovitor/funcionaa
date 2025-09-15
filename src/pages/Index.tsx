@@ -6,6 +6,12 @@ import StudentDashboard from "@/components/StudentDashboard";
 import TrainerDashboard from "@/components/TrainerDashboard";
 import { useNavigate } from "react-router-dom";
 
+interface Trainer {
+  id: string;
+  name: string;
+  email: string;
+}
+
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -123,7 +129,7 @@ const Index = () => {
         id: userProfile.id,
         name: userProfile.full_name || 'Personal Trainer',
         email: userProfile.email
-      }}
+      } as Trainer}
     />
   );
 };
