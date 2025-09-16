@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"; // Adicionado DialogFooter
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -150,7 +150,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
     ];
     return required.every(field => {
       const value = data[field as keyof AnamnesisData];
-      return typeof value === 'string' ? value.trim() !== '' : value !== undefined;
+      return typeof value === 'string' ? value.trim() !== '' : value !== undefined && value !== null;
     });
   };
 
@@ -191,7 +191,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
       console.error("Error saving anamnesis:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível salvar a anamnese.",
+        description: "Falha ao salvar a anamnese.",
         variant: "destructive"
       });
     } finally {
@@ -204,7 +204,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
   return (
     <TooltipProvider>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col"> {/* Adicionado flex flex-col */}
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               📋 Anamnese Completa - {student.name}
@@ -212,13 +212,13 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
             <DialogDescription>
               Esta é a anamnese profissional mais completa do mercado, baseada em protocolos ACSM e NSCA. 
               Colete informações detalhadas para criar treinos seguros e personalizados. 
-              Campos obrigatórios são marcados com *.
+              Campos obrigatórios são marcados com <span className="text-red-500 font-bold">*</span>.
               <br /><br />
               <strong>Disclaimer Profissional:</strong> Esta ferramenta auxilia na triagem inicial, mas não substitui consulta médica. 
               Recomenda-se encaminhar clientes com condições médicas para avaliação médica antes do início de programas de treino (ACSM Pre-Exercise Screening, 2021).
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto max-h-[70vh] space-y-6 p-1">
+          <div className="overflow-y-auto flex-1 space-y-6 p-1 pr-4"> {/* Removido max-h, adicionado flex-1 e pr-4 para scrollbar */}
             {loading ? (
               <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -226,13 +226,13 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
             ) : (
               <>
                 {/* Seção 1: Contato de Emergência */}
-                <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
                     🚨 Contato de Emergência
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="emergency_contact">Nome do Contato de Emergência *</Label>
+                      <Label htmlFor="emergency_contact">Nome do Contato de Emergência <span className="text-red-500">*</span></Label>
                       <Input
                         id="emergency_contact"
                         value={formData.emergency_contact || ""}
@@ -242,7 +242,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="emergency_phone">Telefone de Emergência *</Label>
+                      <Label htmlFor="emergency_phone">Telefone de Emergência <span className="text-red-500">*</span></Label>
                       <Input
                         id="emergency_phone"
                         value={formData.emergency_phone || ""}
@@ -257,13 +257,13 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <Separator />
 
                 {/* Seção 2: Histórico Médico */}
-                <div className="bg-red-50 p-4 rounded-lg">
+                <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                   <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
                     🏥 Histórico Médico e Saúde Atual
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="medical_conditions">Condições Médicas Atuais ou Passadas *</Label>
+                      <Label htmlFor="medical_conditions">Condições Médicas Atuais ou Passadas <span className="text-red-500">*</span></Label>
                       <Textarea
                         id="medical_conditions"
                         value={formData.medical_conditions || ""}
@@ -274,7 +274,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="surgeries">Cirurgias ou Procedimentos *</Label>
+                      <Label htmlFor="surgeries">Cirurgias ou Procedimentos <span className="text-red-500">*</span></Label>
                       <Textarea
                         id="surgeries"
                         value={formData.surgeries || ""}
@@ -287,7 +287,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                   </div>
                   <div className="grid md:grid-cols-3 gap-4 mt-4">
                     <div className="space-y-2">
-                      <Label htmlFor="allergies">Alergias *</Label>
+                      <Label htmlFor="allergies">Alergias <span className="text-red-500">*</span></Label>
                       <Input
                         id="allergies"
                         value={formData.allergies || ""}
@@ -297,7 +297,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="current_pain_level">Nível de Dor Atual (0-10) *</Label>
+                      <Label htmlFor="current_pain_level">Nível de Dor Atual (0-10) <span className="text-red-500">*</span></Label>
                       <Input
                         id="current_pain_level"
                         type="number"
@@ -320,7 +320,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
-                    <Label htmlFor="previous_injuries">Lesões ou Traumas Anteriores *</Label>
+                    <Label htmlFor="previous_injuries">Lesões ou Traumas Anteriores <span className="text-red-500">*</span></Label>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -344,13 +344,13 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <Separator />
 
                 {/* Seção 3: Medicamentos e Suplementos */}
-                <div className="bg-yellow-50 p-4 rounded-lg">
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                   <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
                     💊 Medicamentos e Suplementação
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="current_medications">Medicamentos de Uso Contínuo *</Label>
+                      <Label htmlFor="current_medications">Medicamentos de Uso Contínuo <span className="text-red-500">*</span></Label>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -385,13 +385,13 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <Separator />
 
                 {/* Seção 4: Histórico de Treino */}
-                <div className="bg-green-50 p-4 rounded-lg">
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
                     💪 Histórico de Treino e Atividade Física
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="training_experience">Nível de Experiência com Treino *</Label>
+                      <Label htmlFor="training_experience">Nível de Experiência com Treino <span className="text-red-500">*</span></Label>
                       <Select
                         value={formData.training_experience || ""}
                         onValueChange={(value) => updateFormData('training_experience', value)}
@@ -451,7 +451,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <Separator />
 
                 {/* Seção 5: Estilo de Vida */}
-                <div className="bg-purple-50 p-4 rounded-lg">
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                   <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
                     🏠 Estilo de Vida e Hábitos Diários
                   </h3>
@@ -572,12 +572,12 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <Separator />
 
                 {/* Seção 6: Objetivos e Barreiras */}
-                <div className="bg-indigo-50 p-4 rounded-lg">
+                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
                   <h3 className="font-semibold text-indigo-800 mb-3 flex items-center gap-2">
                     🎯 Objetivos e Barreiras ao Treino
                   </h3>
                   <div className="space-y-2">
-                    <Label htmlFor="main_goal">Objetivo Principal do Treino (detalhado) *</Label>
+                    <Label htmlFor="main_goal">Objetivo Principal do Treino (detalhado) <span className="text-red-500">*</span></Label>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -672,14 +672,14 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
               </>
             )}
           </div>
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          <DialogFooter className="flex justify-end gap-2 pt-4 border-t"> {/* Movido para fora do scrollable div */}
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={isSubmitting || !requiredFieldsFilled}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Save className="mr-2 h-4 w-4" />
               Salvar Anamnese Completa
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </TooltipProvider>

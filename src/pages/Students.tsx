@@ -32,6 +32,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import StudentPortalManager from "@/components/StudentPortalManager";
 import AnamnesisForm from "@/components/AnamnesisForm";
+import { useNavigate } from "react-router-dom"; // Importando useNavigate
 
 interface Student {
   id: string;
@@ -73,6 +74,7 @@ const Students = () => {
   const [isAnamnesisOpen, setIsAnamnesisOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate(); // Inicializando useNavigate
 
   useEffect(() => {
     if (user) {
@@ -416,7 +418,6 @@ const Students = () => {
     );
   }
 
-  const filteredStudents = getFilteredStudents(activeTab);
   const studentToDelete = students.find(s => s.id === deletingStudent);
   const isPermanentlyDeleting = studentToDelete?.status === 'deleted';
 
@@ -656,7 +657,7 @@ const Students = () => {
                           <div className="text-sm">
                             <span className="font-medium">Peso:</span> {student.weight} kg • {student.bodyFat}% gordura
                           </div>
-                          <Button variant="outline" size="sm" onClick={() => { /* TODO: Navigate to evaluation page for this student */ }}>
+                          <Button variant="outline" size="sm" onClick={() => navigate(`/evaluation?student=${student.id}`)}>
                             <Calendar className="h-3 w-3 mr-1" />
                             Nova Avaliação
                           </Button>
@@ -717,7 +718,7 @@ const Students = () => {
                           </span>
                         </div>
                       </div>
-                    </div> {/* Closing div for flex items-center gap-3 */}
+                    </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -821,7 +822,7 @@ const Students = () => {
                           </span>
                         </div>
                       </div>
-                    </div> {/* Closing div for flex items-center gap-3 */}
+                    </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
