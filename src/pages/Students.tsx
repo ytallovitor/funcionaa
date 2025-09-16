@@ -30,8 +30,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import StudentPortalManager from "@/components/StudentPortalManager"; // Importando o componente
-import AnamnesisForm from "@/components/AnamnesisForm"; // Importando o componente
+import StudentPortalManager from "@/components/StudentPortalManager";
+import AnamnesisForm from "@/components/AnamnesisForm";
 
 interface Student {
   id: string;
@@ -197,12 +197,6 @@ const Students = () => {
           toast({
             title: "Permissão Negada",
             description: "Verifique RLS policies no Supabase (policies de 'students' devem permitir SELECT para trainer_id). Rode o SQL do Passo 1 novamente.",
-            variant: "destructive"
-          });
-        } else if (error.code === '42703') {
-          toast({
-            title: "Schema Inválido",
-            description: "Colunas 'status' ou 'deleted_at' não existem. Execute o SQL do Passo 1 novamente.",
             variant: "destructive"
           });
         } else {
@@ -723,7 +717,8 @@ const Students = () => {
                           </span>
                         </div>
                       </div>
-                      <DropdownMenu>
+                    </div> {/* Closing div for flex items-center gap-3 */}
+                    <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
                             <span className="sr-only">Open menu</span>
@@ -756,7 +751,7 @@ const Students = () => {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </CardHeader>
+                  </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="text-sm">
@@ -826,7 +821,8 @@ const Students = () => {
                           </span>
                         </div>
                       </div>
-                      <DropdownMenu>
+                    </div> {/* Closing div for flex items-center gap-3 */}
+                    <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
                             <span className="sr-only">Open menu</span>
@@ -845,7 +841,7 @@ const Students = () => {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </CardHeader>
+                  </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="text-sm">
