@@ -32,7 +32,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import StudentPortalManager from "@/components/StudentPortalManager";
 import AnamnesisForm from "@/components/AnamnesisForm";
-import { useNavigate } from "react-router-dom"; // Importando useNavigate
+import { useNavigate } from "react-router-dom";
 
 interface Student {
   id: string;
@@ -74,7 +74,7 @@ const Students = () => {
   const [isAnamnesisOpen, setIsAnamnesisOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate(); // Inicializando useNavigate
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
@@ -357,32 +357,42 @@ const Students = () => {
   };
 
   const archiveStudent = async (studentId: string) => {
+    console.log(`Attempting to archive student: ${studentId}`);
     try {
       const { error } = await supabase
         .from('students')
         .update({ status: 'archived' })
         .eq('id', studentId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error archiving student:', error);
+        throw error;
+      }
+      console.log(`Student ${studentId} archived successfully.`);
       toast({ title: "Sucesso!", description: "Aluno arquivado" });
-      fetchStudents(trainerId!);
-    } catch (error) {
-      toast({ title: "Erro", description: "Falha ao arquivar aluno", variant: "destructive" });
+      await fetchStudents(trainerId!); // Re-fetch to update UI
+    } catch (error: any) {
+      toast({ title: "Erro", description: `Falha ao arquivar aluno: ${error.message}`, variant: "destructive" });
     }
   };
 
   const unarchiveStudent = async (studentId: string) => {
+    console.log(`Attempting to unarchive student: ${studentId}`);
     try {
       const { error } = await supabase
         .from('students')
         .update({ status: 'active' })
         .eq('id', studentId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error unarchiving student:', error);
+        throw error;
+      }
+      console.log(`Student ${studentId} unarchived successfully.`);
       toast({ title: "Sucesso!", description: "Aluno restaurado" });
-      fetchStudents(trainerId!);
-    } catch (error) {
-      toast({ title: "Erro", description: "Falha ao restaurar aluno", variant: "destructive" });
+      await fetchStudents(trainerId!); // Re-fetch to update UI
+    } catch (error: any) {
+      toast({ title: "Erro", description: `Falha ao restaurar aluno: ${error.message}`, variant: "destructive" });
     }
   };
 
@@ -1054,28 +1064,38 @@ const Students = () => {
               if (deletingStudent) {
                 try {
                   if (isPermanentlyDeleting) {
+                    console.log(`Attempting permanent delete for student: ${deletingStudent}`);
                     const { error } = await supabase
                       .from('students')
                       .delete()
                       .eq('id', deletingStudent);
-                    if (error) throw error;
+                    if (error) {
+                      console.error('Error during permanent delete:', error);
+                      throw error;
+                    }
+                    console.log(`Student ${deletingStudent} permanently deleted.`);
                     toast({
                       title: "Sucesso!",
                       description: "Aluno excluído permanentemente."
                     });
                   } else {
+                    console.log(`Attempting soft delete (move to trash) for student: ${deletingStudent}`);
                     const { error } = await supabase
                       .from('students')
                       .update({ status: 'deleted', deleted_at: new Date().toISOString() })
                       .eq('id', deletingStudent);
-                    if (error) throw error;
+                    if (error) {
+                      console.error('Error during soft delete:', error);
+                      throw error;
+                    }
+                    console.log(`Student ${deletingStudent} moved to trash.`);
                     toast({
                       title: "Sucesso!",
                       description: "Aluno movido para a lixeira."
                     });
                   }
                   setDeletingStudent(null);
-                  fetchStudents(trainerId!);
+                  await fetchStudents(trainerId!); // Re-fetch to update UI
                 } catch (error: any) {
                   console.error('Error handling student deletion:', error);
                   toast({
