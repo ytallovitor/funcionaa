@@ -723,41 +723,40 @@ const Students = () => {
                           </span>
                         </div>
                       </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => {
+                            setEditingStudent(student);
+                            setFormData({
+                              name: student.name,
+                              birth_date: student.birth_date || "",
+                              gender: student.gender,
+                              goal: student.goal,
+                              height: student.height.toString()
+                            });
+                            setIsEditDialogOpen(true);
+                          }}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => unarchiveStudent(student.id)}>
+                            <Activity className="mr-2 h-4 w-4" />
+                            Desarquivar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeletingStudent(student.id)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </CardHeader>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => {
-                          setEditingStudent(student);
-                          setFormData({
-                            name: student.name,
-                            birth_date: student.birth_date || "",
-                            gender: student.gender,
-                            goal: student.goal,
-                            height: student.height.toString()
-                          });
-                          setIsEditDialogOpen(true);
-                        }}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => unarchiveStudent(student.id)}>
-                          <Activity className="mr-2 h-4 w-4" />
-                          Desarquivar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeletingStudent(student.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="text-sm">
