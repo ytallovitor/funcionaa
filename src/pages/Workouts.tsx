@@ -14,7 +14,6 @@ import {
   Target,
   Activity,
   TrendingUp,
-  Dumbbell, // Keep Dumbbell as it's used in the JSX for icons
   Trash2,
   Edit,
   Loader2
