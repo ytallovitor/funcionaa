@@ -6,12 +6,6 @@ import StudentDashboard from "@/components/StudentDashboard";
 import TrainerDashboard from "@/components/TrainerDashboard";
 import { useNavigate } from "react-router-dom";
 
-interface Trainer {
-  id: string;
-  name: string;
-  email: string;
-}
-
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -54,7 +48,7 @@ const Index = () => {
         }
 
         // Check if user is a trainer (has students)
-        const { data: students, count } = await supabase
+        const { data: _students, count } = await supabase
           .from('students')
           .select('id', { count: 'exact' })
           .eq('trainer_id', profile?.id || '');

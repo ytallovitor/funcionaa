@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { 
   Send, 
   Camera, 
@@ -29,8 +28,6 @@ interface Message {
   is_read: boolean;
 }
 
-// Removed custom Toast interface as sonner's toast is used directly
-
 interface ChatSystemProps {
   conversationId?: string;
   recipientName?: string;
@@ -47,8 +44,6 @@ const ChatSystem = ({
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [isOnline, setIsOnline] = useState(true);
-  const [isTyping, setIsTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -222,17 +217,7 @@ const ChatSystem = ({
                   </div>
                 </div>
               ))}
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-muted rounded-lg p-2">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-100"></div>
-                      <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-200"></div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* isTyping logic removed as it's not used */}
             </div>
           </ScrollArea>
           <div className="p-3 border-t">
@@ -270,7 +255,7 @@ const ChatSystem = ({
               <div className="flex items-center gap-2">
                 <Circle className="h-4 w-4 text-green-500 fill-current" />
                 <span className="text-sm text-muted-foreground">
-                  {isOnline ? "Online agora" : "Última vez há 5 min"}
+                  Online agora
                 </span>
               </div>
             </div>
@@ -323,22 +308,7 @@ const ChatSystem = ({
             </div>
           ))}
           
-          {isTyping && (
-            <div className="flex justify-start">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs bg-muted">
-                  {recipientName.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="bg-muted rounded-lg p-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-100"></div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce delay-200"></div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* isTyping logic removed as it's not used */}
         </div>
       </ScrollArea>
 

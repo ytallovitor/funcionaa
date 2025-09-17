@@ -1,19 +1,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { 
   TrendingUp, 
   Target, 
-  Calendar, 
   MessageCircle,
   Camera,
   Activity,
   Weight,
   Zap,
   Trophy,
-  Play,
-  Users
+  Play
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import ChatSystem from "./ChatSystem";
@@ -119,8 +116,6 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
       </div>
     );
   }
-
-  const hasMeasurements = studentData.latestMeasurements.weight && studentData.latestMeasurements.bodyFat;
 
   return (
     <div className="space-y-6">

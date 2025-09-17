@@ -6,14 +6,11 @@ import {
   TrendingUp, 
   Target, 
   Smartphone, 
-  Shield, 
-  Zap,
   Play,
   Star,
   ArrowRight,
   CheckCircle,
   MessageCircle,
-  Calendar,
   BarChart3
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";

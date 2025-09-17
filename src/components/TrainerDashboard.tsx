@@ -6,17 +6,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentStats } from "@/hooks/useStudentStats";
-import { Skeleton } from "@/components/ui/skeleton";
-
-interface AnalyticsData {
-  avgBodyFatLoss: number;
-  avgLeanMassGain: number;
-  monthlyEvaluations: number;
-  successRate: number;
-  studentSatisfaction: number;
-  totalRevenue: number;
-  loading: boolean;
-}
 
 interface StudentEvaluation {
     student_id: string;
@@ -24,12 +13,6 @@ interface StudentEvaluation {
     lean_mass: number | null;
     fat_weight: number | null;
     evaluation_date: string;
-}
-
-interface StudentWithEvaluations {
-    id: string;
-    name: string;
-    evaluations: StudentEvaluation[] | null;
 }
 
 interface Trainer {
@@ -42,10 +25,10 @@ interface TrainerDashboardProps {
   trainer: Trainer;
 }
 
-const TrainerDashboard = ({ trainer }: TrainerDashboardProps) => {
+const TrainerDashboard = ({ trainer: _trainer }: TrainerDashboardProps) => {
   const { user } = useAuth();
   const stats = useStudentStats();
-  const [analytics, setAnalytics] = useState<AnalyticsData>({
+  const [analytics, setAnalytics] = useState<any>({
     avgBodyFatLoss: 0,
     avgLeanMassGain: 0,
     monthlyEvaluations: 0,
