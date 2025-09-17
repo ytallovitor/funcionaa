@@ -13,7 +13,7 @@ import {
   Apple, 
   Plus, 
   Search, 
-  Calendar,
+  Calendar, // Adicionado import do Calendar
   Target,
   Utensils,
   Coffee,
@@ -267,8 +267,7 @@ const Nutrition = () => {
         <TabsContent value="legacy">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              {/* Calendar component is not imported, so I'm commenting it out */}
-              {/* <Calendar className="h-4 w-4 text-muted-foreground" /> */}
+              <Calendar className="h-4 w-4 text-muted-foreground" />
               <Input
                 type="date"
                 value={selectedDate}
