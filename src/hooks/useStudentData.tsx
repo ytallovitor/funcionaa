@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner"; // Import toast from sonner
 
 interface StudentData {
@@ -21,8 +20,6 @@ interface StudentData {
   error: string | null;
 }
 
-// Removed custom Toast interface as sonner's toast is used directly
-
 export function useStudentData() {
   const [data, setData] = useState<StudentData>({
     latestMeasurements: {},
@@ -40,12 +37,15 @@ export function useStudentData() {
         setData(prev => ({ ...prev, loading: true, error: null }));
 
         // Get student profile (assuming student has a profile or direct relation)
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, age, gender, height') // Fetch age, gender, height
           .eq('user_id', user.id)
           .single();
 
+        if (profileError) {
+          throw profileError;
+        }
         if (!profile) {
           throw new Error("Perfil do aluno não encontrado");
         }

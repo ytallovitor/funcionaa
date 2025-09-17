@@ -111,7 +111,10 @@ const Index = () => {
         student={{
           id: userProfile.id,
           name: userProfile.full_name || 'Usuário',
-          email: userProfile.email
+          email: userProfile.email,
+          age: userProfile.age, // Pass age from profile
+          gender: userProfile.gender, // Pass gender from profile
+          height: userProfile.height // Pass height from profile
         }}
       />
     );

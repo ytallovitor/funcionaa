@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress"; // Adicionado import do Progress
+import { Progress } from "@/components/ui/progress";
 import { 
   TrendingUp, 
   Target, 
@@ -11,7 +11,8 @@ import {
   Weight,
   Zap,
   Trophy,
-  Play
+  Play,
+  CalendarDays // Adicionado para o ícone de avaliações
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import ChatSystem from "./ChatSystem";
@@ -19,19 +20,29 @@ import BodyCompositionCalculator from "./BodyCompositionCalculator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStudentData } from "@/hooks/useStudentData";
 import { supabase } from "@/integrations/supabase/client";
+import StudentProgressCharts from "./StudentProgressCharts"; // Importar o componente de gráficos
+import StudentNutritionCard from "./StudentNutritionCard"; // Importar o componente de nutrição
+import StudentChallengesCard from "./StudentChallengesCard"; // Importar o componente de desafios
 
-interface StudentDashboardProps {
-  student: {
-    id: string;
-    name: string;
-    email: string;
-  };
+interface Student {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface EvaluationData {
+  evaluation_date: string;
+  weight: number;
+  body_fat_percentage: number;
+  lean_mass: number;
 }
 
 const StudentDashboard = ({ student }: StudentDashboardProps) => {
   const studentData = useStudentData();
   const [quickStats, setQuickStats] = useState<any[]>([]);
   const [todaysWorkout, setTodaysWorkout] = useState<any>(null);
+  const [allEvaluations, setAllEvaluations] = useState<EvaluationData[]>([]);
+  const [loadingEvaluations, setLoadingEvaluations] = useState(true);
 
   useEffect(() => {
     if (studentData.loading || !studentData.latestMeasurements) return;
@@ -71,6 +82,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
 
     // Fetch today's workout (real)
     fetchTodaysWorkout();
+    fetchAllEvaluations(); // Fetch all evaluations for charts
   }, [studentData]);
 
   const fetchTodaysWorkout = async () => {
@@ -81,7 +93,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
         .select(`
           *,
           workout_templates (
-            name, description, category, difficulty,
+            name, description, category, difficulty, estimated_duration,
             workout_template_exercises (
               order_index, sets, reps, rest_time, notes,
               exercises (name, instructions)
@@ -98,6 +110,24 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
     } catch (error) {
       console.warn('Warning fetching today\'s workout:', error);
       setTodaysWorkout(null); // Fallback vazio
+    }
+  };
+
+  const fetchAllEvaluations = async () => {
+    setLoadingEvaluations(true);
+    try {
+      const { data, error } = await supabase
+        .from('evaluations')
+        .select('evaluation_date, weight, body_fat_percentage, lean_mass')
+        .eq('student_id', student.id)
+        .order('evaluation_date', { ascending: true });
+
+      if (error) throw error;
+      setAllEvaluations(data || []);
+    } catch (error) {
+      console.error('Error fetching all evaluations:', error);
+    } finally {
+      setLoadingEvaluations(false);
     }
   };
 
@@ -305,62 +335,73 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
         </Card>
       </div>
 
-      {/* Main Content Grid */}
+      {/* New Row for Charts, Nutrition, Challenges */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Quick Chat - Static component, but could fetch recent messages */}
-        <Card className="shadow-primary/10 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-primary" />
-              Chat com Trainer
-            </CardTitle>
-            <CardDescription>
-              Converse com seu personal trainer
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ChatSystem compact recipientName="Seu Trainer" recipientType="trainer" />
-          </CardContent>
-        </Card>
+        {/* Student Progress Charts */}
+        <StudentProgressCharts evaluations={allEvaluations} loading={loadingEvaluations} />
 
-        {/* Body Composition - Real data from hook */}
-        <Card className="shadow-primary/10 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              Composição Corporal
-            </CardTitle>
-            <CardDescription>
-              Baseado nas últimas medidas reais
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {studentData.latestMeasurements.weight ? (
-              <BodyCompositionCalculator
-                data={{
-                  weight: studentData.latestMeasurements.weight || 0,
-                  height: 175, // Fetch from student profile if needed
-                  age: 28, // Fetch from student profile
-                  gender: 'male' as const, // Fetch from student profile
-                  waist: studentData.latestMeasurements.waist || 0,
-                  neck: 38, // From evaluation or default
-                  hip: studentData.latestMeasurements.waist ? studentData.latestMeasurements.waist * 1.1 : undefined, // Estimate for females
-                }}
-              />
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">Sem medidas recentes</p>
-                <p className="text-sm mt-1">Agende uma avaliação com seu trainer para ver sua composição corporal</p>
-                <Button className="mt-4 gradient-primary" onClick={() => window.location.href = '/chat'}>
-                  <MessageCircle className="mr-2 h-4 w-4" />
-                  Agendar com Trainer
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {/* Student Nutrition Overview */}
+          <StudentNutritionCard studentId={student.id} />
+
+          {/* Student Challenges Overview */}
+          <StudentChallengesCard studentId={student.id} />
+        </div>
       </div>
+
+      {/* Body Composition - Real data from hook */}
+      <Card className="shadow-primary/10 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-primary" /> {/* Changed icon to CalendarDays */}
+            Composição Corporal
+          </CardTitle>
+          <CardDescription>
+            Baseado nas últimas medidas reais
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {studentData.latestMeasurements.weight ? (
+            <BodyCompositionCalculator
+              data={{
+                weight: studentData.latestMeasurements.weight || 0,
+                height: student.height || 175, // Use student's height if available, fallback to 175
+                age: student.age || 28, // Use student's age if available, fallback to 28
+                gender: (student.gender as 'male' | 'female') || 'male', // Use student's gender, fallback to male
+                waist: studentData.latestMeasurements.waist || 0,
+                neck: 38, // From evaluation or default
+                hip: studentData.latestMeasurements.waist ? studentData.latestMeasurements.waist * 1.1 : undefined, // Estimate for females
+              }}
+            />
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium">Sem medidas recentes</p>
+              <p className="text-sm mt-1">Agende uma avaliação com seu trainer para ver sua composição corporal</p>
+              <Button className="mt-4 gradient-primary" onClick={() => window.location.href = '/chat'}>
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Agendar com Trainer
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick Chat - Static component, but could fetch recent messages */}
+      <Card className="shadow-primary/10 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-primary" />
+            Chat com Trainer
+          </CardTitle>
+          <CardDescription>
+            Converse com seu personal trainer
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <ChatSystem compact recipientName="Seu Trainer" recipientType="trainer" />
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -252,7 +252,7 @@ const ExerciseLibrary = ({ onSelectExercise, compact = false }: ExerciseLibraryP
               <CardContent className="space-y-4">
                 {selectedExercise.video_url && (
                   <div className="relative bg-muted rounded-lg h-40 flex items-center justify-center">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => window.open(selectedExercise.video_url!, '_blank')}>
                       <Play className="h-4 w-4 mr-2" />
                       Ver Demonstração
                     </Button>

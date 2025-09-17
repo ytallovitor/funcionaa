@@ -300,7 +300,7 @@ const WorkoutDetail = () => {
                         </div>
                       )}
                       {wte.exercises.video_url && (
-                        <Button variant="outline" size="sm" className="mt-2">
+                        <Button variant="outline" size="sm" className="mt-2" onClick={() => window.open(wte.exercises.video_url!, '_blank')}>
                           <Video className="h-4 w-4 mr-2" />
                           Ver Vídeo
                         </Button>

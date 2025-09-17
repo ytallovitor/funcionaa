@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Importar Select
 import { Activity } from "lucide-react";
 
 export default function Auth() {
@@ -15,6 +16,9 @@ export default function Auth() {
     email: "",
     password: "",
     fullName: "",
+    age: "", // Novo campo
+    gender: "", // Novo campo
+    height: "", // Novo campo
     confirmPassword: ""
   });
 
@@ -134,6 +138,44 @@ export default function Auth() {
                       value={formData.email}
                       onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                       required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="age">Idade</Label>
+                      <Input
+                        id="age"
+                        type="number"
+                        placeholder="Ex: 30"
+                        value={formData.age}
+                        onChange={(e) => setFormData(prev => ({ ...prev, age: e.target.value }))}
+                        required={!isSignIn}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">Gênero</Label>
+                      <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))} required={!isSignIn}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="masculino">Masculino</SelectItem>
+                          <SelectItem value="feminino">Feminino</SelectItem>
+                          <SelectItem value="outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="height">Altura (cm)</Label>
+                    <Input
+                      id="height"
+                      type="number"
+                      step="0.1"
+                      placeholder="Ex: 175.5"
+                      value={formData.height}
+                      onChange={(e) => setFormData(prev => ({ ...prev, height: e.target.value }))}
+                      required={!isSignIn}
                     />
                   </div>
                   <div className="space-y-2">
