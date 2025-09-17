@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, AlertTriangle, Info } from "lucide-react";
+import { Loader2, Save, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -21,42 +21,62 @@ interface AnamnesisData {
   emergency_contact?: string;
   emergency_phone?: string;
   
-  // Seção 2: Histórico Médico
+  // Seção 2: Histórico Médico e Saúde Atual
   medical_conditions?: string;
   surgeries?: string;
   allergies?: string;
   current_pain_level?: number; // 0-10
   pain_locations?: string;
   previous_injuries?: string;
+  family_medical_history?: string; // NOVO
+  cardiovascular_risk_factors?: string; // NOVO
+  respiratory_issues?: string; // NOVO
+  digestive_issues?: string; // NOVO
+  neurological_issues?: string; // NOVO
+  bone_joint_issues?: string; // NOVO
+  mental_health_history?: string; // NOVO
+  recent_medical_exams?: string; // NOVO
   
   // Seção 3: Medicamentos e Suplementos
   current_medications?: string;
   supplement_use?: string;
   
-  // Seção 4: Histórico de Treino
+  // Seção 4: Histórico de Treino e Atividade Física
   training_experience?: string;
   current_fitness_level?: string;
   previous_diet_experience?: string;
+  previous_physical_activities?: string; // NOVO
+  reasons_for_stopping_training?: string; // NOVO
+  preferred_training_environment?: string; // NOVO
+  preferred_training_style?: string; // NOVO
   
-  // Seção 5: Estilo de Vida
+  // Seção 5: Estilo de Vida e Hábitos Diários
   occupation?: string;
   physical_activity_work?: string;
   sleep_quality?: string;
   average_sleep_hours?: number;
   stress_level?: string;
   smoking_status?: string;
-  cigarettes_per_day?: number; // Novo campo
-  quit_smoking_years_ago?: number; // Novo campo
+  cigarettes_per_day?: number;
+  quit_smoking_years_ago?: number;
   alcohol_consumption?: string;
   diet_type?: string;
+  daily_water_intake_liters?: number; // NOVO
+  daily_caffeine_intake_mg?: number; // NOVO
+  screen_time_hours_per_day?: number; // NOVO
+  hobbies_interests?: string; // NOVO
+  social_support_network?: string; // NOVO
   
-  // Seção 6: Objetivos e Barreiras
+  // Seção 6: Objetivos e Barreiras ao Treino
   main_goal?: string;
   specific_fitness_goals?: string;
   timeline_for_goals?: string;
   training_frequency?: string;
   preferred_training_times?: string;
   barriers_to_training?: string;
+  motivation_level?: string; // NOVO
+  expectations_from_trainer?: string; // NOVO
+  how_success_is_measured_by_client?: string; // NOVO
 }
 
 interface AnamnesisFormProps {
@@ -93,36 +113,18 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
       if (data) {
         setFormData(data);
       } else {
+        // Initialize all fields to empty/undefined for a clean form
         setFormData({
-          emergency_contact: "",
-          emergency_phone: "",
-          medical_conditions: "",
-          surgeries: "",
-          allergies: "",
-          current_pain_level: undefined,
-          pain_locations: "",
-          previous_injuries: "",
-          current_medications: "",
-          supplement_use: "",
-          training_experience: "",
-          current_fitness_level: "",
-          previous_diet_experience: "",
-          occupation: "",
-          physical_activity_work: "",
-          sleep_quality: "",
-          average_sleep_hours: undefined,
-          stress_level: "",
-          smoking_status: "",
-          cigarettes_per_day: undefined, // Inicializa novo campo
-          quit_smoking_years_ago: undefined, // Inicializa novo campo
-          alcohol_consumption: "",
-          diet_type: "",
-          main_goal: "",
-          specific_fitness_goals: "",
-          timeline_for_goals: "",
-          training_frequency: "",
-          preferred_training_times: "",
-          barriers_to_training: ""
+          emergency_contact: "", emergency_phone: "",
+          medical_conditions: "", surgeries: "", allergies: "", current_pain_level: undefined, pain_locations: "", previous_injuries: "",
+          family_medical_history: "", cardiovascular_risk_factors: "", respiratory_issues: "", digestive_issues: "", neurological_issues: "", bone_joint_issues: "", mental_health_history: "", recent_medical_exams: "",
+          current_medications: "", supplement_use: "",
+          training_experience: "", current_fitness_level: "", previous_diet_experience: "",
+          previous_physical_activities: "", reasons_for_stopping_training: "", preferred_training_environment: "", preferred_training_style: "",
+          occupation: "", physical_activity_work: "", sleep_quality: "", average_sleep_hours: undefined, stress_level: "", smoking_status: "", cigarettes_per_day: undefined, quit_smoking_years_ago: undefined, alcohol_consumption: "", diet_type: "",
+          daily_water_intake_liters: undefined, daily_caffeine_intake_mg: undefined, screen_time_hours_per_day: undefined, hobbies_interests: "", social_support_network: "",
+          main_goal: "", specific_fitness_goals: "", timeline_for_goals: "", training_frequency: "", preferred_training_times: "", barriers_to_training: "",
+          motivation_level: "", expectations_from_trainer: "", how_success_is_measured_by_client: ""
         });
       }
     } catch (error) {
@@ -142,23 +144,11 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
   };
 
   const validateRequiredFields = (data: AnamnesisData) => {
-    const required = [
-      'emergency_contact',
-      'emergency_phone',
-      'medical_conditions',
-      'surgeries',
-      'allergies',
-      'previous_injuries',
-      'current_medications',
-      'main_goal',
-      'training_experience', // Adicionado como obrigatório para um perfil mais completo
-      'current_fitness_level', // Adicionado como obrigatório
-      'sleep_quality', // Adicionado como obrigatório
-      'average_sleep_hours', // Adicionado como obrigatório
-      'stress_level', // Adicionado como obrigatório
-      'smoking_status', // Adicionado como obrigatório
-      'alcohol_consumption', // Adicionado como obrigatório
-      'diet_type', // Adicionado como obrigatório
+    const required: (keyof AnamnesisData)[] = [
+      'emergency_contact', 'emergency_phone',
+      'medical_conditions', 'surgeries', 'allergies', 'previous_injuries', 'current_medications',
+      'main_goal', 'training_experience', 'current_fitness_level', 'sleep_quality', 'average_sleep_hours',
+      'stress_level', 'smoking_status', 'alcohol_consumption', 'diet_type',
     ];
 
     // Validação condicional para tabagismo
@@ -169,7 +159,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
     }
 
     return required.every(field => {
-      const value = data[field as keyof AnamnesisData];
+      const value = data[field];
       return typeof value === 'string' ? value.trim() !== '' : value !== undefined && value !== null;
     });
   };
@@ -284,7 +274,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
 
                 <Separator />
 
-                {/* Seção 2: Histórico Médico */}
+                {/* Seção 2: Histórico Médico e Saúde Atual */}
                 <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                   <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
                     🏥 Histórico Médico e Saúde Atual
@@ -373,6 +363,118 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="family_medical_history">Histórico Médico Familiar (Doenças Cardiovasculares, Diabetes, Câncer, etc.)</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Textarea
+                          id="family_medical_history"
+                          value={formData.family_medical_history || ""}
+                          onChange={(e) => updateFormData('family_medical_history', e.target.value)}
+                          placeholder="Ex: Pai com hipertensão, mãe com diabetes tipo 2, avô com histórico de infarto..."
+                          rows={2}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Fatores genéticos podem aumentar o risco de certas condições (ACSM, 2021).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="cardiovascular_risk_factors">Fatores de Risco Cardiovascular (além do tabagismo)</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Textarea
+                          id="cardiovascular_risk_factors"
+                          value={formData.cardiovascular_risk_factors || ""}
+                          onChange={(e) => updateFormData('cardiovascular_risk_factors', e.target.value)}
+                          placeholder="Ex: Hipertensão, dislipidemia, diabetes, obesidade, sedentarismo (se não for o caso do aluno)..."
+                          rows={2}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Identificar e gerenciar esses fatores é crucial para a saúde cardíaca (ACSM, 2021).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="respiratory_issues">Problemas Respiratórios (Asma, Bronquite, DPOC)</Label>
+                      <Textarea
+                        id="respiratory_issues"
+                        value={formData.respiratory_issues || ""}
+                        onChange={(e) => updateFormData('respiratory_issues', e.target.value)}
+                        placeholder="Ex: Asma induzida por exercício, bronquite crônica..."
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="digestive_issues">Problemas Digestivos (Refluxo, SII, Gastrite)</Label>
+                      <Textarea
+                        id="digestive_issues"
+                        value={formData.digestive_issues || ""}
+                        onChange={(e) => updateFormData('digestive_issues', e.target.value)}
+                        placeholder="Ex: Refluxo gastroesofágico, síndrome do intestino irritável..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="neurological_issues">Problemas Neurológicos (Enxaqueca, Tontura, Convulsões)</Label>
+                      <Textarea
+                        id="neurological_issues"
+                        value={formData.neurological_issues || ""}
+                        onChange={(e) => updateFormData('neurological_issues', e.target.value)}
+                        placeholder="Ex: Enxaquecas frequentes, histórico de tonturas..."
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bone_joint_issues">Problemas Ósseos/Articulares (Osteoporose, Artrose, Coluna)</Label>
+                      <Textarea
+                        id="bone_joint_issues"
+                        value={formData.bone_joint_issues || ""}
+                        onChange={(e) => updateFormData('bone_joint_issues', e.target.value)}
+                        placeholder="Ex: Osteoporose, artrose no joelho, hérnia de disco lombar..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="mental_health_history">Histórico de Saúde Mental (Depressão, Ansiedade, Transtornos Alimentares)</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Textarea
+                          id="mental_health_history"
+                          value={formData.mental_health_history || ""}
+                          onChange={(e) => updateFormData('mental_health_history', e.target.value)}
+                          placeholder="Ex: Depressão (em tratamento), ansiedade generalizada, histórico de transtorno alimentar..."
+                          rows={2}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>A saúde mental impacta a adesão e a percepção do exercício (ACSM, 2021).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="recent_medical_exams">Exames Médicos Recentes (Data do último check-up, exames de sangue relevantes)</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Textarea
+                          id="recent_medical_exams"
+                          value={formData.recent_medical_exams || ""}
+                          onChange={(e) => updateFormData('recent_medical_exams', e.target.value)}
+                          placeholder="Ex: Último check-up em Jan/2024, exames de sangue com colesterol alto..."
+                          rows={2}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Fornece uma base objetiva para a condição de saúde atual (ACSM, 2021).</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 </div>
 
                 <Separator />
@@ -424,7 +526,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
 
                 <Separator />
 
-                {/* Seção 4: Histórico de Treino */}
+                {/* Seção 4: Histórico de Treino e Atividade Física */}
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
                     💪 Histórico de Treino e Atividade Física
@@ -492,11 +594,61 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="previous_physical_activities">Modalidades de Atividade Física Praticadas Anteriormente</Label>
+                    <Textarea
+                      id="previous_physical_activities"
+                      value={formData.previous_physical_activities || ""}
+                      onChange={(e) => updateFormData('previous_physical_activities', e.target.value)}
+                      placeholder="Ex: Musculação (5 anos), corrida (2 anos), natação (infância), yoga..."
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="reasons_for_stopping_training">Motivos de Interrupção de Treinos Anteriores</Label>
+                    <Textarea
+                      id="reasons_for_stopping_training"
+                      value={formData.reasons_for_stopping_training || ""}
+                      onChange={(e) => updateFormData('reasons_for_stopping_training', e.target.value)}
+                      placeholder="Ex: Falta de tempo, lesão, desmotivação, mudança de rotina..."
+                      rows={2}
+                    />
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="preferred_training_environment">Ambiente de Treino Preferido</Label>
+                      <Select
+                        value={formData.preferred_training_environment || ""}
+                        onValueChange={(value) => updateFormData('preferred_training_environment', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Onde você prefere treinar?" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="academia">Academia</SelectItem>
+                          <SelectItem value="ar_livre">Ar Livre (parque, rua)</SelectItem>
+                          <SelectItem value="casa">Casa</SelectItem>
+                          <SelectItem value="estudio">Estúdio (personal, pilates)</SelectItem>
+                          <SelectItem value="variado">Variado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="preferred_training_style">Estilo de Treino Preferido</Label>
+                      <Textarea
+                        id="preferred_training_style"
+                        value={formData.preferred_training_style || ""}
+                        onChange={(e) => updateFormData('preferred_training_style', e.target.value)}
+                        placeholder="Ex: Musculação com pesos livres, funcional com peso corporal, aulas de grupo, yoga..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <Separator />
 
-                {/* Seção 5: Estilo de Vida */}
+                {/* Seção 5: Estilo de Vida e Hábitos Diários */}
                 <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                   <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
                     🏠 Estilo de Vida e Hábitos Diários
@@ -676,6 +828,69 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid md:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="daily_water_intake_liters">Consumo Diário de Água (litros)</Label>
+                      <Input
+                        id="daily_water_intake_liters"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={formData.daily_water_intake_liters === undefined ? "" : String(formData.daily_water_intake_liters)}
+                        onChange={(e) => updateFormData('daily_water_intake_liters', e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                        placeholder="Ex: 2.5"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="daily_caffeine_intake_mg">Consumo Diário de Cafeína (mg)</Label>
+                      <Input
+                        id="daily_caffeine_intake_mg"
+                        type="number"
+                        min="0"
+                        value={formData.daily_caffeine_intake_mg === undefined ? "" : String(formData.daily_caffeine_intake_mg)}
+                        onChange={(e) => updateFormData('daily_caffeine_intake_mg', e.target.value === "" ? undefined : parseInt(e.target.value))}
+                        placeholder="Ex: 200 (aprox. 2 xícaras de café)"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="screen_time_hours_per_day">Tempo de Tela Diário (horas)</Label>
+                    <Input
+                      id="screen_time_hours_per_day"
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={formData.screen_time_hours_per_day === undefined ? "" : String(formData.screen_time_hours_per_day)}
+                      onChange={(e) => updateFormData('screen_time_hours_per_day', e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                      placeholder="Ex: 6.5"
+                    />
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="hobbies_interests">Hobbies e Interesses (para entender atividades de lazer)</Label>
+                    <Textarea
+                      id="hobbies_interests"
+                      value={formData.hobbies_interests || ""}
+                      onChange={(e) => updateFormData('hobbies_interests', e.target.value)}
+                      placeholder="Ex: Leitura, jardinagem, jogos de tabuleiro, fotografia, música..."
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="social_support_network">Rede de Apoio Social</Label>
+                    <Select
+                      value={formData.social_support_network || ""}
+                      onValueChange={(value) => updateFormData('social_support_network', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Como você avalia sua rede de apoio?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="forte">Forte (muito apoio de amigos/família)</SelectItem>
+                        <SelectItem value="moderada">Moderada (algum apoio)</SelectItem>
+                        <SelectItem value="limitada">Limitada (pouco ou nenhum apoio)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <Separator />
@@ -780,6 +995,43 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         <p>Essencial para adaptações: 70% dos desistentes citam barreiras logísticas. Identificá-las permite criar soluções (NSCA, 2016).</p>
                       </TooltipContent>
                     </Tooltip>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="motivation_level">Nível de Motivação para o Treino</Label>
+                    <Select
+                      value={formData.motivation_level || ""}
+                      onValueChange={(value) => updateFormData('motivation_level', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Qual seu nível de motivação?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="muito_alta">Muito Alta</SelectItem>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="moderada">Moderada</SelectItem>
+                        <SelectItem value="baixa">Baixa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="expectations_from_trainer">Expectativas em Relação ao Treinador</Label>
+                    <Textarea
+                      id="expectations_from_trainer"
+                      value={formData.expectations_from_trainer || ""}
+                      onChange={(e) => updateFormData('expectations_from_trainer', e.target.value)}
+                      placeholder="Ex: Espero orientação constante, correção de postura, motivação, planos de treino variados..."
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="how_success_is_measured_by_client">Como o Aluno Mede o Próprio Sucesso</Label>
+                    <Textarea
+                      id="how_success_is_measured_by_client"
+                      value={formData.how_success_is_measured_by_client || ""}
+                      onChange={(e) => updateFormData('how_success_is_measured_by_client', e.target.value)}
+                      placeholder="Ex: Pela balança, pelas roupas, pela energia diária, pela performance nos treinos, pela saúde geral..."
+                      rows={2}
+                    />
                   </div>
                 </div>
               </>

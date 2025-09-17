@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Activity, User, Target, Calendar, Dumbbell } from "lucide-react";
+import { Activity, User, Target, Calendar, Dumbbell, Scale, Video } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
+import StudentProgressCharts from "@/components/StudentProgressCharts"; // Importar o novo componente de gráficos
 
 const StudentPortal = () => {
   const { trainerId } = useParams();
@@ -247,6 +248,9 @@ const StudentPortal = () => {
           </Card>
         </div>
 
+        {/* Gráficos de Progresso */}
+        <StudentProgressCharts evaluations={evaluations} loading={loading} />
+
         {/* Main Sections - Stack vertically on mobile */}
         <div className="space-y-6">
           {/* Meus Treinos */}
@@ -260,7 +264,7 @@ const StudentPortal = () => {
                 Seus treinos atribuídos pelo seu personal trainer
               </CardDescription>
             </CardHeader>
-            <CardContent className="max-h-[300px] overflow-y-auto"> {/* Scrollable on mobile */}
+            <CardContent className="max-h-[400px] overflow-y-auto"> {/* Scrollable on mobile */}
               {workouts.length > 0 ? (
                 <Accordion type="single" collapsible className="w-full">
                   {workouts.map((workout) => (
@@ -269,14 +273,28 @@ const StudentPortal = () => {
                         {workout.name}
                       </AccordionTrigger>
                       <AccordionContent className="px-2 py-3 space-y-2">
-                        <p className="text-sm text-muted-foreground">{workout.description}</p>
+                        <p className="text-sm text-muted-foreground mb-2">{workout.description}</p>
                         {workout.exercises?.map((ex: any, index: number) => (
-                          <div key={index} className="p-2 bg-accent/50 rounded text-xs">
-                            <p className="font-medium">{ex.name}</p>
-                            <p className="text-muted-foreground">
+                          <div key={index} className="p-3 bg-accent/50 rounded text-xs border border-accent/70">
+                            <p className="font-medium text-base">{ex.name}</p>
+                            <p className="text-muted-foreground mt-1">
                               {ex.sets} séries x {ex.reps} reps • Descanso: {ex.rest_time}s
                             </p>
-                            {ex.notes && <p className="text-primary mt-1">Nota: {ex.notes}</p>}
+                            {ex.instructions && ex.instructions.length > 0 && (
+                              <div className="mt-2">
+                                <h5 className="font-semibold text-xs text-primary">Instruções:</h5>
+                                <ul className="list-disc list-inside text-xs text-muted-foreground">
+                                  {ex.instructions.map((inst: string, i: number) => <li key={i}>{inst}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            {ex.notes && <p className="text-primary mt-2">Nota do Trainer: {ex.notes}</p>}
+                            {ex.video_url && (
+                              <Button variant="outline" size="sm" className="mt-3">
+                                <Video className="h-3 w-3 mr-1" />
+                                Ver Vídeo
+                              </Button>
+                            )}
                           </div>
                         ))}
                       </AccordionContent>
@@ -322,6 +340,11 @@ const StudentPortal = () => {
                         {evaluation.body_fat_percentage && (
                           <p>
                             <span className="font-medium">Gordura:</span> {evaluation.body_fat_percentage.toFixed(1)}%
+                          </p>
+                        )}
+                        {evaluation.lean_mass && (
+                          <p>
+                            <span className="font-medium">Massa Magra:</span> {evaluation.lean_mass.toFixed(1)}kg
                           </p>
                         )}
                       </div>
