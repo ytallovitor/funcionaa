@@ -558,7 +558,7 @@ export type Database = {
           end_date: string | null
           id: string
           notes: string | null
-          start_date: string | null
+          start_time: string | null
           status: string | null
           student_id: string
           updated_at: string
@@ -570,7 +570,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           notes?: string | null
-          start_date?: string | null
+          start_time?: string | null
           status?: string | null
           student_id: string
           updated_at?: string
@@ -582,7 +582,7 @@ export type Database = {
           end_date?: string | null
           id?: string
           notes?: string | null
-          start_date?: string | null
+          start_time?: string | null
           status?: string | null
           student_id?: string
           updated_at?: string
@@ -850,6 +850,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fn_student_active_challenges: {
+        Args: { p_password: string; p_username: string }
+        Returns: {
+          id: string
+          challenge_id: string
+          current_progress: number
+          status: string
+          challenges: Json
+        }[]
+      }
       fn_student_evaluations: {
         Args: { p_password: string; p_username: string }
         Returns: {
@@ -879,6 +889,34 @@ export type Database = {
           weight: number
         }[]
       }
+      fn_student_meal_entries: {
+        Args: { p_meal_date: string; p_password: string; p_username: string }
+        Returns: {
+          id: string
+          food_item_id: string
+          quantity_grams: number
+          meal_type: string
+          meal_date: string
+          food_items: Json
+        }[]
+      }
+      fn_student_nutrition_goals: {
+        Args: { p_password: string; p_username: string }
+        Returns: {
+          calories: number
+          carbs: number
+          created_at: string
+          end_date: string | null
+          fat: number
+          fiber: number | null
+          id: string
+          is_active: boolean | null
+          protein: number
+          start_date: string
+          student_id: string
+          updated_at: string
+        }[]
+      }
       fn_student_portal_login: {
         Args: { p_password: string; p_username: string }
         Returns: {
@@ -893,6 +931,18 @@ export type Database = {
           trainer_id: string
           updated_at: string
         }
+      }
+      fn_student_workouts: {
+        Args: { p_password: string; p_username: string }
+        Returns: {
+          id: string
+          name: string
+          description: string
+          category: string
+          difficulty: string
+          estimated_duration: number
+          exercises: Json
+        }[]
       }
       get_or_create_student_portal: {
         Args: {

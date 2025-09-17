@@ -9,12 +9,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Activity, User, Target, Calendar, Dumbbell, Video } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import StudentProgressCharts from "@/components/StudentProgressCharts"; // Importar o novo componente de gráficos
+import StudentNutritionCard from "@/components/StudentNutritionCard"; // Importar o componente de nutrição
+import StudentChallengesCard from "@/components/StudentChallengesCard"; // Importar o componente de desafios
 
 const StudentPortal = () => {
   const { trainerId: _trainerId } = useParams(); // Renamed to _trainerId as it's not used
   const [studentData, setStudentData] = useState<any>(null);
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [workouts, setWorkouts] = useState<any[]>([]);
+  const [nutritionGoal, setNutritionGoal] = useState<any>(null);
+  const [mealEntries, setMealEntries] = useState<any[]>([]);
+  const [activeChallenges, setActiveChallenges] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -43,8 +48,15 @@ const StudentPortal = () => {
         return;
       }
 
-      // Fetch evaluations and workouts in parallel
-      const [evalResponse, workoutResponse] = await Promise.all([
+      // Fetch all data in parallel
+      const today = new Date().toISOString().split('T')[0];
+      const [
+        evalResponse,
+        workoutResponse,
+        nutritionGoalResponse,
+        mealEntriesResponse,
+        challengesResponse
+      ] = await Promise.all([
         supabase.rpc('fn_student_evaluations', {
           p_username: loginForm.username,
           p_password: loginForm.password,
@@ -52,15 +64,34 @@ const StudentPortal = () => {
         supabase.rpc('fn_student_workouts', {
           p_username: loginForm.username,
           p_password: loginForm.password,
+        }),
+        supabase.rpc('fn_student_nutrition_goals', {
+          p_username: loginForm.username,
+          p_password: loginForm.password,
+        }).maybeSingle(),
+        supabase.rpc('fn_student_meal_entries', {
+          p_username: loginForm.username,
+          p_password: loginForm.password,
+          p_meal_date: today
+        }),
+        supabase.rpc('fn_student_active_challenges', {
+          p_username: loginForm.username,
+          p_password: loginForm.password,
         })
       ]);
 
       if (evalResponse.error) throw evalResponse.error;
       if (workoutResponse.error) throw workoutResponse.error;
+      if (nutritionGoalResponse.error && nutritionGoalResponse.error.code !== 'PGRST116') throw nutritionGoalResponse.error;
+      if (mealEntriesResponse.error) throw mealEntriesResponse.error;
+      if (challengesResponse.error) throw challengesResponse.error;
 
       setStudentData(student);
       setEvaluations(evalResponse.data || []);
       setWorkouts(workoutResponse.data || []);
+      setNutritionGoal(nutritionGoalResponse.data);
+      setMealEntries(mealEntriesResponse.data || []);
+      setActiveChallenges(challengesResponse.data || []);
       setIsLoggedIn(true);
 
       toast({
@@ -81,6 +112,12 @@ const StudentPortal = () => {
   };
 
   const latestEvaluation = evaluations[0];
+
+  // Mock data for StudentNutritionCard and StudentChallengesCard props
+  // These components expect a studentId and will fetch their own data.
+  // We need to ensure the RPC functions provide the necessary data for them.
+  // For now, we'll pass the studentData.id directly.
+  const studentIdForCards = studentData?.id;
 
   if (loading) {
     return (
@@ -250,6 +287,12 @@ const StudentPortal = () => {
         {/* Gráficos de Progresso */}
         <StudentProgressCharts evaluations={evaluations} loading={loading} />
 
+        {/* Nutrition and Challenges Overview */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {studentIdForCards && <StudentNutritionCard studentId={studentIdForCards} />}
+          {studentIdForCards && <StudentChallengesCard studentId={studentIdForCards} />}
+        </div>
+
         {/* Main Sections - Stack vertically on mobile */}
         <div className="space-y-6">
           {/* Meus Treinos */}
@@ -289,7 +332,7 @@ const StudentPortal = () => {
                             )}
                             {ex.notes && <p className="text-primary mt-2">Nota do Trainer: {ex.notes}</p>}
                             {ex.video_url && (
-                              <Button variant="outline" size="sm" className="mt-3">
+                              <Button variant="outline" size="sm" className="mt-3" onClick={() => window.open(ex.video_url, '_blank')}>
                                 <Video className="h-3 w-3 mr-1" />
                                 Ver Vídeo
                               </Button>
