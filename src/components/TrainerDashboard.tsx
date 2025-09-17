@@ -131,7 +131,7 @@ const TrainerDashboard = ({ trainer: _trainer }: TrainerDashboardProps) => {
 
       } catch (error) {
         console.error('Error fetching analytics:', error);
-        setAnalytics((prev: any) => ({ ...prev, loading: false }));
+        setAnalytics((prev: typeof analytics) => ({ ...prev, loading: false }));
       }
     };
 

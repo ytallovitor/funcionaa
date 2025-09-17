@@ -189,7 +189,8 @@ const ChatSystem = ({
                 <span className="text-xs text-muted-foreground">Online</span>
               </div>
             </div>
-          </CardHeader>
+          </div>
+        </CardHeader>
         <CardContent className="flex-1 p-0 flex flex-col">
           <ScrollArea className="flex-1 p-3" ref={scrollAreaRef}>
             <div className="space-y-3">

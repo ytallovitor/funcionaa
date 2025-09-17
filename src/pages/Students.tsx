@@ -151,6 +151,7 @@ const Students = () => {
         description: "Falha ao conectar com Supabase. Verifique .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) e rede. Console: F12 para detalhes.",
         variant: "destructive"
       });
+      setStudents([]);
       return null;
     }
   };
