@@ -6,17 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, Info } from "lucide-react";
+import { Loader2, Save, Info, Wand2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import AnamnesisReportDialog from "./AnamnesisReportDialog"; // Importar o novo componente
 
 interface Student {
   id: string;
   name: string;
-  age?: number; // Adicionado para o relatório
-  gender?: string; // Adicionado para o relatório
 }
 
 interface AnamnesisData {
@@ -82,11 +79,13 @@ interface AnamnesisData {
   how_success_is_measured_by_client?: string; // NOVO
 }
 
-interface AnamnesisReport {
-  summary: string;
-  challenges_risks: string[];
-  suggestions: string[];
-  scientific_basis: string[];
+interface AIReport {
+  summary: {
+    overallRisks: string[];
+    overallSuggestions: string[];
+  };
+  detailedAnalysis: { section: string; findings: string[]; recommendations: string[] }[];
+  disclaimer: string;
 }
 
 interface AnamnesisFormProps {
@@ -101,8 +100,8 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<AnamnesisData>({});
   const [requiredFieldsFilled, setRequiredFieldsFilled] = useState(false);
-  const [reportData, setReportData] = useState<AnamnesisReport | null>(null);
-  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [aiReport, setAiReport] = useState<AIReport | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   useEffect(() => {
     if (open && student) {
@@ -139,6 +138,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
           motivation_level: "", expectations_from_trainer: "", how_success_is_measured_by_client: ""
         });
       }
+      setAiReport(null); // Reset AI report when fetching new anamnesis
     } catch (error) {
       console.error("Error fetching anamnesis:", error);
       toast({
@@ -206,16 +206,9 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
 
       toast({
         title: "Sucesso!",
-        description: "Anamnese salva com sucesso. Gerando relatório de IA..."
+        description: "Anamnese salva com sucesso. Agora você tem um perfil completo para criar treinos personalizados. (Protocolo baseado em ACSM/NSCA para triagem de riscos)."
       });
-
-      // Chamar a Edge Function para gerar o relatório
-      await generateAnamnesisReport();
-      
-      // Fechar o formulário de anamnese e abrir o relatório
       onOpenChange(false);
-      setIsReportDialogOpen(true);
-
     } catch (error) {
       console.error("Error saving anamnesis:", error);
       toast({
@@ -228,25 +221,62 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
     }
   };
 
-  const generateAnamnesisReport = async () => {
+  const handleGenerateAIReport = async () => {
     if (!student) return;
-
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-anamnesis-report', {
-        body: JSON.stringify({ student: { id: student.id, name: student.name, age: student.age, gender: student.gender }, anamnesis: formData }),
-      });
-
-      if (error) throw error;
-      
-      setReportData(data as AnamnesisReport);
-    } catch (error: any) {
-      console.error("Error generating anamnesis report:", error);
+    if (!requiredFieldsFilled) {
       toast({
-        title: "Erro ao Gerar Relatório",
-        description: error.message || "Não foi possível gerar o relatório de IA. Verifique o console para detalhes.",
+        title: "Campos Obrigatórios",
+        description: "Preencha todos os campos marcados com * antes de gerar o relatório da IA.",
         variant: "destructive"
       });
-      setReportData(null);
+      return;
+    }
+
+    setIsGeneratingReport(true);
+    setAiReport(null); // Clear previous report
+
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error("Sessão do usuário não encontrada. Faça login novamente.");
+      }
+      const accessToken = session.access_token;
+
+      const SUPABASE_PROJECT_ID = 'accvidvcrihjrzreedix'; // From Supabase Context
+      const SUPABASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co`;
+      const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/generate-anamnesis-report`;
+
+      const response = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`, // Pass auth token
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY, // Pass anon key
+        },
+        body: JSON.stringify({ anamnesisData: formData }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const reportData: AIReport = await response.json();
+      setAiReport(reportData);
+      toast({
+        title: "Relatório de IA Gerado!",
+        description: "A análise da anamnese foi concluída. Revise os riscos e sugestões.",
+      });
+
+    } catch (error: any) {
+      console.error("Error generating AI report:", error);
+      toast({
+        title: "Erro ao Gerar Relatório de IA",
+        description: error.message || "Não foi possível gerar o relatório. Verifique sua conexão e tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingReport(false);
     }
   };
 
@@ -1078,25 +1108,106 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
               </>
             )}
           </div>
-          <DialogFooter className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={isSubmitting || !requiredFieldsFilled}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Save className="mr-2 h-4 w-4" />
-              Salvar Anamnese Completa
+          <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2 pt-4 border-t">
+            <Button 
+              onClick={handleGenerateAIReport} 
+              disabled={isGeneratingReport || !requiredFieldsFilled}
+              className="gradient-primary text-white"
+            >
+              {isGeneratingReport ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Gerando Relatório...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="mr-2 h-4 w-4" />
+                  Gerar Relatório de IA
+                </>
+              )}
             </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button onClick={handleSave} disabled={isSubmitting || !requiredFieldsFilled}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Save className="mr-2 h-4 w-4" />
+                Salvar Anamnese Completa
+              </Button>
+            </div>
           </DialogFooter>
+
+          {aiReport && (
+            <div className="mt-6 p-4 border rounded-lg bg-card shadow-lg">
+              <h3 className="text-xl font-bold text-gradient mb-4 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                Análise da IA: Relatório de Anamnese
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Este relatório oferece uma visão automatizada dos riscos e sugestões com base nos dados da anamnese.
+                Lembre-se: a decisão final e a personalização são sempre do profissional.
+              </p>
+
+              <div className="space-y-4">
+                {aiReport.summary.overallRisks.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-lg text-red-600 mb-2">Riscos Gerais Identificados:</h4>
+                    <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                      {aiReport.summary.overallRisks.map((risk, index) => (
+                        <li key={index}>{risk}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {aiReport.summary.overallSuggestions.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-lg text-green-600 mb-2">Sugestões Gerais da IA:</h4>
+                    <ul className="list-disc list-inside text-sm text-green-700 space-y-1">
+                      {aiReport.summary.overallSuggestions.map((suggestion, index) => (
+                        <li key={index}>{suggestion}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {aiReport.detailedAnalysis.length > 0 && (
+                  <div className="space-y-4 mt-4">
+                    <h4 className="font-semibold text-lg text-primary">Análise Detalhada por Seção:</h4>
+                    {aiReport.detailedAnalysis.map((section, sectionIndex) => (
+                      <div key={sectionIndex} className="border-l-4 border-primary-glow pl-3 py-1">
+                        <h5 className="font-medium text-base text-primary-glow">{section.section}</h5>
+                        {section.findings.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-sm font-medium text-muted-foreground">Achados:</p>
+                            <ul className="list-disc list-inside text-xs text-muted-foreground space-y-0.5">
+                              {section.findings.map((finding, index) => (
+                                <li key={index}>{finding}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {section.recommendations.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-sm font-medium text-muted-foreground">Recomendações:</p>
+                            <ul className="list-disc list-inside text-xs text-muted-foreground space-y-0.5">
+                              {section.recommendations.map((rec, index) => (
+                                <li key={index}>{rec}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground italic mt-6 border-t pt-3">
+                {aiReport.disclaimer}
+              </p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
-
-      {reportData && student && (
-        <AnamnesisReportDialog
-          report={reportData}
-          studentName={student.name}
-          open={isReportDialogOpen}
-          onOpenChange={setIsReportDialogOpen}
-        />
-      )}
     </TooltipProvider>
   );
 };
