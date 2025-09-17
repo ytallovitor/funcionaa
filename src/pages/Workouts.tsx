@@ -76,7 +76,7 @@ const Workouts = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState<any>(null); // Kept as any for now, can be refined if needed
+  const [_userProfile, setUserProfile] = useState<any>(null); // Renamed to _userProfile as it's not used
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutTemplate | null>(null);
   const [workoutToEdit, setWorkoutToEdit] = useState<WorkoutTemplate | null>(null);

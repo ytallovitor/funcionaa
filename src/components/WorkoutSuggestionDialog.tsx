@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label"; // Adicionado import do Label
 import { Loader2, Wand2, Check, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner"; // Import toast from sonner
@@ -369,8 +370,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       if (exercises.length < currentParams.daysPerWeek * 5) { // Ajuste o threshold
         const { data: existingFallbackExercises } = await supabase
           .from('exercises')
-          .select('id, name, category, muscle_groups, difficulty, equipment, instructions, tips, duration, reps, sets, rest_time, video_url, image_url')
-          .in('name', scientificFallbackExercises.map(ex => ex.name));
+          .select('id, name, category, muscle_groups, difficulty, equipment, instructions, tips, duration, reps, sets, rest_time, video_url, image_url');
 
         const existingNames = new Set(existingFallbackExercises?.map(ex => ex.name));
         const exercisesToInsert = scientificFallbackExercises.filter(
