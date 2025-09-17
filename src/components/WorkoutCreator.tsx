@@ -7,20 +7,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ExerciseLibrary from "./ExerciseLibrary";
 import { 
-  Plus, 
   Trash2, 
   Save, 
   Dumbbell, 
   Clock, 
-  Target,
   Edit,
-  GripVertical,
   X,
   Loader2
 } from "lucide-react";
@@ -215,16 +211,15 @@ const WorkoutCreator = ({ onSave, editingWorkout, onCancel }: WorkoutCreatorProp
         if (updateError) throw updateError;
 
         // Handle workout_template_exercises: delete removed, update existing, insert new
-        const existingExerciseIds = new Set(editingWorkout.workout_template_exercises?.map(wte => wte.id));
         const currentExerciseIds = new Set(workoutExercises.filter(we => we.id).map(we => we.id));
 
         // Delete removed exercises
-        const exercisesToDelete = editingWorkout.workout_template_exercises?.filter(wte => !currentExerciseIds.has(wte.id));
+        const exercisesToDelete = editingWorkout.workout_template_exercises?.filter(wte => wte.id && !currentExerciseIds.has(wte.id));
         if (exercisesToDelete && exercisesToDelete.length > 0) {
           const { error: deleteError } = await supabase
             .from('workout_template_exercises')
             .delete()
-            .in('id', exercisesToDelete.map(ex => ex.id));
+            .in('id', exercisesToDelete.map(ex => ex.id!));
           if (deleteError) throw deleteError;
         }
 

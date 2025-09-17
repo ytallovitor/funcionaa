@@ -2,16 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Wand2, ArrowRight, Check, AlertCircle, Save } from "lucide-react";
+import { Loader2, Wand2, Check, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner"; // Import toast from sonner
 import { useAuth } from "@/hooks/useAuth";
-import { format } from "date-fns";
 
 interface Student {
   id: string;
@@ -35,7 +32,6 @@ interface AnamnesisData {
   current_pain_level?: number;
   medical_conditions?: string;
   previous_injuries?: string;
-  // Adicione outros campos da anamnese que você queira usar
 }
 
 interface WorkoutParams {
@@ -53,11 +49,9 @@ interface WorkoutSuggestionDialogProps {
 
 const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogProps) => {
   const navigate = useNavigate();
-  // const { toast } = useToast(); // Removed custom useToast
   const { user } = useAuth();
   const [step, setStep] = useState<'initial' | 'params' | 'generating'>('initial');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [hasAnamnesis, setHasAnamnesis] = useState<boolean | null>(null);
   const [params, setParams] = useState<WorkoutParams>({
     daysPerWeek: 3,
     workoutType: 'forca',
@@ -66,7 +60,6 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
     specialNotes: ''
   });
   const [trainerId, setTrainerId] = useState<string | null>(null);
-  const [anamnesisData, setAnamnesisData] = useState<AnamnesisData | null>(null);
 
   // Fallback exercises científicos (inseridos no DB se necessário)
   const scientificFallbackExercises = [
@@ -289,7 +282,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
     setTrainerId(profile.id);
   };
 
-  const fetchAnamnesis = async () => {
+  const fetchAnamnesis = async (): Promise<AnamnesisData | null> => {
     const { data, error } = await supabase
       .from('anamnesis')
       .select('*')
@@ -300,15 +293,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       console.error("Error fetching anamnesis:", error);
       return null;
     }
-    setAnamnesisData(data);
     return data;
-  };
-
-  const checkAnamnesis = async () => {
-    const anamnesis = await fetchAnamnesis();
-    const hasKeyFields = anamnesis?.main_goal && anamnesis?.training_experience;
-    setHasAnamnesis(!!hasKeyFields);
-    return hasKeyFields;
   };
 
   const getDifficultyLevel = (trainingExperience?: string) => {
@@ -370,7 +355,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
         // Adicione mais lógica para outras dores
       }
 
-      const { data: exercisesFromDB, error: fetchError } = await supabase
+      const { data: exercisesFromDB, error: _fetchError } = await supabase
         .from('exercises')
         .select('*')
         .ilike('category', `%${currentParams.workoutType === 'forca' ? 'Força' : currentParams.workoutType.charAt(0).toUpperCase() + currentParams.workoutType.slice(1)}%`)
@@ -410,9 +395,9 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       }
 
       // Filtra exercícios com base em equipamentos e grupos musculares excluídos
-      const availableExercises = exercises.filter(ex => {
-        const matchesEquipment = currentParams.equipmentAvailable.length === 0 || currentParams.equipmentAvailable.includes('Nenhum') || ex.equipment.some(eq => currentParams.equipmentAvailable.includes(eq));
-        const notExcludedMuscleGroup = !ex.muscle_groups.some(mg => excludedMuscleGroups.includes(mg));
+      const availableExercises = exercises.filter((ex: { equipment: string[]; muscle_groups: string[] }) => {
+        const matchesEquipment = currentParams.equipmentAvailable.length === 0 || currentParams.equipmentAvailable.includes('Nenhum') || ex.equipment.some((eq: string) => currentParams.equipmentAvailable.includes(eq));
+        const notExcludedMuscleGroup = !ex.muscle_groups.some((mg: string) => excludedMuscleGroups.includes(mg));
         return matchesEquipment && notExcludedMuscleGroup;
       });
 
@@ -430,7 +415,15 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
       const guidelines = objectiveGuidelines[student.goal as keyof typeof objectiveGuidelines] ||
                          { reps: [10, 12], sets: 3, rest: [60, 90], type: 'forca', numExercisesPerDay: 4 };
 
-      let finalGuidelines;
+      let finalGuidelines: {
+        reps: number | number[];
+        sets: number | number[];
+        rest: number | number[];
+        type: string;
+        numExercisesPerDay: number;
+        duration?: number | number[];
+      };
+
       if (currentParams.workoutType === 'cardio' || currentParams.workoutType === 'hiit') {
         finalGuidelines = { ...guidelines, reps: 0, rest: [30, 60], sets: 1, duration: [20 * 60, 45 * 60], numExercisesPerDay: 1 }; // Duration in seconds
       } else if (currentParams.workoutType === 'flexibilidade') {
@@ -462,16 +455,16 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
         for (const split of targetSplitsForDay) {
           const muscleGroupsForSplit = getMuscleGroupsForSplit(split);
           
-          let potentialExercises = availableExercises.filter(ex => 
-            ex.muscle_groups.some(mg => muscleGroupsForSplit.includes(mg)) &&
+          let potentialExercises = availableExercises.filter((ex: { muscle_groups: string[]; id: string }) => 
+            ex.muscle_groups.some((mg: string) => muscleGroupsForSplit.includes(mg)) &&
             !usedExerciseIds.has(ex.id)
           ).sort(() => 0.5 - Math.random()); // Randomiza para variedade
 
           // Prioriza exercícios que batem com o foco do aluno
           if (studentFocusMuscleGroups.length > 0) {
-            potentialExercises.sort((a, b) => {
-              const aHasFocus = a.muscle_groups.some(mg => studentFocusMuscleGroups.includes(mg));
-              const bHasFocus = b.muscle_groups.some(mg => studentFocusMuscleGroups.includes(mg));
+            potentialExercises.sort((a: { muscle_groups: string[] }, b: { muscle_groups: string[] }) => {
+              const aHasFocus = a.muscle_groups.some((mg: string) => studentFocusMuscleGroups.includes(mg));
+              const bHasFocus = b.muscle_groups.some((mg: string) => studentFocusMuscleGroups.includes(mg));
               return (aHasFocus === bHasFocus) ? 0 : aHasFocus ? -1 : 1;
             });
           }
@@ -489,7 +482,7 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
 
         // Se ainda faltam exercícios, preenche com o que sobrou
         while (exercisesForThisDay.length < finalGuidelines.numExercisesPerDay && availableExercises.length > 0) {
-          const remaining = availableExercises.filter(ex => !usedExerciseIds.has(ex.id)).sort(() => 0.5 - Math.random());
+          const remaining = availableExercises.filter((ex: { id: string }) => !usedExerciseIds.has(ex.id)).sort(() => 0.5 - Math.random());
           if (remaining.length > 0) {
             const selected = remaining.shift();
             if (selected) {
@@ -505,7 +498,15 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
           throw new Error(`Não foi possível gerar exercícios para o treino de ${dayName} com os parâmetros selecionados.`);
         }
 
-        const allTemplateExercises = [];
+        const allTemplateExercises: {
+          exercise_id: string;
+          order_index: number;
+          sets: number;
+          reps: number;
+          rest_time: number;
+          duration: number;
+          notes: string;
+        }[] = [];
         let globalOrderIndex = 0;
         let totalDurationSecondsForDay = 0;
 
@@ -519,9 +520,9 @@ const WorkoutSuggestionDialog = ({ student, onClose }: WorkoutSuggestionDialogPr
           const rest_time = Array.isArray(finalGuidelines.rest)
             ? Math.floor(Math.random() * (finalGuidelines.rest[1] - finalGuidelines.rest[0] + 1)) + finalGuidelines.rest[0]
             : finalGuidelines.rest;
-          const duration = Array.isArray(finalGuidelines.duration)
+          const duration = (finalGuidelines.duration && Array.isArray(finalGuidelines.duration))
             ? Math.floor(Math.random() * (finalGuidelines.duration[1] - finalGuidelines.duration[0] + 1)) + finalGuidelines.duration[0]
-            : finalGuidelines.duration;
+            : (finalGuidelines.duration as number || 0); // Default to 0 if not defined or not an array
 
           allTemplateExercises.push({
             exercise_id: ex.id,

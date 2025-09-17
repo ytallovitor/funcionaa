@@ -6,13 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Activity, User, Target, Calendar, Dumbbell, Scale, Video } from "lucide-react";
+import { Activity, User, Target, Calendar, Dumbbell, Video } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Skeleton } from "@/components/ui/skeleton";
 import StudentProgressCharts from "@/components/StudentProgressCharts"; // Importar o novo componente de gráficos
 
 const StudentPortal = () => {
-  const { trainerId } = useParams();
+  const { trainerId: _trainerId } = useParams(); // Renamed to _trainerId as it's not used
   const [studentData, setStudentData] = useState<any>(null);
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [workouts, setWorkouts] = useState<any[]>([]);

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Activity, Save, ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,7 +29,6 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [protocol, setProtocol] = useState<'7-folds' | '3-folds'>('7-folds');
-  const [threefoldsProtocol, setThreefoldsProtocol] = useState('jackson-pollock');
   const [formData, setFormData] = useState({
     weight: "",
     // 7 dobras
@@ -91,7 +89,7 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
     if (formData.weight && hasRequiredFields()) {
       calculateMetrics();
     }
-  }, [formData, protocol, threefoldsProtocol, student]);
+  }, [formData, protocol, student]);
 
   const hasRequiredFields = () => {
     if (protocol === '7-folds') {
@@ -232,7 +230,7 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
           abdominal_skinfold: protocol === '7-folds' ? parseFloat(formData.abdominal) : null,
           suprailiac_skinfold: protocol === '7-folds' ? parseFloat(formData.suprailiac) : null,
           thigh_skinfold: parseFloat(formData.thigh),
-          skinfold_protocol: protocol === '7-folds' ? '7-dobras-jackson-pollock' : `3-dobras-${threefoldsProtocol}`,
+          skinfold_protocol: protocol === '7-folds' ? '7-dobras-jackson-pollock' : `3-dobras-jackson-pollock`,
           body_fat_percentage: calculatedData.bodyFatPercentage,
           fat_weight: calculatedData.fatWeight,
           lean_mass: calculatedData.leanMass,
