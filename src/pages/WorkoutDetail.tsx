@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Dumbbell, Clock, Target, List, Edit, Plus, Trash2, Video } from "lucide-react";
+import { Loader2, ArrowLeft, Dumbbell, Clock, Target, List, Edit, Trash2, Video } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -89,7 +89,7 @@ const WorkoutDetail = () => {
 
         if (data) {
           // Sort exercises by order_index
-          data.workout_template_exercises.sort((a, b) => a.order_index - b.order_index);
+          data.workout_template_exercises.sort((a: WorkoutTemplateExercise, b: WorkoutTemplateExercise) => a.order_index - b.order_index);
           setWorkout(data as WorkoutTemplate);
         } else {
           setError("Treino não encontrado.");

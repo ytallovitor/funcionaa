@@ -1,8 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,22 +13,15 @@ import {
   Clock, 
   Users,
   Target,
-  Medal,
-  Calendar,
-  TrendingUp,
   Zap,
-  Star,
   Play,
   Edit,
   MoreVertical,
   CheckCircle,
-  AlertCircle,
   Gift,
   FileText,
   Users as UsersIcon,
-  BarChart3,
   Trash2,
-  Eye
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -152,7 +143,6 @@ const Challenges = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'active' | 'finished' | 'drafts'>('active');
-  const [searchTerm, setSearchTerm] = useState("");
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -313,7 +303,7 @@ const Challenges = () => {
         challengeData.goal_unit = template.goal_unit;
         challengeData.prize_description = template.prize_description;
         challengeData.start_date = new Date().toISOString().split('T')[0];
-        challengeData.end_date = new Date(Date.now() + (template.goal_value * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+        challengeData.end_date = new Date(Date.now() + (template.goal_value || 0) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       }
 
       const { error } = await supabase

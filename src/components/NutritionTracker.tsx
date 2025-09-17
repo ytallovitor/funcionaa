@@ -19,11 +19,7 @@ import {
   Coffee, 
   Utensils, 
   Moon,
-  TrendingUp,
   Target,
-  Calendar,
-  BarChart3,
-  Edit,
   Trash2
 } from "lucide-react";
 

@@ -1,34 +1,28 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import ExerciseLibrary from "@/components/ExerciseLibrary";
-import WorkoutCreator from "@/components/WorkoutCreator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast"; // Keep this for shadcn toast
 import { 
-  Plus, 
   Search, 
   Clock, 
   Target,
   Activity,
   TrendingUp,
-  Dumbbell,
+  Dumbbell, // Keep Dumbbell as it's used in the JSX for icons
   Trash2,
   Edit,
   Loader2
 } from "lucide-react";
 import AssignWorkoutDialog from "@/components/AssignWorkoutDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import ExerciseLibrary from "@/components/ExerciseLibrary";
+import WorkoutCreator from "@/components/WorkoutCreator";
 
 // Re-declarando interfaces para garantir consistência e evitar conflitos
 interface Exercise {
@@ -73,7 +67,6 @@ interface WorkoutTemplate {
 }
 
 const Workouts = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const { workoutId: editingWorkoutId } = useParams<{ workoutId: string }>();
   const { user } = useAuth();
@@ -82,8 +75,8 @@ const Workouts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [workoutTemplates, setWorkoutTemplates] = useState<WorkoutTemplate[]>([]);
-  const [loading, setLoading] = useState(true); // Corrected useState initialization
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<any>(null); // Kept as any for now, can be refined if needed
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutTemplate | null>(null);
   const [workoutToEdit, setWorkoutToEdit] = useState<WorkoutTemplate | null>(null);
@@ -112,7 +105,7 @@ const Workouts = () => {
     } else if (!editingWorkoutId && activeTab === "creator") {
       setWorkoutToEdit(null);
     }
-  }, [editingWorkoutId, workoutTemplates, navigate, toast]);
+  }, [editingWorkoutId, workoutTemplates, navigate, toast, activeTab]);
 
 
   const fetchData = async () => {
@@ -254,7 +247,7 @@ const Workouts = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => {
-        setActiveTab(value);
+        setActiveTab(value as "templates" | "creator" | "library" | "analytics");
         if (value !== "creator") {
           navigate('/workouts'); // Clear edit state from URL
         }

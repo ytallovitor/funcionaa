@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -10,8 +9,7 @@ import {
   MessageCircle, 
   Users, 
   Plus,
-  Filter,
-  Circle
+  Filter
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import ChatSystem from "@/components/ChatSystem";
@@ -27,28 +25,6 @@ interface Conversation {
   timestamp: string;
   unread: number;
   online: boolean;
-}
-
-interface DatabaseConversation {
-    id: string;
-    name: string;
-    type: 'trainer' | 'student';
-    lastMessage: string;
-    timestamp: string;
-    unread: number;
-    online: boolean;
-    students: {
-        name: string;
-    } | null;
-    profiles: {
-        full_name: string;
-    } | null;
-    messages: {
-        content: string;
-        created_at: string;
-        is_read: boolean;
-        sender_type: string;
-    }[] | null;
 }
 
 const Chat = () => {
@@ -69,6 +45,16 @@ const Chat = () => {
   const fetchConversations = async () => {
     try {
       setLoading(true);
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Usuário não logado. Redirecionando para login.",
+          variant: "destructive"
+        });
+        navigate('/auth');
+        return;
+      }
 
       const { data: profile } = await supabase
         .from('profiles')
