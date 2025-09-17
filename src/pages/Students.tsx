@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Search, Plus, Activity, Calendar, Loader2, Edit, Dumbbell, FileText, Archive, Trash2, Clock, AlertTriangle, Check, MoreVertical } from "lucide-react";
+import { Users, Search, Plus, Activity, Calendar, Loader2, Edit, Dumbbell, FileText, Archive, Trash2, MoreVertical, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -537,7 +537,7 @@ const Students = () => {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'archived' | 'trash')} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="active" className="text-sm">
             Ativos ({getFilteredStudents('active').length})
@@ -568,7 +568,7 @@ const Students = () => {
               {getFilteredStudents('active').map((student) => {
                 const statusBadge = getStatusBadge(student.status);
                 const hasEvaluation = student.lastEvaluation;
-                const daysSinceLastEval = hasEvaluation ? Math.floor((new Date().getTime() - new Date(student.lastEvaluation).getTime()) / (1000 * 60 * 60 * 24)) : null;
+                const daysSinceLastEval = hasEvaluation ? Math.floor((new Date().getTime() - new Date(student.lastEvaluation as string).getTime()) / (1000 * 60 * 60 * 24)) : null;
 
                 return (
                   <Card key={student.id} className="shadow-primary/10 border-primary/20 hover:shadow-primary/20 transition-all">
@@ -772,7 +772,7 @@ const Students = () => {
                         <span className="font-medium">Última Avaliação:</span>
                         {student.lastEvaluation ? (
                           <span className="text-green-600">
-                            {Math.floor((new Date().getTime() - new Date(student.lastEvaluation).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
+                            {Math.floor((new Date().getTime() - new Date(student.lastEvaluation as string).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
                           </span>
                         ) : (
                           <span className="text-red-600">Sem avaliação</span>

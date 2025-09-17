@@ -7,14 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentStats } from "@/hooks/useStudentStats";
 
-interface StudentEvaluation {
-    student_id: string;
-    body_fat_percentage: number | null;
-    lean_mass: number | null;
-    fat_weight: number | null;
-    evaluation_date: string;
-}
-
 interface Trainer {
   id: string;
   name: string;
@@ -139,7 +131,7 @@ const TrainerDashboard = ({ trainer: _trainer }: TrainerDashboardProps) => {
 
       } catch (error) {
         console.error('Error fetching analytics:', error);
-        setAnalytics(prev => ({ ...prev, loading: false }));
+        setAnalytics((prev: any) => ({ ...prev, loading: false }));
       }
     };
 

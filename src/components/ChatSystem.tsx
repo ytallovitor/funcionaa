@@ -10,8 +10,7 @@ import {
   Mic, 
   Video,
   Phone,
-  MoreVertical,
-  Circle
+  MoreVertical
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,7 +37,6 @@ interface ChatSystemProps {
 const ChatSystem = ({ 
   conversationId, 
   recipientName = "Personal Trainer",
-  recipientType = "trainer",
   compact = false 
 }: ChatSystemProps) => {
   const { user } = useAuth();
@@ -187,12 +185,11 @@ const ChatSystem = ({
             <div className="flex-1">
               <h4 className="text-sm font-semibold">{recipientName}</h4>
               <div className="flex items-center gap-1">
-                <Circle className="h-3 w-3 text-green-500 fill-current" />
+                <div className="h-3 w-3 bg-green-500 rounded-full" />
                 <span className="text-xs text-muted-foreground">Online</span>
               </div>
             </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
         <CardContent className="flex-1 p-0 flex flex-col">
           <ScrollArea className="flex-1 p-3" ref={scrollAreaRef}>
             <div className="space-y-3">
@@ -217,7 +214,6 @@ const ChatSystem = ({
                   </div>
                 </div>
               ))}
-              {/* isTyping logic removed as it's not used */}
             </div>
           </ScrollArea>
           <div className="p-3 border-t">
@@ -253,7 +249,7 @@ const ChatSystem = ({
             <div>
               <h3 className="font-semibold">{recipientName}</h3>
               <div className="flex items-center gap-2">
-                <Circle className="h-4 w-4 text-green-500 fill-current" />
+                <div className="h-4 w-4 bg-green-500 rounded-full" />
                 <span className="text-sm text-muted-foreground">
                   Online agora
                 </span>
@@ -307,8 +303,6 @@ const ChatSystem = ({
               </div>
             </div>
           ))}
-          
-          {/* isTyping logic removed as it's not used */}
         </div>
       </ScrollArea>
 
