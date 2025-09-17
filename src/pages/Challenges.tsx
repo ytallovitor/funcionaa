@@ -22,6 +22,7 @@ import {
   FileText,
   Users as UsersIcon,
   Trash2,
+  TrendingUp // Adicionado import do TrendingUp
 } from "lucide-react";
 import {
   DropdownMenu,
