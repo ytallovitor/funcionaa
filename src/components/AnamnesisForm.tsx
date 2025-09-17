@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"; // Adicionado DialogFooter
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, AlertTriangle } from "lucide-react";
+import { Loader2, Save, AlertTriangle, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -45,6 +45,8 @@ interface AnamnesisData {
   average_sleep_hours?: number;
   stress_level?: string;
   smoking_status?: string;
+  cigarettes_per_day?: number; // Novo campo
+  quit_smoking_years_ago?: number; // Novo campo
   alcohol_consumption?: string;
   diet_type?: string;
   
@@ -111,6 +113,8 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
           average_sleep_hours: undefined,
           stress_level: "",
           smoking_status: "",
+          cigarettes_per_day: undefined, // Inicializa novo campo
+          quit_smoking_years_ago: undefined, // Inicializa novo campo
           alcohol_consumption: "",
           diet_type: "",
           main_goal: "",
@@ -146,8 +150,24 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
       'allergies',
       'previous_injuries',
       'current_medications',
-      'main_goal'
+      'main_goal',
+      'training_experience', // Adicionado como obrigatório para um perfil mais completo
+      'current_fitness_level', // Adicionado como obrigatório
+      'sleep_quality', // Adicionado como obrigatório
+      'average_sleep_hours', // Adicionado como obrigatório
+      'stress_level', // Adicionado como obrigatório
+      'smoking_status', // Adicionado como obrigatório
+      'alcohol_consumption', // Adicionado como obrigatório
+      'diet_type', // Adicionado como obrigatório
     ];
+
+    // Validação condicional para tabagismo
+    if (data.smoking_status === 'fumante_atual') {
+      required.push('cigarettes_per_day');
+    } else if (data.smoking_status === 'ex_fumante') {
+      required.push('quit_smoking_years_ago');
+    }
+
     return required.every(field => {
       const value = data[field as keyof AnamnesisData];
       return typeof value === 'string' ? value.trim() !== '' : value !== undefined && value !== null;
@@ -204,7 +224,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
   return (
     <TooltipProvider>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col"> {/* Adicionado flex flex-col */}
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               📋 Anamnese Completa - {student.name}
@@ -218,7 +238,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
               Recomenda-se encaminhar clientes com condições médicas para avaliação médica antes do início de programas de treino (ACSM Pre-Exercise Screening, 2021).
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto flex-1 space-y-6 p-1 pr-4"> {/* Removido max-h, adicionado flex-1 e pr-4 para scrollbar */}
+          <div className="overflow-y-auto flex-1 space-y-6 p-1 pr-4">
             {loading ? (
               <div className="flex justify-center items-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -229,6 +249,14 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
                     🚨 Contato de Emergência
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-blue-600 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Informações cruciais para qualquer emergência durante o treino (ACSM, 2021).</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -260,6 +288,14 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                   <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
                     🏥 Histórico Médico e Saúde Atual
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-red-600 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Essencial para triagem de riscos e adaptação do programa de exercícios (ACSM Pre-Exercise Screening, 2021).</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -321,23 +357,21 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                   </div>
                   <div className="space-y-2 mt-4">
                     <Label htmlFor="previous_injuries">Lesões ou Traumas Anteriores <span className="text-red-500">*</span></Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Textarea
-                            id="previous_injuries"
-                            value={formData.previous_injuries || ""}
-                            onChange={(e) => updateFormData('previous_injuries', e.target.value)}
-                            placeholder="Ex: Distensão muscular no posterior da coxa (2022), entorse de tornozelo (2019), fratura no braço (adolescência)..."
-                            rows={3}
-                            required
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Importante para evitar recidivas e adaptar exercícios (NSCA recomenda documentação detalhada).</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Textarea
+                          id="previous_injuries"
+                          value={formData.previous_injuries || ""}
+                          onChange={(e) => updateFormData('previous_injuries', e.target.value)}
+                          placeholder="Ex: Distensão muscular no posterior da coxa (2022), entorse de tornozelo (2019), fratura no braço (adolescência)..."
+                          rows={3}
+                          required
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Informações vitais para evitar recidivas e adaptar exercícios, garantindo a segurança (NSCA, 2016).</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
 
@@ -347,27 +381,33 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                   <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
                     💊 Medicamentos e Suplementação
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-yellow-600 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Medicamentos podem afetar a resposta ao exercício; suplementos devem ser monitorados (ACSM, 2021).</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="current_medications">Medicamentos de Uso Contínuo <span className="text-red-500">*</span></Label>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Textarea
-                              id="current_medications"
-                              value={formData.current_medications || ""}
-                              onChange={(e) => updateFormData('current_medications', e.target.value)}
-                              placeholder="Ex: Losartana 50mg (hipertensão), metformina 850mg (diabetes), ibuprofeno sódico (dor ocasional)..."
-                              rows={3}
-                              required
-                            />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Interações: Beta-bloqueadores reduzem resposta cardíaca; diuréticos afetam hidratação (ACSM).</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Textarea
+                            id="current_medications"
+                            value={formData.current_medications || ""}
+                            onChange={(e) => updateFormData('current_medications', e.target.value)}
+                            placeholder="Ex: Losartana 50mg (hipertensão), metformina 850mg (diabetes), ibuprofeno sódico (dor ocasional)..."
+                            rows={3}
+                            required
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Interações: Beta-bloqueadores reduzem resposta cardíaca; diuréticos afetam hidratação (ACSM, 2021).</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="supplement_use">Suplementos e Vitaminas</Label>
@@ -388,6 +428,14 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
                     💪 Histórico de Treino e Atividade Física
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-green-600 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Define o ponto de partida e a progressão adequada do programa (NSCA, 2016).</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -409,7 +457,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="current_fitness_level">Nível Atual de Condicionamento Físico</Label>
+                      <Label htmlFor="current_fitness_level">Nível Atual de Condicionamento Físico <span className="text-red-500">*</span></Label>
                       <Select
                         value={formData.current_fitness_level || ""}
                         onValueChange={(value) => updateFormData('current_fitness_level', value)}
@@ -429,22 +477,20 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                   </div>
                   <div className="space-y-2 mt-4">
                     <Label htmlFor="previous_diet_experience">Experiência Anterior com Dietas ou Nutrição</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Textarea
-                            id="previous_diet_experience"
-                            value={formData.previous_diet_experience || ""}
-                            onChange={(e) => updateFormData('previous_diet_experience', e.target.value)}
-                            placeholder="Ex: Fiz low carb por 3 meses (perdi 8kg), tentei jejum intermitente (não funcionou), sigo dieta vegetariana..."
-                            rows={2}
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Ajuda a personalizar nutrição integrada ao treino (NSCA recomenda histórico dietético).</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Textarea
+                          id="previous_diet_experience"
+                          value={formData.previous_diet_experience || ""}
+                          onChange={(e) => updateFormData('previous_diet_experience', e.target.value)}
+                          placeholder="Ex: Fiz low carb por 3 meses (perdi 8kg), tentei jejum intermitente (não funcionou), sigo dieta vegetariana..."
+                          rows={2}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Ajuda a personalizar nutrição integrada ao treino e entender padrões alimentares (NSCA, 2016).</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
 
@@ -454,6 +500,14 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                   <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
                     🏠 Estilo de Vida e Hábitos Diários
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-purple-600 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Fatores como sono e estresse impactam diretamente a recuperação e performance (ACSM, 2021).</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -485,7 +539,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                   </div>
                   <div className="grid md:grid-cols-2 gap-4 mt-4">
                     <div className="space-y-2">
-                      <Label htmlFor="sleep_quality">Qualidade do Sono (subjetiva)</Label>
+                      <Label htmlFor="sleep_quality">Qualidade do Sono (subjetiva) <span className="text-red-500">*</span></Label>
                       <Select
                         value={formData.sleep_quality || ""}
                         onValueChange={(value) => updateFormData('sleep_quality', value)}
@@ -503,7 +557,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="average_sleep_hours">Horas Médias de Sono por Noite</Label>
+                      <Label htmlFor="average_sleep_hours">Horas Médias de Sono por Noite <span className="text-red-500">*</span></Label>
                       <Input
                         id="average_sleep_hours"
                         type="number"
@@ -512,12 +566,13 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         value={formData.average_sleep_hours === undefined ? "" : String(formData.average_sleep_hours)}
                         onChange={(e) => updateFormData('average_sleep_hours', e.target.value === "" ? undefined : parseInt(e.target.value))}
                         placeholder="Ex: 7 horas"
+                        required
                       />
                     </div>
                   </div>
                   <div className="grid md:grid-cols-2 gap-4 mt-4">
                     <div className="space-y-2">
-                      <Label htmlFor="stress_level">Nível de Estresse Atual</Label>
+                      <Label htmlFor="stress_level">Nível de Estresse Atual <span className="text-red-500">*</span></Label>
                       <Select
                         value={formData.stress_level || ""}
                         onValueChange={(value) => updateFormData('stress_level', value)}
@@ -534,7 +589,7 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="alcohol_consumption">Consumo de Álcool</Label>
+                      <Label htmlFor="alcohol_consumption">Consumo de Álcool <span className="text-red-500">*</span></Label>
                       <Select
                         value={formData.alcohol_consumption || ""}
                         onValueChange={(value) => updateFormData('alcohol_consumption', value)}
@@ -552,18 +607,72 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
-                    <Label htmlFor="smoking_status">Status de Tabagismo</Label>
+                    <Label htmlFor="smoking_status">Status de Tabagismo <span className="text-red-500">*</span></Label>
                     <Select
                       value={formData.smoking_status || ""}
-                      onValueChange={(value) => updateFormData('smoking_status', value)}
+                      onValueChange={(value) => {
+                        updateFormData('smoking_status', value);
+                        // Reset conditional fields when status changes
+                        if (value !== 'fumante_atual') updateFormData('cigarettes_per_day', undefined);
+                        if (value !== 'ex_fumante') updateFormData('quit_smoking_years_ago', undefined);
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Você fuma?" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="nunca">Nunca fumei</SelectItem>
-                        <SelectItem value="ex_fumante">Ex-fumante (há quanto tempo?)</SelectItem>
-                        <SelectItem value="fumante_atual">Fumante atual (quantos cigarros/dia?)</SelectItem>
+                        <SelectItem value="ex_fumante">Ex-fumante</SelectItem>
+                        <SelectItem value="fumante_atual">Fumante atual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {formData.smoking_status === 'fumante_atual' && (
+                    <div className="space-y-2 mt-4">
+                      <Label htmlFor="cigarettes_per_day">Cigarros por Dia <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="cigarettes_per_day"
+                        type="number"
+                        min="0"
+                        value={formData.cigarettes_per_day === undefined ? "" : String(formData.cigarettes_per_day)}
+                        onChange={(e) => updateFormData('cigarettes_per_day', e.target.value === "" ? undefined : parseInt(e.target.value))}
+                        placeholder="Ex: 10"
+                        required
+                      />
+                    </div>
+                  )}
+                  {formData.smoking_status === 'ex_fumante' && (
+                    <div className="space-y-2 mt-4">
+                      <Label htmlFor="quit_smoking_years_ago">Anos desde que Parou de Fumar <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="quit_smoking_years_ago"
+                        type="number"
+                        min="0"
+                        value={formData.quit_smoking_years_ago === undefined ? "" : String(formData.quit_smoking_years_ago)}
+                        onChange={(e) => updateFormData('quit_smoking_years_ago', e.target.value === "" ? undefined : parseInt(e.target.value))}
+                        placeholder="Ex: 5"
+                        required
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="diet_type">Tipo de Dieta Atual <span className="text-red-500">*</span></Label>
+                    <Select
+                      value={formData.diet_type || ""}
+                      onValueChange={(value) => updateFormData('diet_type', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Qual sua dieta?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nenhuma">Nenhuma específica</SelectItem>
+                        <SelectItem value="onivora">Onívora</SelectItem>
+                        <SelectItem value="vegetariana">Vegetariana</SelectItem>
+                        <SelectItem value="vegana">Vegana</SelectItem>
+                        <SelectItem value="low_carb">Low Carb</SelectItem>
+                        <SelectItem value="cetogenica">Cetogênica</SelectItem>
+                        <SelectItem value="mediterranea">Mediterrânea</SelectItem>
+                        <SelectItem value="outra">Outra</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -575,26 +684,32 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                 <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
                   <h3 className="font-semibold text-indigo-800 mb-3 flex items-center gap-2">
                     🎯 Objetivos e Barreiras ao Treino
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-indigo-600 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Compreender metas e desafios é fundamental para a adesão e sucesso do programa (NSCA, 2016).</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </h3>
                   <div className="space-y-2">
                     <Label htmlFor="main_goal">Objetivo Principal do Treino (detalhado) <span className="text-red-500">*</span></Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Textarea
-                            id="main_goal"
-                            value={formData.main_goal || ""}
-                            onChange={(e) => updateFormData('main_goal', e.target.value)}
-                            placeholder="Ex: Perder 8kg de gordura corporal em 4 meses, focar em hipertrofia de glúteos e pernas, melhorar resistência para corrida de 10km..."
-                            rows={3}
-                            required
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Base para periodização: Objetivos SMART (Specific, Measurable, Achievable, Relevant, Time-bound) - NSCA.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Textarea
+                          id="main_goal"
+                          value={formData.main_goal || ""}
+                          onChange={(e) => updateFormData('main_goal', e.target.value)}
+                          placeholder="Ex: Perder 8kg de gordura corporal em 4 meses, focar em hipertrofia de glúteos e pernas, melhorar resistência para corrida de 10km..."
+                          rows={3}
+                          required
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Base para periodização: Objetivos SMART (Specific, Measurable, Achievable, Relevant, Time-bound) são mais eficazes (NSCA, 2016).</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="specific_fitness_goals">Metas Específicas de Fitness</Label>
@@ -651,28 +766,26 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="barriers_to_training">Barreiras ou Limitações para Treino</Label>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Textarea
-                            id="barriers_to_training"
-                            value={formData.barriers_to_training || ""}
-                            onChange={(e) => updateFormData('barriers_to_training', e.target.value)}
-                            placeholder="Ex: Falta de tempo (trabalho 10h/dia), dor lombar limita agachamentos, sem acesso a academia..."
-                            rows={2}
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Essencial para adaptações: 70% dos desistentes citam barreiras logísticas (NSCA study).</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Textarea
+                          id="barriers_to_training"
+                          value={formData.barriers_to_training || ""}
+                          onChange={(e) => updateFormData('barriers_to_training', e.target.value)}
+                          placeholder="Ex: Falta de tempo (trabalho 10h/dia), dor lombar limita agachamentos, sem acesso a academia..."
+                          rows={2}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Essencial para adaptações: 70% dos desistentes citam barreiras logísticas. Identificá-las permite criar soluções (NSCA, 2016).</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </>
             )}
           </div>
-          <DialogFooter className="flex justify-end gap-2 pt-4 border-t"> {/* Movido para fora do scrollable div */}
+          <DialogFooter className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={isSubmitting || !requiredFieldsFilled}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
