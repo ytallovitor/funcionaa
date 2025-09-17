@@ -10,10 +10,13 @@ import { Loader2, Save, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import AnamnesisReportDialog from "./AnamnesisReportDialog"; // Importar o novo componente
 
 interface Student {
   id: string;
   name: string;
+  age?: number; // Adicionado para o relatório
+  gender?: string; // Adicionado para o relatório
 }
 
 interface AnamnesisData {
@@ -79,6 +82,13 @@ interface AnamnesisData {
   how_success_is_measured_by_client?: string; // NOVO
 }
 
+interface AnamnesisReport {
+  summary: string;
+  challenges_risks: string[];
+  suggestions: string[];
+  scientific_basis: string[];
+}
+
 interface AnamnesisFormProps {
   student: Student | null;
   open: boolean;
@@ -91,6 +101,8 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<AnamnesisData>({});
   const [requiredFieldsFilled, setRequiredFieldsFilled] = useState(false);
+  const [reportData, setReportData] = useState<AnamnesisReport | null>(null);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
 
   useEffect(() => {
     if (open && student) {
@@ -194,9 +206,16 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
 
       toast({
         title: "Sucesso!",
-        description: "Anamnese salva com sucesso. Agora você tem um perfil completo para criar treinos personalizados. (Protocolo baseado em ACSM/NSCA para triagem de riscos)."
+        description: "Anamnese salva com sucesso. Gerando relatório de IA..."
       });
+
+      // Chamar a Edge Function para gerar o relatório
+      await generateAnamnesisReport();
+      
+      // Fechar o formulário de anamnese e abrir o relatório
       onOpenChange(false);
+      setIsReportDialogOpen(true);
+
     } catch (error) {
       console.error("Error saving anamnesis:", error);
       toast({
@@ -206,6 +225,28 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const generateAnamnesisReport = async () => {
+    if (!student) return;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-anamnesis-report', {
+        body: JSON.stringify({ student: { id: student.id, name: student.name, age: student.age, gender: student.gender }, anamnesis: formData }),
+      });
+
+      if (error) throw error;
+      
+      setReportData(data as AnamnesisReport);
+    } catch (error: any) {
+      console.error("Error generating anamnesis report:", error);
+      toast({
+        title: "Erro ao Gerar Relatório",
+        description: error.message || "Não foi possível gerar o relatório de IA. Verifique o console para detalhes.",
+        variant: "destructive"
+      });
+      setReportData(null);
     }
   };
 
@@ -1047,6 +1088,15 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {reportData && student && (
+        <AnamnesisReportDialog
+          report={reportData}
+          studentName={student.name}
+          open={isReportDialogOpen}
+          onOpenChange={setIsReportDialogOpen}
+        />
+      )}
     </TooltipProvider>
   );
 };
