@@ -17,9 +17,9 @@ const StudentPortal = () => {
   const [studentData, setStudentData] = useState<any>(null);
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [workouts, setWorkouts] = useState<any[]>([]);
-  const [nutritionGoal, setNutritionGoal] = useState<any>(null);
-  const [mealEntries, setMealEntries] = useState<any[]>([]);
-  const [activeChallenges, setActiveChallenges] = useState<any[]>([]);
+  // const [nutritionGoal, setNutritionGoal] = useState<any>(null); // Removido
+  // const [mealEntries, setMealEntries] = useState<any[]>([]); // Removido
+  // const [activeChallenges, setActiveChallenges] = useState<any[]>([]); // Removido
   const [loading, setLoading] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -53,9 +53,9 @@ const StudentPortal = () => {
       const [
         evalResponse,
         workoutResponse,
-        nutritionGoalResponse,
-        mealEntriesResponse,
-        challengesResponse
+        nutritionGoalResponse, // Mantido para garantir que a RPC é chamada, mas o estado não é mais armazenado aqui
+        mealEntriesResponse, // Mantido para garantir que a RPC é chamada, mas o estado não é mais armazenado aqui
+        challengesResponse // Mantido para garantir que a RPC é chamada, mas o estado não é mais armazenado aqui
       ] = await Promise.all([
         supabase.rpc('fn_student_evaluations', {
           p_username: loginForm.username,
@@ -89,9 +89,9 @@ const StudentPortal = () => {
       setStudentData(student);
       setEvaluations(evalResponse.data || []);
       setWorkouts(workoutResponse.data || []);
-      setNutritionGoal(nutritionGoalResponse.data);
-      setMealEntries(mealEntriesResponse.data || []);
-      setActiveChallenges(challengesResponse.data || []);
+      // setNutritionGoal(nutritionGoalResponse.data); // Removido
+      // setMealEntries(mealEntriesResponse.data || []); // Removido
+      // setActiveChallenges(challengesResponse.data || []); // Removido
       setIsLoggedIn(true);
 
       toast({

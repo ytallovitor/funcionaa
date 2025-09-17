@@ -23,11 +23,15 @@ import { supabase } from "@/integrations/supabase/client";
 import StudentProgressCharts from "./StudentProgressCharts"; // Importar o componente de gráficos
 import StudentNutritionCard from "./StudentNutritionCard"; // Importar o componente de nutrição
 import StudentChallengesCard from "./StudentChallengesCard"; // Importar o componente de desafios
+import WorkoutLogger from "./WorkoutLogger"; // Importar o novo componente WorkoutLogger
 
 interface Student {
   id: string;
   name: string;
   email: string;
+  age?: number; // Adicionado
+  gender?: 'masculino' | 'feminino' | 'outro'; // Adicionado
+  height?: number; // Adicionado
 }
 
 interface EvaluationData {
@@ -37,12 +41,17 @@ interface EvaluationData {
   lean_mass: number;
 }
 
+interface StudentDashboardProps {
+  student: Student;
+}
+
 const StudentDashboard = ({ student }: StudentDashboardProps) => {
   const studentData = useStudentData();
   const [quickStats, setQuickStats] = useState<any[]>([]);
   const [todaysWorkout, setTodaysWorkout] = useState<any>(null);
   const [allEvaluations, setAllEvaluations] = useState<EvaluationData[]>([]);
   const [loadingEvaluations, setLoadingEvaluations] = useState(true);
+  const [isWorkoutLoggerOpen, setIsWorkoutLoggerOpen] = useState(false);
 
   useEffect(() => {
     if (studentData.loading || !studentData.latestMeasurements) return;
@@ -93,10 +102,10 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
         .select(`
           *,
           workout_templates (
-            name, description, category, difficulty, estimated_duration,
+            id, name, description, category, difficulty, estimated_duration,
             workout_template_exercises (
-              order_index, sets, reps, rest_time, notes,
-              exercises (name, instructions)
+              id, order_index, sets, reps, rest_time, notes,
+              exercises (id, name, instructions, video_url)
             )
           )
         `)
@@ -129,6 +138,12 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
     } finally {
       setLoadingEvaluations(false);
     }
+  };
+
+  const handleWorkoutLogged = () => {
+    // Refresh data after a workout is logged
+    studentData.loading = true; // Force re-fetch in useStudentData
+    fetchTodaysWorkout();
   };
 
   if (studentData.loading) {
@@ -322,7 +337,10 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
             
             <div className="flex gap-2">
               {todaysWorkout && (
-                <Button className="flex-1 gradient-primary text-white">
+                <Button 
+                  className="flex-1 gradient-primary text-white"
+                  onClick={() => setIsWorkoutLoggerOpen(true)}
+                >
                   <Play className="mr-2 h-4 w-4" />
                   Iniciar Treino
                 </Button>
@@ -402,6 +420,16 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
           <ChatSystem compact recipientName="Seu Trainer" recipientType="trainer" />
         </CardContent>
       </Card>
+
+      {todaysWorkout && (
+        <WorkoutLogger
+          open={isWorkoutLoggerOpen}
+          onOpenChange={setIsWorkoutLoggerOpen}
+          todaysWorkout={todaysWorkout}
+          studentId={student.id}
+          onWorkoutLogged={handleWorkoutLogged}
+        />
+      )}
     </div>
   );
 };
