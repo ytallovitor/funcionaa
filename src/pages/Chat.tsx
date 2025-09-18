@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import ChatSystem from '@/components/ChatSystem'; // Ensure this is the default export
@@ -33,7 +33,7 @@ export const ChatPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [studentName, setStudentName] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [trainerProfileId, setTrainerProfileId] = useState<string | null>(null); // Kept for consistency, though not directly used in render
+  // const [trainerProfileId, setTrainerProfileId] = useState<string | null>(null); // Removido, pois não é lido
 
   useEffect(() => {
     const initializeChat = async () => {
@@ -55,7 +55,7 @@ export const ChatPage = () => {
         setLoading(false);
         return;
       }
-      setTrainerProfileId(profileData.id);
+      // setTrainerProfileId(profileData.id); // Removido, pois não é lido
 
       if (conversationIdParam) {
         setConversationId(conversationIdParam);
@@ -138,8 +138,8 @@ export const ChatPage = () => {
 
       if (convError) throw convError;
 
-      if (conversation?.students && 'name' in conversation.students) { // Check if 'name' property exists
-        setStudentName(conversation.students.name);
+      if (conversation?.students && typeof conversation.students === 'object' && 'name' in conversation.students) {
+        setStudentName(conversation.students.name as string); // Cast para string
       } else {
         setStudentName('Aluno Desconhecido');
       }
