@@ -216,7 +216,7 @@ const ChatSystem = ({
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`} {/* Use user.id for sender check */}
+                  className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`} /* Use user.id for sender check */
                 >
                   <div
                     className={`max-w-[80%] rounded-lg p-2 break-words ${
@@ -296,10 +296,10 @@ const ChatSystem = ({
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`} {/* Use user.id for sender check */}
+              className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`} /* Use user.id for sender check */
             >
               <div className="flex items-end gap-2 max-w-[70%]">
-                {message.sender_id !== user?.id && ( {/* Only show avatar for recipient */}
+                {message.sender_id !== user?.id && ( /* Only show avatar for recipient */
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="text-xs bg-muted">
                       {message.sender_name.charAt(0)}

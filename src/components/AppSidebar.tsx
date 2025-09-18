@@ -23,7 +23,7 @@ const items = [
   { title: "Nova Avaliação", url: "/evaluation", icon: PlusCircle },
   { title: "Treinos", url: "/workouts", icon: Dumbbell },
   { title: "Desafios", url: "/challenges", icon: Trophy },
-  { title: "Chat", url: "/chat", icon: MessageCircle }, {/* Novo item para o chat */}
+  { title: "Chat", url: "/chat", icon: MessageCircle }, // Novo item para o chat
   { title: "Relatórios", url: "/reports", icon: BarChart3 },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];
@@ -76,25 +76,28 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="justify-start w-full h-12 p-3 transition-all duration-300 ease-in-out hover:scale-105 group">
-                    <NavLink 
-                      to={item.url} 
-                      end 
-                      className={({ isActive }) => getNavCls({ isActive })} 
-                      style={{
-                        opacity: 1, // Visibilidade total sempre
-                        color: location.pathname === item.url ? 'var(--primary-foreground)' : 'var(--foreground)',
-                        backgroundColor: location.pathname === item.url ? 'var(--primary)' : 'transparent',
-                      }}
-                    >
-                      <item.icon className="h-4 w-4 flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
-                      <span className="ml-3 text-sm font-medium transition-colors duration-300">{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {items.map((item) => {
+                const Icon = item.icon; // Destructure the icon component
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild className="justify-start w-full h-12 p-3 transition-all duration-300 ease-in-out hover:scale-105 group">
+                      <NavLink 
+                        to={item.url} 
+                        end 
+                        className={({ isActive }) => getNavCls({ isActive })} 
+                        style={{
+                          opacity: 1, // Visibilidade total sempre
+                          color: location.pathname === item.url ? 'var(--primary-foreground)' : 'var(--foreground)',
+                          backgroundColor: location.pathname === item.url ? 'var(--primary)' : 'transparent',
+                        }}
+                      >
+                        <Icon className="h-4 w-4 flex-shrink-0 transition-transform duration-300 group-hover:scale-110" />
+                        <span className="ml-3 text-sm font-medium transition-colors duration-300">{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
