@@ -178,7 +178,22 @@ export type Database = {
           student_id?: string
           trainer_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conversations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       evaluations: {
         Row: {
@@ -418,6 +433,7 @@ export type Database = {
           is_read: boolean | null
           message_type: string | null
           sender_id: string
+          sender_name: string
           sender_type: string
         }
         Insert: {
@@ -428,6 +444,7 @@ export type Database = {
           is_read?: boolean | null
           message_type?: string | null
           sender_id: string
+          sender_name: string
           sender_type: string
         }
         Update: {
@@ -438,6 +455,7 @@ export type Database = {
           is_read?: boolean | null
           message_type?: string | null
           sender_id?: string
+          sender_name?: string
           sender_type?: string
         }
         Relationships: [
@@ -446,6 +464,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]

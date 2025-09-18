@@ -1,4 +1,4 @@
-import { Home, Users, PlusCircle, BarChart3, Settings, LogOut, Dumbbell, Trophy } from "lucide-react";
+import { Home, Users, PlusCircle, BarChart3, Settings, LogOut, Dumbbell, Trophy, MessageCircle } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -23,6 +23,7 @@ const items = [
   { title: "Nova Avaliação", url: "/evaluation", icon: PlusCircle },
   { title: "Treinos", url: "/workouts", icon: Dumbbell },
   { title: "Desafios", url: "/challenges", icon: Trophy },
+  { title: "Chat", url: "/chat", icon: MessageCircle }, {/* Novo item para o chat */}
   { title: "Relatórios", url: "/reports", icon: BarChart3 },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];

@@ -43,6 +43,25 @@ const ChatSystem = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<{ id: string; full_name: string; } | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user) {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .eq('user_id', user.id)
+          .single();
+        if (error) {
+          console.error("Error fetching user profile for chat:", error);
+        } else {
+          setCurrentUserProfile(profile);
+        }
+      }
+    };
+    fetchUserProfile();
+  }, [user]);
 
   useEffect(() => {
     if (!conversationId || !user) return;
@@ -121,12 +140,12 @@ const ChatSystem = ({
   }, [messages]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user || !conversationId) return;
+    if (!newMessage.trim() || !user || !conversationId || !currentUserProfile) return;
 
     const messageToSend: Omit<Message, 'id' | 'timestamp' | 'is_read'> = {
       content: newMessage,
       sender_id: user.id,
-      sender_name: user.email?.split("@")[0] || "Você",
+      sender_name: currentUserProfile.full_name || user.email?.split("@")[0] || "Você", // Use full_name from profile
       sender_type: "trainer", // Assuming trainer view; adjust based on user role
       message_type: "text" as 'text',
     };
@@ -197,18 +216,18 @@ const ChatSystem = ({
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.sender_type === 'trainer' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`} {/* Use user.id for sender check */}
                 >
                   <div
                     className={`max-w-[80%] rounded-lg p-2 break-words ${
-                      message.sender_type === 'trainer'
+                      message.sender_id === user?.id
                         ? 'gradient-primary text-white'
                         : 'bg-muted'
                     }`}
                   >
                     <p className="text-sm">{message.content}</p>
                     <p className={`text-xs mt-1 ${
-                      message.sender_type === 'trainer' ? 'text-white/70' : 'text-muted-foreground'
+                      message.sender_id === user?.id ? 'text-white/70' : 'text-muted-foreground'
                     }`}>
                       {formatTime(message.timestamp)}
                     </p>
@@ -277,10 +296,10 @@ const ChatSystem = ({
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.sender_type === 'trainer' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`} {/* Use user.id for sender check */}
             >
               <div className="flex items-end gap-2 max-w-[70%]">
-                {message.sender_type !== 'trainer' && (
+                {message.sender_id !== user?.id && ( {/* Only show avatar for recipient */}
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="text-xs bg-muted">
                       {message.sender_name.charAt(0)}
@@ -289,14 +308,14 @@ const ChatSystem = ({
                 )}
                 <div
                   className={`rounded-lg p-3 max-w-[80%] break-words ${
-                    message.sender_type === 'trainer'
+                    message.sender_id === user?.id
                       ? 'gradient-primary text-white'
                       : 'bg-muted'
                   }`}
                 >
                   <p>{message.content}</p>
                   <p className={`text-xs mt-1 ${
-                    message.sender_type === 'trainer' ? 'text-white/70' : 'text-muted-foreground'
+                    message.sender_id === user?.id ? 'text-white/70' : 'text-muted-foreground'
                   }`}>
                     {formatTime(message.timestamp)}
                   </p>

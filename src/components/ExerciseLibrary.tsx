@@ -6,6 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Search, 
   Play, 
@@ -14,7 +19,8 @@ import {
   Dumbbell,
   Heart,
   Activity,
-  Plus
+  Plus,
+  Loader2
 } from "lucide-react";
 
 interface Exercise {
@@ -40,13 +46,29 @@ interface ExerciseLibraryProps {
 }
 
 const ExerciseLibrary = ({ onSelectExercise, compact = false }: ExerciseLibraryProps) => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-
-  // Use real data from Supabase
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreateExerciseOpen, setIsCreateExerciseOpen] = useState(false);
+  const [isSubmittingNewExercise, setIsSubmittingNewExercise] = useState(false);
+  const [newExerciseForm, setNewExerciseForm] = useState({
+    name: "",
+    category: "Força",
+    muscle_groups: "", // comma-separated string
+    difficulty: "Iniciante",
+    equipment: "", // comma-separated string
+    instructions: "", // newline-separated string
+    tips: "", // newline-separated string
+    sets: "",
+    reps: "",
+    rest_time: "",
+    duration: "",
+    video_url: "",
+    image_url: ""
+  });
 
   useEffect(() => {
     fetchExercises();
@@ -63,12 +85,74 @@ const ExerciseLibrary = ({ onSelectExercise, compact = false }: ExerciseLibraryP
       setExercises(data || []);
     } catch (error) {
       console.error('Error fetching exercises:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os exercícios.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const categories = ["all", "Força", "Cardio", "Funcional", "HIIT"];
+  const handleCreateNewExercise = async () => {
+    setIsSubmittingNewExercise(true);
+    try {
+      const { name, category, muscle_groups, difficulty, equipment, instructions, tips, sets, reps, rest_time, duration, video_url, image_url } = newExerciseForm;
+
+      if (!name || !category || !muscle_groups || !difficulty || !equipment || !instructions) {
+        toast({
+          title: "Campos Obrigatórios",
+          description: "Preencha todos os campos obrigatórios para criar o exercício.",
+          variant: "destructive"
+        });
+        setIsSubmittingNewExercise(false);
+        return;
+      }
+
+      const exerciseData = {
+        name: name.trim(),
+        category,
+        muscle_groups: muscle_groups.split(',').map(s => s.trim()).filter(Boolean),
+        difficulty,
+        equipment: equipment.split(',').map(s => s.trim()).filter(Boolean),
+        instructions: instructions.split('\n').map(s => s.trim()).filter(Boolean),
+        tips: tips ? tips.split('\n').map(s => s.trim()).filter(Boolean) : null,
+        sets: sets ? parseInt(sets) : null,
+        reps: reps ? parseInt(reps) : null,
+        rest_time: rest_time ? parseInt(rest_time) : null,
+        duration: duration ? parseInt(duration) : null,
+        video_url: video_url.trim() || null,
+        image_url: image_url.trim() || null
+      };
+
+      const { error } = await supabase.from('exercises').insert(exerciseData);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso!",
+        description: "Exercício criado e adicionado à biblioteca."
+      });
+      setIsCreateExerciseOpen(false);
+      setNewExerciseForm({
+        name: "", category: "Força", muscle_groups: "", difficulty: "Iniciante", equipment: "",
+        instructions: "", tips: "", sets: "", reps: "", rest_time: "", duration: "", video_url: "", image_url: ""
+      });
+      fetchExercises(); // Refresh the list
+    } catch (error) {
+      console.error("Error creating exercise:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar o exercício.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmittingNewExercise(false);
+    }
+  };
+
+  const categories = ["all", "Força", "Cardio", "Funcional", "HIIT", "Flexibilidade"];
 
   const filteredExercises = exercises.filter(exercise => {
     const matchesSearch = exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -92,6 +176,7 @@ const ExerciseLibrary = ({ onSelectExercise, compact = false }: ExerciseLibraryP
       case 'Cardio': return <Heart className="h-4 w-4" />;
       case 'HIIT': return <Activity className="h-4 w-4" />;
       case 'Funcional': return <Target className="h-4 w-4" />;
+      case 'Flexibilidade': return <Activity className="h-4 w-4" />; // Usando Activity para Flexibilidade
       default: return <Dumbbell className="h-4 w-4" />;
     }
   };
@@ -164,6 +249,174 @@ const ExerciseLibrary = ({ onSelectExercise, compact = false }: ExerciseLibraryP
             ))}
           </TabsList>
         </Tabs>
+        <Dialog open={isCreateExerciseOpen} onOpenChange={setIsCreateExerciseOpen}>
+          <DialogTrigger asChild>
+            <Button className="gradient-primary text-white">
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Exercício
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Criar Novo Exercício</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-exercise-name">Nome do Exercício *</Label>
+                <Input
+                  id="new-exercise-name"
+                  value={newExerciseForm.name}
+                  onChange={(e) => setNewExerciseForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ex: Agachamento Livre"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-exercise-category">Categoria *</Label>
+                  <Select
+                    value={newExerciseForm.category}
+                    onValueChange={(value) => setNewExerciseForm(prev => ({ ...prev, category: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Força">Força</SelectItem>
+                      <SelectItem value="Cardio">Cardio</SelectItem>
+                      <SelectItem value="Funcional">Funcional</SelectItem>
+                      <SelectItem value="HIIT">HIIT</SelectItem>
+                      <SelectItem value="Flexibilidade">Flexibilidade</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-exercise-difficulty">Dificuldade *</Label>
+                  <Select
+                    value={newExerciseForm.difficulty}
+                    onValueChange={(value) => setNewExerciseForm(prev => ({ ...prev, difficulty: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a dificuldade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Iniciante">Iniciante</SelectItem>
+                      <SelectItem value="Intermediário">Intermediário</SelectItem>
+                      <SelectItem value="Avançado">Avançado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-exercise-muscle-groups">Grupos Musculares (separados por vírgula) *</Label>
+                <Input
+                  id="new-exercise-muscle-groups"
+                  value={newExerciseForm.muscle_groups}
+                  onChange={(e) => setNewExerciseForm(prev => ({ ...prev, muscle_groups: e.target.value }))}
+                  placeholder="Ex: Peitoral, Tríceps, Ombros"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-exercise-equipment">Equipamentos (separados por vírgula) *</Label>
+                <Input
+                  id="new-exercise-equipment"
+                  value={newExerciseForm.equipment}
+                  onChange={(e) => setNewExerciseForm(prev => ({ ...prev, equipment: e.target.value }))}
+                  placeholder="Ex: Halteres, Banco, Barra"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-exercise-instructions">Instruções (uma por linha) *</Label>
+                <Textarea
+                  id="new-exercise-instructions"
+                  value={newExerciseForm.instructions}
+                  onChange={(e) => setNewExerciseForm(prev => ({ ...prev, instructions: e.target.value }))}
+                  placeholder="1. Posição inicial...\n2. Execute o movimento..."
+                  rows={4}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-exercise-tips">Dicas (uma por linha)</Label>
+                <Textarea
+                  id="new-exercise-tips"
+                  value={newExerciseForm.tips}
+                  onChange={(e) => setNewExerciseForm(prev => ({ ...prev, tips: e.target.value }))}
+                  placeholder="Ex: Mantenha o core ativado\nRespire profundamente"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-exercise-sets">Séries (opcional)</Label>
+                  <Input
+                    id="new-exercise-sets"
+                    type="number"
+                    value={newExerciseForm.sets}
+                    onChange={(e) => setNewExerciseForm(prev => ({ ...prev, sets: e.target.value }))}
+                    placeholder="Ex: 3"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-exercise-reps">Repetições (opcional)</Label>
+                  <Input
+                    id="new-exercise-reps"
+                    type="number"
+                    value={newExerciseForm.reps}
+                    onChange={(e) => setNewExerciseForm(prev => ({ ...prev, reps: e.target.value }))}
+                    placeholder="Ex: 12"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-exercise-rest-time">Tempo de Descanso (segundos, opcional)</Label>
+                  <Input
+                    id="new-exercise-rest-time"
+                    type="number"
+                    value={newExerciseForm.rest_time}
+                    onChange={(e) => setNewExerciseForm(prev => ({ ...prev, rest_time: e.target.value }))}
+                    placeholder="Ex: 60"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-exercise-duration">Duração (segundos, opcional)</Label>
+                  <Input
+                    id="new-exercise-duration"
+                    type="number"
+                    value={newExerciseForm.duration}
+                    onChange={(e) => setNewExerciseForm(prev => ({ ...prev, duration: e.target.value }))}
+                    placeholder="Ex: 180 (para cardio)"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-exercise-video-url">URL do Vídeo (opcional)</Label>
+                <Input
+                  id="new-exercise-video-url"
+                  value={newExerciseForm.video_url}
+                  onChange={(e) => setNewExerciseForm(prev => ({ ...prev, video_url: e.target.value }))}
+                  placeholder="Ex: https://youtube.com/watch?v=..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-exercise-image-url">URL da Imagem (opcional)</Label>
+                <Input
+                  id="new-exercise-image-url"
+                  value={newExerciseForm.image_url}
+                  onChange={(e) => setNewExerciseForm(prev => ({ ...prev, image_url: e.target.value }))}
+                  placeholder="Ex: https://example.com/image.jpg"
+                />
+              </div>
+              <Button onClick={handleCreateNewExercise} disabled={isSubmittingNewExercise}>
+                {isSubmittingNewExercise && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Criar Exercício
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
