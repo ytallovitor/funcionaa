@@ -738,6 +738,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "workout_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "workout_logs_workout_template_id_fkey"
             columns: ["workout_template_id"]
             isOneToOne: false
