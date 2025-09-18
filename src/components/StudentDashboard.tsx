@@ -24,6 +24,8 @@ import StudentProgressCharts from "./StudentProgressCharts"; // Importar o compo
 import StudentNutritionCard from "./StudentNutritionCard"; // Importar o componente de nutrição
 import StudentChallengesCard from "./StudentChallengesCard"; // Importar o componente de desafios
 import WorkoutLogger from "./WorkoutLogger"; // Importar o novo componente WorkoutLogger
+import { toast } from "sonner"; // Import toast from sonner
+import { useNavigate } from "react-router-dom"; // Adicionado import do useNavigate
 
 interface Student {
   id: string;
@@ -32,6 +34,7 @@ interface Student {
   age?: number; // Adicionado
   gender?: 'masculino' | 'feminino' | 'outro'; // Adicionado
   height?: number; // Adicionado
+  trainer_id?: string; // Adicionado para buscar o trainer
 }
 
 interface EvaluationData {
@@ -47,11 +50,14 @@ interface StudentDashboardProps {
 
 const StudentDashboard = ({ student }: StudentDashboardProps) => {
   const studentData = useStudentData();
+  const navigate = useNavigate(); // Inicializado useNavigate
   const [quickStats, setQuickStats] = useState<any[]>([]);
   const [todaysWorkout, setTodaysWorkout] = useState<any>(null);
   const [allEvaluations, setAllEvaluations] = useState<EvaluationData[]>([]);
   const [loadingEvaluations, setLoadingEvaluations] = useState(true);
   const [isWorkoutLoggerOpen, setIsWorkoutLoggerOpen] = useState(false);
+  const [studentConversationId, setStudentConversationId] = useState<string | null>(null);
+  const [trainerProfile, setTrainerProfile] = useState<{ id: string; full_name: string } | null>(null);
 
   useEffect(() => {
     if (studentData.loading || !studentData.latestMeasurements) return;
@@ -92,7 +98,8 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
     // Fetch today's workout (real)
     fetchTodaysWorkout();
     fetchAllEvaluations(); // Fetch all evaluations for charts
-  }, [studentData]);
+    fetchStudentTrainerConversation(); // Fetch conversation for chat
+  }, [studentData, student]);
 
   const fetchTodaysWorkout = async () => {
     try {
@@ -140,6 +147,70 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
     }
   };
 
+  const fetchStudentTrainerConversation = async () => {
+    try {
+      // First, get the student's trainer_id
+      const { data: studentProfile, error: studentError } = await supabase
+        .from('students')
+        .select('trainer_id')
+        .eq('id', student.id)
+        .single();
+
+      if (studentError || !studentProfile?.trainer_id) {
+        console.error('Error fetching student trainer_id:', studentError);
+        toast.error('Não foi possível encontrar o treinador do aluno.');
+        return;
+      }
+
+      const trainerId = studentProfile.trainer_id;
+
+      // Get trainer's profile details
+      const { data: trainerData, error: trainerError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('id', trainerId)
+        .single();
+
+      if (trainerError || !trainerData) {
+        console.error('Error fetching trainer profile:', trainerError);
+        toast.error('Não foi possível carregar o perfil do treinador.');
+        return;
+      }
+      setTrainerProfile(trainerData);
+
+      // Then, find or create the conversation between this student and their trainer
+      const { data: conversation, error: convError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('student_id', student.id)
+        .eq('trainer_id', trainerId)
+        .single();
+
+      if (convError && convError.code === 'PGRST116') { // No rows found
+        // Create new conversation
+        const { data: newConversation, error: createConvError } = await supabase
+          .from('conversations')
+          .insert({
+            student_id: student.id,
+            trainer_id: trainerId,
+          })
+          .select('id')
+          .single();
+
+        if (createConvError) throw createConvError;
+        setStudentConversationId(newConversation.id);
+        toast.success('Nova conversa com seu treinador iniciada!');
+      } else if (convError) {
+        throw convError;
+      } else if (conversation) {
+        setStudentConversationId(conversation.id);
+      }
+    } catch (error: any) {
+      console.error('Error fetching/creating conversation:', error);
+      toast.error(`Erro no chat: ${error.message || 'Não foi possível carregar a conversa.'}`);
+    }
+  };
+
   const handleWorkoutLogged = () => {
     // Refresh data after a workout is logged
     studentData.loading = true; // Force re-fetch in useStudentData
@@ -181,7 +252,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
           <Camera className="h-6 w-6" />
           <span className="text-sm">Nova Medida</span>
         </Button>
-        <Button variant="outline" className="h-20 flex-col gap-2">
+        <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => studentConversationId && navigate(`/chat/${studentConversationId}`)}>
           <MessageCircle className="h-6 w-6" />
           <span className="text-sm">Chat Trainer</span>
         </Button>
@@ -345,7 +416,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
                   Iniciar Treino
                 </Button>
               )}
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" onClick={() => studentConversationId && navigate(`/chat/${studentConversationId}`)}>
                 <MessageCircle className="h-4 w-4" />
               </Button>
             </div>
@@ -396,7 +467,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
               <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium">Sem medidas recentes</p>
               <p className="text-sm mt-1">Agende uma avaliação com seu trainer para ver sua composição corporal</p>
-              <Button className="mt-4 gradient-primary" onClick={() => window.location.href = '/chat'}>
+              <Button className="mt-4 gradient-primary" onClick={() => studentConversationId && navigate(`/chat/${studentConversationId}`)}>
                 <MessageCircle className="mr-2 h-4 w-4" />
                 Agendar com Trainer
               </Button>
@@ -417,7 +488,20 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <ChatSystem compact recipientName="Seu Trainer" recipientType="trainer" />
+          {studentConversationId && trainerProfile ? (
+            <ChatSystem 
+              compact 
+              conversationId={studentConversationId} 
+              recipientName={trainerProfile.full_name} 
+              recipientType="trainer" 
+            />
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium">Carregando chat...</p>
+              <p className="text-sm mt-1">Se o chat não aparecer, tente recarregar a página.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

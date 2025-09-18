@@ -17,7 +17,7 @@ import StudentPortal from "./pages/StudentPortal";
 import Workouts from "./pages/Workouts";
 import Challenges from "./pages/Challenges";
 import WorkoutDetail from "./pages/WorkoutDetail";
-import Chat from "./pages/Chat"; // Importar o novo componente Chat
+import { ChatPage } from "./pages/Chat"; // Importar o componente ChatPage como nomeado
 
 const queryClient = new QueryClient();
 
@@ -41,7 +41,8 @@ const App = () => (
             <Route path="/workouts/:workoutId" element={<Layout><WorkoutDetail /></Layout>} />
             <Route path="/workouts/edit/:workoutId" element={<Layout><Workouts /></Layout>} />
             <Route path="/challenges" element={<Layout><Challenges /></Layout>} />
-            <Route path="/chat" element={<Layout><Chat /></Layout>} /> {/* Nova rota para o chat */}
+            <Route path="/chat" element={<Layout><ChatPage /></Layout>} /> {/* Usar ChatPage */}
+            <Route path="/chat/:id" element={<Layout><ChatPage /></Layout>} /> {/* Rota com ID */}
             <Route path="/portal/:trainerId" element={<StudentPortal />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
