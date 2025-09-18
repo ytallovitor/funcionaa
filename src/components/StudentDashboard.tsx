@@ -149,20 +149,14 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
 
   const fetchStudentTrainerConversation = async () => {
     try {
-      // First, get the student's trainer_id
-      const { data: studentProfile, error: studentError } = await supabase
-        .from('students')
-        .select('trainer_id')
-        .eq('id', student.id)
-        .single();
+      // O student.id agora já é o ID da tabela students, passado de Index.tsx
+      const studentIdFromStudentsTable = student.id;
+      const trainerId = student.trainer_id; // O trainer_id também é passado no student prop
 
-      if (studentError || !studentProfile?.trainer_id) {
-        console.error('Error fetching student trainer_id:', studentError);
-        toast.error('Não foi possível encontrar o treinador do aluno.');
+      if (!trainerId) {
+        toast.error('ID do treinador não encontrado para este aluno.');
         return;
       }
-
-      const trainerId = studentProfile.trainer_id;
 
       // Get trainer's profile details
       const { data: trainerData, error: trainerError } = await supabase
@@ -182,7 +176,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
       const { data: conversation, error: convError } = await supabase
         .from('conversations')
         .select('id')
-        .eq('student_id', student.id)
+        .eq('student_id', studentIdFromStudentsTable)
         .eq('trainer_id', trainerId)
         .single();
 
@@ -191,7 +185,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
         const { data: newConversation, error: createConvError } = await supabase
           .from('conversations')
           .insert({
-            student_id: student.id,
+            student_id: studentIdFromStudentsTable,
             trainer_id: trainerId,
           })
           .select('id')
@@ -459,7 +453,7 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
                 gender: (student.gender as 'male' | 'female') || 'male', // Use student's gender, fallback to male
                 waist: studentData.latestMeasurements.waist || 0,
                 neck: 38, // From evaluation or default
-                hip: studentData.latestMeasurements.waist ? studentData.latestMeasurements.waist * 1.1 : undefined, // Estimate for females
+                hip: student.gender === 'feminino' && studentData.latestMeasurements.waist ? studentData.latestMeasurements.waist * 1.1 : undefined, // Estimate for females
               }}
             />
           ) : (

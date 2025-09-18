@@ -11,6 +11,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [userType, setUserType] = useState<'trainer' | 'student' | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [studentDataFromStudentsTable, setStudentDataFromStudentsTable] = useState<any>(null); // Novo estado para o ID do aluno da tabela students
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,8 +64,9 @@ const Index = () => {
             .eq('username', user.email)
             .single();
 
-          if (studentPortal) {
+          if (studentPortal && studentPortal.students) {
             setUserType('student');
+            setStudentDataFromStudentsTable(studentPortal.students); // Armazena os dados do aluno da tabela students
           } else {
             // Default to trainer for new users
             setUserType('trainer');
@@ -105,16 +107,17 @@ const Index = () => {
     return null;
   }
 
-  if (userType === 'student') {
+  if (userType === 'student' && studentDataFromStudentsTable) {
     return (
       <StudentDashboard 
         student={{
-          id: userProfile.id,
-          name: userProfile.full_name || 'Usuário',
+          id: studentDataFromStudentsTable.id, // Passa o ID da tabela students
+          name: studentDataFromStudentsTable.name || 'Usuário',
           email: userProfile.email,
-          age: userProfile.age, // Pass age from profile
-          gender: userProfile.gender, // Pass gender from profile
-          height: userProfile.height // Pass height from profile
+          age: studentDataFromStudentsTable.age, 
+          gender: studentDataFromStudentsTable.gender, 
+          height: studentDataFromStudentsTable.height,
+          trainer_id: studentDataFromStudentsTable.trainer_id // Passa o trainer_id do aluno
         }}
       />
     );

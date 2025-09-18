@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Search, Plus, Activity, Calendar, Loader2, Edit, Dumbbell, FileText, Archive, Trash2, MoreVertical, Check } from "lucide-react";
+import { Users, Search, Plus, Activity, Calendar, Loader2, Edit, Dumbbell, FileText, Archive, Trash2, MoreVertical, Check, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -72,6 +72,7 @@ const Students = () => {
   const [isWorkoutManagerOpen, setIsWorkoutManagerOpen] = useState(false);
   const [anamnesisStudent, setAnamnesisStudent] = useState<Student | null>(null);
   const [isAnamnesisOpen, setIsAnamnesisOpen] = useState(false);
+  const [isStartingChat, setIsStartingChat] = useState(false); // Novo estado para o chat
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -397,6 +398,72 @@ const Students = () => {
     }
   };
 
+  const handleStartChat = async (studentId: string, studentName: string) => {
+    if (!trainerId || !user?.id) {
+      toast({
+        title: "Erro",
+        description: "Dados do treinador ou usuário não disponíveis.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsStartingChat(true);
+    try {
+      // 1. Check if conversation already exists
+      const { data: existingConversation, error: fetchError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('trainer_id', trainerId)
+        .eq('student_id', studentId)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means "no rows found"
+        throw fetchError;
+      }
+
+      let conversationIdToNavigate = existingConversation?.id;
+
+      if (!conversationIdToNavigate) {
+        // 2. If not, create a new conversation
+        const { data: newConversation, error: createError } = await supabase
+          .from('conversations')
+          .insert({
+            trainer_id: trainerId,
+            student_id: studentId,
+            last_message_at: new Date().toISOString()
+          })
+          .select('id')
+          .single();
+
+        if (createError) throw createError;
+        conversationIdToNavigate = newConversation.id;
+        toast({
+          title: "Conversa Criada!",
+          description: `Nova conversa iniciada com ${studentName}.`
+        });
+      } else {
+        toast({
+          title: "Conversa Existente",
+          description: `Continuando conversa com ${studentName}.`
+        });
+      }
+
+      // 3. Navigate to the chat page
+      navigate(`/chat/${conversationIdToNavigate}`);
+
+    } catch (error: any) {
+      console.error('Error starting chat:', error);
+      toast({
+        title: "Erro ao Iniciar Chat",
+        description: error.message || "Não foi possível iniciar a conversa.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsStartingChat(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -627,6 +694,17 @@ const Students = () => {
                           }}>
                             <Dumbbell className="mr-2 h-4 w-4" />
                             Gerenciar Treinos
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleStartChat(student.id, student.name)}
+                            disabled={isStartingChat}
+                          >
+                            {isStartingChat ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <MessageCircle className="mr-2 h-4 w-4" />
+                            )}
+                            Iniciar Chat
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {student.status === 'active' ? (
