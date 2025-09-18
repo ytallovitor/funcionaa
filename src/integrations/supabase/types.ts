@@ -53,6 +53,13 @@ export type Database = {
             referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "challenge_participants_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
         ]
       }
       challenge_progress: {
@@ -139,7 +146,15 @@ export type Database = {
           trainer_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "challenges_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversations: {
         Row: {
