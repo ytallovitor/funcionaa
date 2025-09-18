@@ -51,7 +51,7 @@ const EvaluationMethodSelector = ({ onMethodSelect }: EvaluationMethodSelectorPr
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <Calculator className="h-4 w-4 text-primary" />
-                    <span className="text-xs text-primary">Campos: Gênero, Idade, Peso, Altura, Pescoço, Cintura, Quadril (mulheres)</span>
+                    <span className="text-xs text-primary">Precisão: Moderada (~3-4% erro). Melhor para monitorar tendências.</span>
                   </div>
                 </div>
               </div>
@@ -67,7 +67,7 @@ const EvaluationMethodSelector = ({ onMethodSelect }: EvaluationMethodSelectorPr
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <Activity className="h-4 w-4 text-primary" />
-                    <span className="text-xs text-primary">Opções: 7 dobras ou 3 dobras com diferentes protocolos</span>
+                    <span className="text-xs text-primary">Precisão: Alta (~3-5% erro). Requer profissional treinado e calíper.</span>
                   </div>
                 </div>
               </div>

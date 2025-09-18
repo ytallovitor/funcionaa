@@ -894,8 +894,6 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
                         <SelectItem value="vegana">Vegana</SelectItem>
                         <SelectItem value="low_carb">Low Carb</SelectItem>
                         <SelectItem value="cetogenica">Cetogênica</SelectItem>
-                        <SelectItem value="mediterranea">Mediterrânea</SelectItem>
-                        <SelectItem value="outra">Outra</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

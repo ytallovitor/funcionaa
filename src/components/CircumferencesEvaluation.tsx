@@ -415,6 +415,12 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
               </p>
               <p className="text-xs text-muted-foreground mt-1">Base: Atividade moderada (1.55 × BMR, ACSM)</p>
             </div>
+
+            <div className="mt-4 p-3 bg-orange-50/50 rounded-lg border border-orange-200">
+              <p className="text-xs text-orange-700">
+                <strong>Aviso:</strong> O método de circunferências (US Navy) é prático, mas pode ter uma margem de erro maior para o percentual de gordura corporal (~3-4%). É mais recomendado para **monitorar tendências de progresso** ao longo do tempo do que para uma medida exata. Para maior precisão, considere métodos como dobras cutâneas (com profissional treinado) ou bioimpedância.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
