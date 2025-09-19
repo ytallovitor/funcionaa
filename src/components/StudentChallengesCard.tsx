@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Loader2 } from "lucide-react"; // Removido Users e Target
+import { Trophy, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner"; // Usando sonner para consistência
 
 interface Challenge {
   id: string;
@@ -29,7 +29,6 @@ interface StudentChallengesCardProps {
 }
 
 const StudentChallengesCard = ({ studentId }: StudentChallengesCardProps) => {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [activeChallenges, setActiveChallenges] = useState<ChallengeParticipant[]>([]);
 
@@ -60,11 +59,7 @@ const StudentChallengesCard = ({ studentId }: StudentChallengesCardProps) => {
 
     } catch (error) {
       console.error('Error fetching student challenges:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os desafios.",
-        variant: "destructive"
-      });
+      toast.error("Não foi possível carregar os desafios.");
     } finally {
       setLoading(false);
     }

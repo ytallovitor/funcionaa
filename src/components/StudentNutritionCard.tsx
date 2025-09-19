@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Apple, Loader2 } from "lucide-react"; // Removido Target
+import { Apple, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner"; // Usando sonner para consistência
 
 interface FoodItem {
   id: string;
@@ -38,7 +38,6 @@ interface StudentNutritionCardProps {
 }
 
 const StudentNutritionCard = ({ studentId }: StudentNutritionCardProps) => {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [nutritionGoal, setNutritionGoal] = useState<NutritionGoal | null>(null);
   const [totalNutrition, setTotalNutrition] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
@@ -84,11 +83,7 @@ const StudentNutritionCard = ({ studentId }: StudentNutritionCardProps) => {
 
     } catch (error) {
       console.error('Error fetching student nutrition data:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os dados de nutrição.",
-        variant: "destructive"
-      });
+      toast.error("Não foi possível carregar os dados de nutrição.");
     } finally {
       setLoading(false);
     }
