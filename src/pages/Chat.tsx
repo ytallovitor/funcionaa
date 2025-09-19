@@ -18,7 +18,7 @@ interface ConversationListItem {
   students: {
     id: string;
     name: string;
-  } | null;
+  }[] | null; // Alterado para array
   lastMessageContent?: string;
   unreadCount?: number;
 }
@@ -106,7 +106,7 @@ export const ChatPage = () => {
           id: conv.id,
           student_id: conv.student_id,
           last_message_at: conv.last_message_at,
-          students: conv.students as { id: string; name: string } | null, // Explicit cast
+          students: conv.students as { id: string; name: string }[] | null, // Cast para array
           lastMessageContent: lastMessage?.content || 'Sem mensagens',
           unreadCount: unreadCount,
         };
@@ -138,8 +138,9 @@ export const ChatPage = () => {
 
       if (convError) throw convError;
 
-      if (conversation?.students && typeof conversation.students === 'object' && 'name' in conversation.students) {
-        setStudentName(conversation.students.name as string); // Cast para string
+      // Acessa o primeiro elemento do array students
+      if (conversation?.students?.[0]?.name) {
+        setStudentName(conversation.students[0].name);
       } else {
         setStudentName('Aluno Desconhecido');
       }
@@ -157,7 +158,7 @@ export const ChatPage = () => {
   };
 
   const filteredConversations = conversations.filter(conv =>
-    conv.students?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    conv.students?.[0]?.name?.toLowerCase().includes(searchQuery.toLowerCase()) // Acessa o primeiro elemento
   );
 
   if (loading) {
@@ -229,13 +230,13 @@ export const ChatPage = () => {
                   className={`p-4 border-b cursor-pointer hover:bg-accent transition-colors ${
                     conversationId === conv.id ? 'bg-accent' : ''
                   }`}
-                  onClick={() => handleSelectConversation(conv.id, conv.students?.name || 'Aluno')}
+                  onClick={() => handleSelectConversation(conv.id, conv.students?.[0]?.name || 'Aluno')} // Acessa o primeiro elemento
                 >
                   <div className="flex items-start gap-3">
                     <div className="relative">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback className="bg-primary text-white">
-                          {conv.students?.name?.charAt(0) || 'A'}
+                          {conv.students?.[0]?.name?.charAt(0) || 'A'} // Acessa o primeiro elemento
                         </AvatarFallback>
                       </Avatar>
                       {/* Mock online status */}
@@ -246,7 +247,7 @@ export const ChatPage = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <h4 className="font-semibold text-sm truncate">
-                          {conv.students?.name || 'Aluno'}
+                          {conv.students?.[0]?.name || 'Aluno'} // Acessa o primeiro elemento
                         </h4>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">
