@@ -123,13 +123,19 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
           p_username: loginCredentials.username,
           p_password: loginCredentials.password,
         }),
-        supabase.from('profiles').select('id, full_name').eq('id', student.trainer_id).single(),
-        supabase.from('conversations').select('id').eq('student_id', student.id).eq('trainer_id', student.trainer_id).single(),
+        supabase.from('profiles').select('id, full_name').eq('id', student.trainer_id).maybeSingle(), // Alterado para maybeSingle()
+        supabase.from('conversations').select('id').eq('student_id', student.id).eq('trainer_id', student.trainer_id).maybeSingle(), // Alterado para maybeSingle()
       ]);
 
       if (evaluationsResponse.error) throw evaluationsResponse.error;
       if (workoutsResponse.error) throw workoutsResponse.error;
-      if (trainerProfileResponse.error) throw trainerProfileResponse.error;
+      
+      // Tratamento para trainerProfileResponse
+      if (trainerProfileResponse.error) throw trainerProfileResponse.error; // Erros reais ainda devem ser lançados
+      if (!trainerProfileResponse.data) {
+        throw new Error("Perfil do treinador não encontrado para este aluno. Verifique se o trainer_id está correto.");
+      }
+      setTrainerProfile(trainerProfileResponse.data);
 
       setAllEvaluations(evaluationsResponse.data || []);
       setAllWorkouts(workoutsResponse.data || []);
@@ -175,12 +181,10 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
       });
       setTodaysWorkout(todaysAssignedWorkout || null);
 
-      // Set trainer profile
-      setTrainerProfile(trainerProfileResponse.data);
-
       // Set conversation ID
-      if (conversationResponse.error && conversationResponse.error.code === 'PGRST116') {
-        // No conversation found, create one
+      if (conversationResponse.error) throw conversationResponse.error; // Erros reais ainda devem ser lançados
+      if (!conversationResponse.data) { // Se nenhuma conversa for encontrada
+        // Criar nova conversa
         const { data: newConversation, error: createConvError } = await supabase
           .from('conversations')
           .insert({
@@ -189,13 +193,12 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
             last_message_at: new Date().toISOString()
           })
           .select('id')
-          .single();
+          .single(); // Este .single() é seguro, pois esperamos uma nova linha
+
         if (createConvError) throw createConvError;
         setStudentConversationId(newConversation.id);
-      } else if (conversationResponse.error) {
-        throw conversationResponse.error;
       } else {
-        setStudentConversationId(conversationResponse.data?.id || null);
+        setStudentConversationId(conversationResponse.data.id);
       }
 
     } catch (error: any) {
