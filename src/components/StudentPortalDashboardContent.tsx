@@ -73,6 +73,8 @@ interface RpcWorkoutOutput {
     notes?: string;
     instructions: string[];
     video_url?: string; // Added video_url
+    duration?: number; // Adicionado duration
+    order_index: number; // Adicionado order_index
   }[];
 }
 
