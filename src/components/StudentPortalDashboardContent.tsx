@@ -55,34 +55,29 @@ interface EvaluationData {
   bmr?: number;
 }
 
-interface WorkoutTemplateExercise {
-  id: string;
-  order_index: number;
-  sets: number;
-  reps: number;
-  weight_kg?: number;
-  duration?: number;
-  rest_time: number;
-  notes?: string;
-  exercises: {
-    id: string;
+// Nova interface para o retorno da RPC fn_student_workouts
+interface RpcWorkoutOutput {
+  id: string; // workout_template_id
+  name: string; // workout_template_name
+  description: string; // workout_template_description
+  category: string;
+  difficulty: string;
+  estimated_duration: number;
+  assigned_date: string; // from student_workouts
+  exercises: { // This is the json_agg from workout_template_exercises
+    id: string; // Added exercise ID
     name: string;
+    sets: number;
+    reps: number;
+    rest_time: number;
+    notes?: string;
     instructions: string[];
-    video_url?: string;
-  };
+    video_url?: string; // Added video_url
+  }[];
 }
 
-interface TodaysWorkout {
-  id: string;
-  assigned_date: string;
-  workout_templates: {
-    id: string;
-    name: string;
-    description: string;
-    estimated_duration: number;
-    workout_template_exercises: WorkoutTemplateExercise[];
-  };
-}
+// A interface TodaysWorkout agora usa a RpcWorkoutOutput
+type TodaysWorkout = RpcWorkoutOutput;
 
 interface StudentPortalDashboardContentProps {
   student: Student;
@@ -175,7 +170,7 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
 
       // Set today's workout
       const assignedWorkouts = workoutsResponse.data || [];
-      const todaysAssignedWorkout = assignedWorkouts.find((w: any) => {
+      const todaysAssignedWorkout = assignedWorkouts.find((w: RpcWorkoutOutput) => { // Usar RpcWorkoutOutput aqui
         const assignedDate = new Date(w.assigned_date).toISOString().split('T')[0];
         return assignedDate === today;
       });
@@ -354,22 +349,22 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
             <CardContent className="space-y-4">
               {todaysWorkout ? (
                 <div className="p-4 bg-accent/50 rounded-lg">
-                  <h4 className="font-semibold mb-2">{todaysWorkout.workout_templates?.name}</h4>
+                  <h4 className="font-semibold mb-2">{todaysWorkout.name}</h4>
                   <p className="text-sm text-muted-foreground mb-3">
-                    {todaysWorkout.workout_templates?.description} | Duração: {todaysWorkout.workout_templates?.estimated_duration} min
+                    {todaysWorkout.description} | Duração: {todaysWorkout.estimated_duration} min
                   </p>
                   
                   <div className="space-y-2 text-sm">
-                    {todaysWorkout.workout_templates?.workout_template_exercises?.slice(0, 3).map((ex: any) => (
-                      <div key={ex.exercises.id} className="flex justify-between">
-                        <span>{ex.exercises.name}</span>
+                    {todaysWorkout.exercises?.slice(0, 3).map((ex: any) => (
+                      <div key={ex.id} className="flex justify-between">
+                        <span>{ex.name}</span>
                         <span className="text-muted-foreground">
                           {ex.sets}x{ex.reps}
                         </span>
                       </div>
                     ))}
-                    {todaysWorkout.workout_templates?.workout_template_exercises?.length > 3 && (
-                      <div className="text-center text-muted-foreground">+ {todaysWorkout.workout_templates.workout_template_exercises.length - 3} exercícios</div>
+                    {todaysWorkout.exercises?.length > 3 && (
+                      <div className="text-center text-muted-foreground">+ {todaysWorkout.exercises.length - 3} exercícios</div>
                     )}
                   </div>
                 </div>
@@ -461,7 +456,7 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
           <CardContent className="max-h-[400px] overflow-y-auto">
             {allWorkouts.length > 0 ? (
               <Accordion type="single" collapsible className="w-full">
-                {allWorkouts.map((workout: any, _index: number) => (
+                {allWorkouts.map((workout: RpcWorkoutOutput, _index: number) => ( // Usar RpcWorkoutOutput aqui
                   <AccordionItem key={workout.id} value={workout.id} className="border-b">
                     <AccordionTrigger className="text-sm px-2 py-3 hover:no-underline">
                       {workout.name}
