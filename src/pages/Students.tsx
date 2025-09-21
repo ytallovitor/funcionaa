@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Search, Plus, Activity, Calendar, Loader2, Edit, Dumbbell, FileText, Archive, Trash2, MoreVertical, Check, MessageCircle } from "lucide-react";
+import { Users, Search, Plus, Activity, Calendar, Loader2, Edit, Dumbbell, FileText, Archive, Trash2, MoreVertical, Check, MessageCircle, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import StudentPortalManager from "@/components/StudentPortalManager";
 import AnamnesisForm from "@/components/AnamnesisForm";
 import { useNavigate } from "react-router-dom";
+import SetWeeklyGoalsDialog from "@/components/SetWeeklyGoalsDialog"; // Import the new component
 
 interface Student {
   id: string;
@@ -48,6 +49,7 @@ interface Student {
   weight?: number;
   status?: 'active' | 'archived' | 'deleted';
   deleted_at?: string;
+  trainer_id: string; // Ensure trainer_id is part of Student interface
 }
 
 const Students = () => {
@@ -72,7 +74,9 @@ const Students = () => {
   const [isWorkoutManagerOpen, setIsWorkoutManagerOpen] = useState(false);
   const [anamnesisStudent, setAnamnesisStudent] = useState<Student | null>(null);
   const [isAnamnesisOpen, setIsAnamnesisOpen] = useState(false);
-  const [isStartingChat, setIsStartingChat] = useState(false); // Novo estado para o chat
+  const [isStartingChat, setIsStartingChat] = useState(false);
+  const [settingGoalsForStudent, setSettingGoalsForStudent] = useState<Student | null>(null); // New state for goals dialog
+  const [isSetGoalsDialogOpen, setIsSetGoalsDialogOpen] = useState(false); // New state for goals dialog open/close
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -464,6 +468,11 @@ const Students = () => {
     }
   };
 
+  const handleSetGoals = (student: Student) => {
+    setSettingGoalsForStudent(student);
+    setIsSetGoalsDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -706,6 +715,10 @@ const Students = () => {
                             )}
                             Iniciar Chat
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSetGoals(student)}>
+                            <Target className="mr-2 h-4 w-4" />
+                            Metas Semanais
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {student.status === 'active' ? (
                             <DropdownMenuItem onClick={() => archiveStudent(student.id)}>
@@ -744,7 +757,7 @@ const Students = () => {
                       {student.weight && student.bodyFat && (
                         <div className="flex items-center justify-between">
                           <div className="text-sm">
-                            <span className="font-medium">Peso:</span> {student.weight} kg • {student.bodyFat}% gordura
+                            <span className="font-medium">Peso:</span> {student.weight} kg • {student.bodyFat.toFixed(1)}% gordura
                           </div>
                           <Button variant="outline" size="sm" onClick={() => navigate(`/evaluation?student=${student.id}`)}>
                             <Calendar className="h-3 w-3 mr-1" />
@@ -1114,17 +1127,14 @@ const Students = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isAnamnesisOpen} onOpenChange={setIsAnamnesisOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Anamnese de {anamnesisStudent?.name}</DialogTitle>
-            <DialogDescription>
-              Complete o histórico médico e objetivos do aluno
-            </DialogDescription>
-          </DialogHeader>
-          <AnamnesisForm student={anamnesisStudent} open={isAnamnesisOpen} onOpenChange={setIsAnamnesisOpen} />
-        </DialogContent>
-      </Dialog>
+      <AnamnesisForm student={anamnesisStudent} open={isAnamnesisOpen} onOpenChange={setIsAnamnesisOpen} />
+
+      <SetWeeklyGoalsDialog
+        student={settingGoalsForStudent}
+        open={isSetGoalsDialogOpen}
+        onOpenChange={setIsSetGoalsDialogOpen}
+        onGoalsUpdated={() => fetchStudents(trainerId!)} // Re-fetch students to update UI
+      />
 
       <AlertDialog open={!!deletingStudent} onOpenChange={() => setDeletingStudent(null)}>
         <AlertDialogContent>

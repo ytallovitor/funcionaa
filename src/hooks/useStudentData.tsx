@@ -3,6 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner"; // Import toast from sonner
 import { useAuth } from "@/hooks/useAuth"; // Adicionado import do useAuth
 
+interface WeeklyGoals {
+  id: string;
+  target_workouts: number;
+  target_measurements: number;
+  target_progress_photos: number;
+  start_date: string;
+  end_date: string;
+}
+
 interface StudentData {
   latestMeasurements: {
     weight?: number;
@@ -10,12 +19,15 @@ interface StudentData {
     leanMass?: number;
     tmb?: number;
     waist?: number;
+    neck?: number;
+    hip?: number;
     date?: string;
   };
-  weeklyGoals: {
+  weeklyGoals: WeeklyGoals | null; // Now fetches dynamic weekly goals
+  weeklyGoalsProgress: {
     workouts: { completed: number; target: number };
     measurements: { completed: number; target: number };
-    progress: { completed: number; target: number };
+    progressPhotos: { completed: number; target: number };
   };
   loading: boolean;
   error: string | null;
@@ -24,7 +36,8 @@ interface StudentData {
 export function useStudentData() {
   const [data, setData] = useState<StudentData>({
     latestMeasurements: {},
-    weeklyGoals: { workouts: { completed: 0, target: 5 }, measurements: { completed: 0, target: 3 }, progress: { completed: 0, target: 1 } },
+    weeklyGoals: null,
+    weeklyGoalsProgress: { workouts: { completed: 0, target: 0 }, measurements: { completed: 0, target: 0 }, progressPhotos: { completed: 0, target: 0 } },
     loading: true,
     error: null
   });
@@ -66,38 +79,60 @@ export function useStudentData() {
           leanMass: latestEval.lean_mass,
           tmb: latestEval.bmr,
           waist: latestEval.waist,
+          neck: latestEval.neck,
+          hip: latestEval.hip,
           date: latestEval.evaluation_date
         } : {};
 
-        // Weekly goals: workouts completed this week
-        const startOfWeek = new Date();
-        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(endOfWeek.getDate() + 6);
-
-        const { count: workoutsCompleted } = await supabase
-          .from('workout_logs')
-          .select('*', { count: 'exact', head: true })
+        // Fetch active weekly goals
+        const { data: weeklyGoalsData, error: goalsError } = await supabase
+          .from('weekly_goals')
+          .select('*')
           .eq('student_id', profile.id)
-          .gte('workout_date', startOfWeek.toISOString().split('T')[0])
-          .lte('workout_date', endOfWeek.toISOString().split('T')[0]);
+          .gte('end_date', new Date().toISOString().split('T')[0]) // Only active or future goals
+          .order('start_date', { ascending: false })
+          .limit(1)
+          .single();
 
-        const { count: measurementsCompleted } = await supabase
-          .from('evaluations')
-          .select('*', { count: 'exact', head: true })
-          .eq('student_id', profile.id)
-          .gte('evaluation_date', startOfWeek.toISOString().split('T')[0]);
+        if (goalsError && goalsError.code !== 'PGRST116') throw goalsError;
 
-        // Progress photos or similar - mock for now, replace with real table if exists
-        const progressCompleted = 1; // Placeholder - fetch from progress_photos table if exists
-        const progressTarget = 1;
+        let currentWeeklyGoals: WeeklyGoals | null = null;
+        let workoutsCompleted = 0;
+        let measurementsCompleted = 0;
+        let progressPhotosCompleted = 0; // Placeholder for now
+
+        if (weeklyGoalsData) {
+          currentWeeklyGoals = weeklyGoalsData;
+
+          // Calculate completed workouts for the current goal period
+          const { count: workoutsCount } = await supabase
+            .from('workout_logs')
+            .select('*', { count: 'exact', head: true })
+            .eq('student_id', profile.id)
+            .gte('workout_date', currentWeeklyGoals.start_date)
+            .lte('workout_date', currentWeeklyGoals.end_date);
+          workoutsCompleted = workoutsCount || 0;
+
+          // Calculate completed measurements for the current goal period
+          const { count: measurementsCount } = await supabase
+            .from('evaluations')
+            .select('*', { count: 'exact', head: true })
+            .eq('student_id', profile.id)
+            .gte('evaluation_date', currentWeeklyGoals.start_date)
+            .lte('evaluation_date', currentWeeklyGoals.end_date);
+          measurementsCompleted = measurementsCount || 0;
+
+          // Placeholder for progress photos
+          progressPhotosCompleted = 0; // Implement actual fetching if you add a table for this
+        }
 
         setData({
           latestMeasurements,
-          weeklyGoals: {
-            workouts: { completed: workoutsCompleted || 0, target: 5 },
-            measurements: { completed: measurementsCompleted || 0, target: 3 },
-            progress: { completed: progressCompleted, target: progressTarget }
+          weeklyGoals: currentWeeklyGoals,
+          weeklyGoalsProgress: {
+            workouts: { completed: workoutsCompleted, target: currentWeeklyGoals?.target_workouts || 0 },
+            measurements: { completed: measurementsCompleted, target: currentWeeklyGoals?.target_measurements || 0 },
+            progressPhotos: { completed: progressPhotosCompleted, target: currentWeeklyGoals?.target_progress_photos || 0 }
           },
           loading: false,
           error: null

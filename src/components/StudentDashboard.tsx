@@ -74,14 +74,14 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
       },
       {
         title: "% Gordura",
-        value: measurements.bodyFat ? `${measurements.bodyFat}%` : 'N/A',
+        value: measurements.bodyFat ? `${measurements.bodyFat.toFixed(1)}%` : 'N/A', // Formatar para 1 casa decimal
         change: measurements.bodyFat ? "-3.2%" : "Sem dados",
         positive: true,
         icon: Target
       },
       {
         title: "Massa Magra",
-        value: measurements.leanMass ? `${measurements.leanMass}kg` : 'N/A',
+        value: measurements.leanMass ? `${measurements.leanMass.toFixed(1)}kg` : 'N/A', // Formatar para 1 casa decimal
         change: measurements.leanMass ? "+1.8kg" : "Sem dados",
         positive: true,
         icon: TrendingUp
@@ -211,6 +211,10 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
     fetchTodaysWorkout();
   };
 
+  const getProgressValue = (completed: number, target: number) => {
+    return target > 0 ? Math.min((completed / target) * 100, 100) : 0;
+  };
+
   if (studentData.loading) {
     return (
       <div className="space-y-6">
@@ -306,56 +310,58 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Treinos Realizados</span>
-                <span className="font-medium">
-                  {studentData.weeklyGoals.workouts.completed}/{studentData.weeklyGoals.workouts.target}
-                </span>
-              </div>
-              <Progress 
-                value={(studentData.weeklyGoals.workouts.completed / studentData.weeklyGoals.workouts.target) * 100} 
-                className="h-2"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Medidas Registradas</span>
-                <span className="font-medium">
-                  {studentData.weeklyGoals.measurements.completed}/{studentData.weeklyGoals.measurements.target}
-                </span>
-              </div>
-              <Progress 
-                value={(studentData.weeklyGoals.measurements.completed / studentData.weeklyGoals.measurements.target) * 100} 
-                className="h-2"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Fotos de Progresso</span>
-                <span className="font-medium">
-                  {studentData.weeklyGoals.progress.completed}/{studentData.weeklyGoals.progress.target}
-                </span>
-              </div>
-              <Progress 
-                value={(studentData.weeklyGoals.progress.completed / studentData.weeklyGoals.progress.target) * 100} 
-                className="h-2"
-              />
-            </div>
-
-            {studentData.weeklyGoals.workouts.completed === 0 && studentData.weeklyGoals.measurements.completed === 0 ? (
-              <div className="text-center py-4 text-muted-foreground">
-                <p className="text-sm">Sem progresso semanal ainda</p>
-                <p className="text-xs mt-1">Comece registrando suas primeiras atividades</p>
-              </div>
+            {studentData.weeklyGoals ? (
+              <>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Treinos Realizados</span>
+                    <span className="font-medium">
+                      {studentData.weeklyGoalsProgress.workouts.completed}/{studentData.weeklyGoalsProgress.workouts.target}
+                    </span>
+                  </div>
+                  <Progress 
+                    value={getProgressValue(studentData.weeklyGoalsProgress.workouts.completed, studentData.weeklyGoalsProgress.workouts.target)} 
+                    className="h-2"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Medidas Registradas</span>
+                    <span className="font-medium">
+                      {studentData.weeklyGoalsProgress.measurements.completed}/{studentData.weeklyGoalsProgress.measurements.target}
+                    </span>
+                  </div>
+                  <Progress 
+                    value={getProgressValue(studentData.weeklyGoalsProgress.measurements.completed, studentData.weeklyGoalsProgress.measurements.target)} 
+                    className="h-2"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Fotos de Progresso</span>
+                    <span className="font-medium">
+                      {studentData.weeklyGoalsProgress.progressPhotos.completed}/{studentData.weeklyGoalsProgress.progressPhotos.target}
+                    </span>
+                  </div>
+                  <Progress 
+                    value={getProgressValue(studentData.weeklyGoalsProgress.progressPhotos.completed, studentData.weeklyGoalsProgress.progressPhotos.target)} 
+                    className="h-2"
+                  />
+                </div>
+              </>
             ) : (
-              <Button className="w-full gradient-primary text-white">
-                <Trophy className="mr-2 h-4 w-4" />
-                Ver Todas as Metas
-              </Button>
+              <div className="text-center py-4 text-muted-foreground">
+                <p className="text-sm">Nenhuma meta semanal definida.</p>
+                <p className="text-xs mt-1">Converse com seu personal para definir suas metas!</p>
+              </div>
             )}
+
+            <Button className="w-full gradient-primary text-white">
+              <Trophy className="mr-2 h-4 w-4" />
+              Ver Todas as Metas
+            </Button>
           </CardContent>
         </Card>
 
@@ -452,8 +458,8 @@ const StudentDashboard = ({ student }: StudentDashboardProps) => {
                 age: student.age || 28, // Use student's age if available, fallback to 28
                 gender: (student.gender as 'male' | 'female') || 'male', // Use student's gender, fallback to male
                 waist: studentData.latestMeasurements.waist || 0,
-                neck: 38, // From evaluation or default
-                hip: student.gender === 'feminino' && studentData.latestMeasurements.waist ? studentData.latestMeasurements.waist * 1.1 : undefined, // Estimate for females
+                neck: studentData.latestMeasurements.neck || 0, // Usar neck real
+                hip: student.gender === 'feminino' ? studentData.latestMeasurements.hip || 0 : undefined, // Usar hip real
               }}
             />
           ) : (
