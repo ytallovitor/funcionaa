@@ -105,22 +105,26 @@ export function useStudentData() {
           currentWeeklyGoals = weeklyGoalsData;
 
           // Calculate completed workouts for the current goal period
-          const { count: workoutsCount } = await supabase
-            .from('workout_logs')
-            .select('*', { count: 'exact', head: true })
-            .eq('student_id', profile.id)
-            .gte('workout_date', currentWeeklyGoals.start_date)
-            .lte('workout_date', currentWeeklyGoals.end_date);
-          workoutsCompleted = workoutsCount || 0;
+          if (currentWeeklyGoals) {
+            const { count: workoutsCount } = await supabase
+              .from('workout_logs')
+              .select('*', { count: 'exact', head: true })
+              .eq('student_id', profile.id)
+              .gte('workout_date', currentWeeklyGoals.start_date)
+              .lte('workout_date', currentWeeklyGoals.end_date);
+            workoutsCompleted = workoutsCount || 0;
+          }
 
           // Calculate completed measurements for the current goal period
-          const { count: measurementsCount } = await supabase
-            .from('evaluations')
-            .select('*', { count: 'exact', head: true })
-            .eq('student_id', profile.id)
-            .gte('evaluation_date', currentWeeklyGoals.start_date)
-            .lte('evaluation_date', currentWeeklyGoals.end_date);
-          measurementsCompleted = measurementsCount || 0;
+          if (currentWeeklyGoals) {
+            const { count: measurementsCount } = await supabase
+              .from('evaluations')
+              .select('*', { count: 'exact', head: true })
+              .eq('student_id', profile.id)
+              .gte('evaluation_date', currentWeeklyGoals.start_date)
+              .lte('evaluation_date', currentWeeklyGoals.end_date);
+            measurementsCompleted = measurementsCount || 0;
+          }
 
           // Placeholder for progress photos
           progressPhotosCompleted = 0; // Implement actual fetching if you add a table for this

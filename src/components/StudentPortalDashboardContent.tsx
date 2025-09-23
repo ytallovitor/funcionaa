@@ -386,22 +386,22 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
             <CardContent className="space-y-4">
               {todaysWorkout ? (
                 <div className="p-4 bg-accent/50 rounded-lg">
-                  <h4 className="font-semibold mb-2">{todaysWorkout.workout_templates?.name}</h4>
+                  <h4 className="font-semibold mb-2">{todaysWorkout.name}</h4>
                   <p className="text-sm text-muted-foreground mb-3">
-                    {todaysWorkout.workout_templates?.description} | Duração: {todaysWorkout.workout_templates?.estimated_duration} min
+                    {todaysWorkout.description} | Duração: {todaysWorkout.estimated_duration} min
                   </p>
                   
                   <div className="space-y-2 text-sm">
-                    {todaysWorkout.workout_templates?.workout_template_exercises?.slice(0, 3).map((ex: any) => (
-                      <div key={ex.exercises.id} className="flex justify-between">
-                        <span>{ex.exercises.name}</span>
+                    {todaysWorkout.exercises?.slice(0, 3).map((ex: any) => (
+                      <div key={ex.id} className="flex justify-between">
+                        <span>{ex.name}</span>
                         <span className="text-muted-foreground">
                           {ex.sets}x{ex.reps}
                         </span>
                       </div>
                     ))}
-                    {todaysWorkout.workout_templates?.workout_template_exercises?.length > 3 && (
-                      <div className="text-center text-muted-foreground">+ {todaysWorkout.workout_templates.workout_template_exercises.length - 3} exercícios</div>
+                    {todaysWorkout.exercises?.length > 3 && (
+                      <div className="text-center text-muted-foreground">+ {todaysWorkout.exercises.length - 3} exercícios</div>
                     )}
                   </div>
                 </div>
@@ -431,86 +431,195 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
           </Card>
         </div>
 
-      {/* New Row for Charts, Nutrition, Challenges */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Student Progress Charts */}
-        <StudentProgressCharts evaluations={allEvaluations} loading={loadingEvaluations} />
+        {/* New Row for Charts, Nutrition, Challenges */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Student Progress Charts */}
+          <StudentProgressCharts evaluations={allEvaluations} loading={loadingEvaluations} />
 
-        <div className="space-y-6">
-          {/* Student Nutrition Overview */}
-          <StudentNutritionCard studentId={student.id} />
+          <div className="space-y-6">
+            {/* Student Nutrition Overview */}
+            <StudentNutritionCard studentId={student.id} />
 
-          {/* Student Challenges Overview */}
-          <StudentChallengesCard studentId={student.id} />
+            {/* Student Challenges Overview */}
+            <StudentChallengesCard studentId={student.id} />
+          </div>
         </div>
+
+        {/* Body Composition - Real data from hook */}
+        <Card className="shadow-primary/10 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" /> {/* Changed icon to CalendarDays */}
+              Composição Corporal
+            </CardTitle>
+            <CardDescription>
+              Baseado nas últimas medidas reais
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {studentData.latestMeasurements.weight ? (
+              <BodyCompositionCalculator
+                data={{
+                  weight: studentData.latestMeasurements.weight || 0,
+                  height: student.height || 175, // Use student's height if available, fallback to 175
+                  age: student.age || 28, // Use student's age if available, fallback to 28
+                  gender: (student.gender as 'male' | 'female') || 'male', // Use student's gender, fallback to male
+                  waist: studentData.latestMeasurements.waist || 0,
+                  neck: studentData.latestMeasurements.neck || 0, // Usar neck real
+                  hip: student.gender === 'feminino' ? studentData.latestMeasurements.hip || 0 : undefined, // Usar hip real
+                }}
+              />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Sem medidas recentes</p>
+                <p className="text-sm mt-1">Agende uma avaliação com seu trainer para ver sua composição corporal</p>
+                <Button className="mt-4 gradient-primary" onClick={() => studentConversationId && navigate(`/chat/${studentConversationId}`)}>
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Agendar com Trainer
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Histórico de Treinos */}
+        <Card className="shadow-primary/10 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Dumbbell className="h-5 w-5 text-primary" />
+              Histórico de Treinos
+            </CardTitle>
+            <CardDescription>
+              Todos os treinos atribuídos pelo seu personal trainer
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="max-h-[400px] overflow-y-auto">
+            {allWorkouts.length > 0 ? (
+              <Accordion type="single" collapsible className="w-full">
+                {allWorkouts.map((workout: RpcWorkoutOutput, _index: number) => ( // Usar RpcWorkoutOutput aqui
+                  <AccordionItem key={workout.id} value={workout.id} className="border-b">
+                    <AccordionTrigger className="text-sm px-2 py-3 hover:no-underline">
+                      {workout.name}
+                    </AccordionTrigger>
+                    <AccordionContent className="px-2 py-3 space-y-2">
+                      <p className="text-sm text-muted-foreground mb-2">{workout.description}</p>
+                      {workout.exercises?.map((ex: any, exIndex: number) => (
+                        <div key={exIndex} className="p-3 bg-accent/50 rounded text-xs border border-accent/70">
+                          <p className="font-medium text-base">{ex.name}</p>
+                          <p className="text-muted-foreground mt-1">
+                            {ex.sets} séries x {ex.reps} reps • Descanso: {ex.rest_time}s
+                          </p>
+                          {ex.instructions && ex.instructions.length > 0 && (
+                            <div className="mt-2">
+                              <h5 className="font-semibold text-xs text-primary">Instruções:</h5>
+                              <ul className="list-disc list-inside text-xs text-muted-foreground">
+                                {ex.instructions.map((inst: string, i: number) => <li key={i}>{inst}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          {ex.notes && <p className="text-primary mt-2">Nota do Trainer: {ex.notes}</p>}
+                          {ex.video_url && (
+                            <Button variant="outline" size="sm" className="mt-3" onClick={() => window.open(ex.video_url, '_blank')}>
+                              <Video className="h-3 w-3 mr-1" />
+                              Ver Vídeo
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Dumbbell className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-sm">Nenhum treino atribuído ainda</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Histórico de Avaliações */}
+        <Card className="shadow-primary/10 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              Histórico de Avaliações
+            </CardTitle>
+            <CardDescription>
+              Acompanhe sua evolução ao longo do tempo
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="max-h-[300px] overflow-y-auto">
+            <div className="space-y-3">
+              {allEvaluations.length > 0 ? (
+                allEvaluations.map((evaluation, index) => (
+                  <div key={evaluation.evaluation_date + index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-accent/50 rounded-lg">
+                    <div className="mb-2 sm:mb-0">
+                      <h4 className="font-medium text-sm">
+                        Avaliação #{allEvaluations.length - index}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(evaluation.evaluation_date).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                    <div className="text-right space-y-1 text-sm">
+                      <p>
+                        <span className="font-medium">Peso:</span> {evaluation.weight}kg
+                      </p>
+                      {evaluation.body_fat_percentage && (
+                        <p>
+                          <span className="font-medium">Gordura:</span> {evaluation.body_fat_percentage.toFixed(1)}%
+                        </p>
+                      )}
+                      {evaluation.lean_mass && (
+                        <p>
+                          <span className="font-medium">Massa Magra:</span> {evaluation.lean_mass.toFixed(1)}kg
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Nenhuma avaliação encontrada</p>
+                  <p className="text-xs mt-1">Aguarde sua primeira avaliação</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Chat */}
+        <Card className="shadow-primary/10 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              Chat com Trainer
+            </CardTitle>
+            <CardDescription>
+              Converse com seu personal trainer
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {studentConversationId && trainerProfile ? (
+              <ChatSystem 
+                compact 
+                conversationId={studentConversationId} 
+                recipientName={trainerProfile.full_name} 
+                recipientType="trainer" 
+              />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Carregando chat...</p>
+                <p className="text-sm mt-1">Se o chat não aparecer, tente recarregar a página.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-
-      {/* Body Composition - Real data from hook */}
-      <Card className="shadow-primary/10 border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-primary" /> {/* Changed icon to CalendarDays */}
-            Composição Corporal
-          </CardTitle>
-          <CardDescription>
-            Baseado nas últimas medidas reais
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {studentData.latestMeasurements.weight ? (
-            <BodyCompositionCalculator
-              data={{
-                weight: studentData.latestMeasurements.weight || 0,
-                height: student.height || 175, // Use student's height if available, fallback to 175
-                age: student.age || 28, // Use student's age if available, fallback to 28
-                gender: (student.gender as 'male' | 'female') || 'male', // Use student's gender, fallback to male
-                waist: studentData.latestMeasurements.waist || 0,
-                neck: studentData.latestMeasurements.neck || 0, // Usar neck real
-                hip: student.gender === 'feminino' ? studentData.latestMeasurements.hip || 0 : undefined, // Usar hip real
-              }}
-            />
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">Sem medidas recentes</p>
-              <p className="text-sm mt-1">Agende uma avaliação com seu trainer para ver sua composição corporal</p>
-              <Button className="mt-4 gradient-primary" onClick={() => studentConversationId && navigate(`/chat/${studentConversationId}`)}>
-                <MessageCircle className="mr-2 h-4 w-4" />
-                Agendar com Trainer
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Quick Chat - Static component, but could fetch recent messages */}
-      <Card className="shadow-primary/10 border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5 text-primary" />
-            Chat com Trainer
-          </CardTitle>
-          <CardDescription>
-            Converse com seu personal trainer
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {studentConversationId && trainerProfile ? (
-            <ChatSystem 
-              compact 
-              conversationId={studentConversationId} 
-              recipientName={trainerProfile.full_name} 
-              recipientType="trainer" 
-            />
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">Carregando chat...</p>
-              <p className="text-sm mt-1">Se o chat não aparecer, tente recarregar a página.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {todaysWorkout && (
         <WorkoutLogger
@@ -525,4 +634,4 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
   );
 };
 
-export default StudentDashboard;
+export default StudentPortalDashboardContent;
