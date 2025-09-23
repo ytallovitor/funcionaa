@@ -1,65 +1,185 @@
-"use client";
-import * as React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DayPicker } from "react-day-picker";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
+import {
+  Button,
+  buttonVariants,
+} from '@/components/ui/button';
 
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
+interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>;
-
-function Calendar({
-  className,
-  classNames,
-  showOutsideDays = true,
-  ...props
-}: CalendarProps) {
-  return (
-    <DayPicker
-      showOutsideDays={showOutsideDays}
-      className={cn("p-3", className)}
-      classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
-        ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex",
-        head_cell:
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-        row: "flex w-full mt-2",
-        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-        day: cn(
-          buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
-        ),
-        day_range_end: "day-range-end",
-        day_selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground",
-        day_outside:
-          "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-        day_disabled: "text-muted-foreground opacity-50",
-        day_range_middle:
-          "aria-selected:bg-accent aria-selected:text-accent-foreground",
-        day_hidden: "invisible",
-        ...classNames,
-      }}
-      components={{
-        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
-        IconRight: () => <ChevronRight className="h-4 w-4" />,
-      }}
-      {...props}
-    />
-  );
-}
+const Calendar = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("rounded-md border", className)} {...props} />
+));
 Calendar.displayName = "Calendar";
 
-export { Calendar };
+const CalendarHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "flex flex-col space-y-1.5 p-3",
+      className
+    )}
+    {...props}
+  />
+));
+CalendarHeader.displayName = "CalendarHeader";
+
+const CalendarTitle = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+>(({ className, children, ...props }, ref) => (
+  <button
+    ref={ref}
+    className={cn(
+      "text-sm font-medium",
+      buttonVariants({
+        variant: "ghost",
+      }),
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </button>
+));
+CalendarTitle.displayName = "CalendarTitle";
+
+const CalendarActions = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex items-center space-x-1", className)}
+    {...props}
+  >
+    {children}
+  </div>
+));
+CalendarActions.displayName = "CalendarActions";
+
+const CalendarAction = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+>(({ className, variant = "ghost", size = "icon", ...props }, ref) => (
+  <Button
+    ref={ref}
+    variant={variant}
+    size={size}
+    className={cn(
+      "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+      className
+    )}
+    {...props}
+  />
+));
+CalendarAction.displayName = "CalendarAction";
+
+const CalendarBody = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("space-y-4", className)}
+    {...props}
+  />
+));
+CalendarBody.displayName = "CalendarBody";
+
+const CalendarTable = React.forwardRef<
+  HTMLTableElement,
+  React.HTMLAttributes<HTMLTableElement>
+>(({ className, ...props }, ref) => (
+  <table
+    ref={ref}
+    className={cn("w-full border-collapse space-y-1", className)}
+    {...props}
+  />
+));
+CalendarTable.displayName = "CalendarTable";
+
+const CalendarHeaderRow = React.forwardRef<
+  HTMLTableRowElement,
+  React.HTMLAttributes<HTMLTableRowElement>
+>(({ className, ...props }, ref) => (
+  <tr
+    ref={ref}
+    className={cn(
+      "flex w-full mt-2",
+      className
+    )}
+    {...props}
+  />
+));
+CalendarHeaderRow.displayName = "CalendarHeaderRow";
+
+interface CalendarHeaderCellProps
+  extends React.ThHTMLAttributes<HTMLTableCellElement> {
+  hidden?: boolean;
+}
+
+const CalendarHeaderCell = React.forwardRef<
+  HTMLTableCellElement,
+  CalendarHeaderCellProps
+>(({ className, hidden = false, ...props }, ref) => (
+  <th
+    ref={ref}
+    className={cn(
+      "text-h3 font-normal text-muted-foreground rounded-md w-9 h-9",
+      hidden && "invisible",
+      className
+    )}
+    {...props}
+  />
+));
+CalendarHeaderCell.displayName = "CalendarHeaderCell";
+
+const CalendarRow = React.forwardRef<
+  HTMLTableRowElement,
+  React.HTMLAttributes<HTMLTableRowElement>
+>(({ className, ...props }, ref) => (
+  <tr
+    ref={ref}
+    className={cn(
+      "flex w-full mt-2",
+      className
+    )}
+    {...props}
+  />
+));
+CalendarRow.displayName = "CalendarRow";
+
+const CalendarCell = React.forwardRef<
+  HTMLTableCellElement,
+  React.HTMLAttributes<HTMLTableCellElement>
+>(({ className, ...props }, ref) => (
+  <td
+    ref={ref}
+    className={cn("text-sm p-0 relative", className)}
+    {...props}
+  />
+));
+CalendarCell.displayName = "CalendarCell";
+
+export {
+  Calendar,
+  CalendarHeader,
+  CalendarBody,
+  CalendarTitle,
+  CalendarActions,
+  CalendarAction,
+  CalendarTable,
+  CalendarHeaderRow,
+  CalendarHeaderCell,
+  CalendarRow,
+  CalendarCell,
+};

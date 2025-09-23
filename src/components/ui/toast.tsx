@@ -107,15 +107,15 @@ ToastDescription.displayName = ToastPrimitives.Description.displayName;
 type ToastViewportProps = React.ComponentPropsWithoutRef<typeof ToastPrimitives.Viewport>;
 
 type ToastProps = React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
-  VariantProps<typeof toastVariants>;
+  VariantProps<typeof toastVariants> & {
+    description?: string; // Adicionado description para resolver TS2353
+  };
 
 type ToastActionProps = React.ComponentPropsWithoutRef<typeof ToastPrimitives.Action>;
 
 type ToastTitleProps = React.ComponentPropsWithoutRef<typeof ToastPrimitives.Title>;
 
 type ToastDescriptionProps = React.ComponentPropsWithoutRef<typeof ToastPrimitives.Description>;
-
-type ToastCloseProps = React.ComponentPropsWithoutRef<typeof ToastPrimitives.Close>;
 
 export {
   ToastProvider,
