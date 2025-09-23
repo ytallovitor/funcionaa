@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ButtonProps } from '@/components/ui/button';
+import { Button, ButtonProps } from '@/components/ui/button'; // Import Button and ButtonProps
 
 const PaginationContent = React.forwardRef<
   HTMLUListElement,
@@ -25,8 +25,7 @@ PaginationItem.displayName = 'PaginationItem';
 
 const PaginationLink = React.forwardRef<
   HTMLAnchorElement,
-  React.ComponentPropsWithoutRef<typeof ButtonProps> &
-    React.HTMLAttributes<HTMLAnchorElement>
+  ButtonProps & React.HTMLAttributes<HTMLAnchorElement> // Use ButtonProps directly
 >(({ className, isActive, size = 'default', ...props }, ref) => (
   <Button
     ref={ref}
@@ -68,7 +67,7 @@ const PaginationNext = React.forwardRef<
   >
     <span>Próxima</span>
     <ChevronRight className="h-4 w-4" />
-  </PaginationNext>
+  </PaginationLink>
 ));
 PaginationNext.displayName = 'PaginationNext';
 

@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-  useSidebar,
+  useSidebar, // Import useSidebar
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Activity } from "lucide-react";
@@ -29,7 +29,7 @@ const items = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state } = useSidebar(); // Use useSidebar hook
   const location = useLocation();
   const { signOut, user } = useAuth();
   const collapsed = state === "collapsed";
@@ -49,7 +49,7 @@ export function AppSidebar() {
   return (
     <Sidebar
       className="w-64" // Largura fixa para visibilidade
-      collapsible="icon"
+      collapsible="icon" // Pass collapsible prop
       style={{
         minWidth: '240px', // Largura mínima para labels
         maxWidth: '300px', // Largura máxima

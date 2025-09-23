@@ -1,4 +1,5 @@
-import { toast } from 'sonner'; // Usando toast direto do sonner (sem useToast)
+import { toast } from 'sonner';
+import React from 'react'; // Import React for JSX
 
 export function useToast() {
   return {
@@ -12,7 +13,7 @@ export function useToast() {
       const { title, description, action, variant = 'default', duration = 5000 } = options;
       
       if (title || description) {
-        toast.custom((t) => (
+        toast.custom(() => ( // Removed 't' as it's not used
           <div className="flex flex-col gap-2 p-4 bg-background rounded-lg shadow-lg border">
             {title && <p className="font-semibold text-foreground">{title}</p>}
             {description && <p className="text-foreground">{description}</p>}

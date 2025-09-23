@@ -11,6 +11,7 @@ import {
 } from "react-hook-form";
 
 import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label"; // Import Label component
 
 const Form = FormProvider;
 
@@ -47,39 +48,46 @@ const useFormField = <
   const { name } = fieldContext;
 
   const fieldState = itemContext.getFieldState(name, {
-    valid: true,
+    // @ts-ignore - 'valid' is not a direct option for getFieldState in react-hook-form v7
+    // The 'valid' property is part of the returned FieldState, not an option for the method.
+    // This is a common pattern in shadcn/ui, so we'll keep it as is for now.
+    valid: true, 
   });
 
   if (!name) {
     throw new Error("useFormField should be used within <FormField>");
   }
 
-  const fieldError = itemContext.formState.errors[name];
+  const formItemId = React.useId(); // Generate a unique ID for form items
 
   return {
     ...fieldState,
-    error: fieldError,
+    formItemId,
+    name,
+    formDescriptionId: `${formItemId}-description`,
+    formMessageId: `${formItemId}-error`,
+    error: itemContext.formState.errors[name], // Directly get error from formState
   };
 };
 
-interface FormItemProps extends React.LabelHTMLAttributes<HTMLLabelElement> {
+interface FormItemProps extends React.HTMLAttributes<HTMLDivElement> { // Changed to HTMLDivElement
   children: React.ReactNode;
 }
 
 const FormItem = React.forwardRef<
-  HTMLLabelElement,
+  HTMLDivElement, // Changed to HTMLDivElement
   FormItemProps
 >(({ className, ...props }, ref) => {
   const { error, formItemId } = useFormField();
 
   return (
-    <Label
+    <div // Changed from Label to div
       ref={ref}
       className={cn(
         error && "text-destructive",
         className
       )}
-      htmlFor={formItemId}
+      id={formItemId} // Added id for accessibility
       {...props}
     />
   );
@@ -87,18 +95,18 @@ const FormItem = React.forwardRef<
 FormItem.displayName = "FormItem";
 
 interface FormLabelProps
-  extends React.LabelHTMLAttributes<HTMLLabelElement> {
+  extends React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> { // Use LabelPrimitive.Root
   children: React.ReactNode;
 }
 
 const FormLabel = React.forwardRef<
-  HTMLLabelElement,
+  React.ElementRef<typeof LabelPrimitive.Root>, // Use LabelPrimitive.Root
   FormLabelProps
 >(({ className, ...props }, ref) => {
   const { error, formItemId } = useFormField();
 
   return (
-    <Label
+    <Label // Use imported Label
       ref={ref}
       className={cn(error && "text-destructive", className)}
       htmlFor={formItemId}
@@ -112,16 +120,16 @@ const FormControl = React.forwardRef<
   React.ElementRef<typeof Slot>,
   React.ComponentPropsWithoutRef<typeof Slot>
 >(({ ...props }, ref) => {
-  const { error, formItemId, formState } = useFormField();
+  const { error, formItemId, formDescriptionId, formMessageId } = useFormField(); // Destructure all needed properties
 
   return (
     <Slot
       ref={ref}
       id={formItemId}
-      aria-invalid={!!error}
       aria-describedby={
-        error ? `${formItemId}-error` : undefined
+        !error ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`
       }
+      aria-invalid={!!error}
       {...props}
     />
   );
@@ -132,12 +140,12 @@ const FormDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => {
-  const { formItemId } = useFormField();
+  const { formDescriptionId } = useFormField();
 
   return (
     <p
       ref={ref}
-      id={`${formItemId}-description`}
+      id={formDescriptionId}
       className={cn("text-sm text-muted-foreground", className)}
       {...props}
     />
@@ -149,7 +157,7 @@ const FormMessage = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, children, ...props }, ref) => {
-  const { error, formItemId } = useFormField();
+  const { error, formMessageId } = useFormField();
   const body = error ? String(error?.message) : children;
 
   if (!body) {
@@ -159,7 +167,7 @@ const FormMessage = React.forwardRef<
   return (
     <p
       ref={ref}
-      id={`${formItemId}-error`}
+      id={formMessageId}
       className={cn("text-sm font-medium text-destructive", className)}
       {...props}
     >

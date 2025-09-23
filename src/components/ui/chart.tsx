@@ -10,7 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import { cn } from '@/lib/utils';
-import { buttonVariants } from '@/components/ui/button';
+// Removed buttonVariants import as it's not used
 
 interface ChartProps
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -25,15 +25,16 @@ interface ChartProps
 
 function Chart({
   className,
-  hideTooltip = false,
+  // Removed hideTooltip as it's not used
   hideLegend = false,
   chartData,
   dataKey,
   xAxisKey,
   children,
-}: ChartProps) { // Removido ...props (não usado)
+  ...props // Keep ...props for div attributes
+}: ChartProps) {
   return (
-    <div className={cn('w-full h-80', className)}>
+    <div className={cn('w-full h-80', className)} {...props}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={chartData}>
           <defs>
@@ -68,7 +69,7 @@ function Chart({
               border: '1px solid hsl(var(--border))',
             }}
             labelClassName="!text-xs"
-            formatter={(value: number, name: string) => { // Removido props (não usado)
+            formatter={(value: number, name: string) => {
               if (typeof value === 'number') {
                 return [new Intl.NumberFormat('en-US').format(value), name];
               }
@@ -77,7 +78,7 @@ function Chart({
             labelFormatter={(label: string) => label}
             cursor={false}
           />
-          {!hideLegend && <Legend content={(props) => <ChartTooltip {...props} />} />}
+          {!hideLegend && <Legend content={(props: any) => <ChartTooltip {...props} />} />}
           <Area
             type="monotone"
             dataKey={dataKey}
@@ -103,22 +104,17 @@ interface ChartTooltipProps {
     color?: string;
   }>;
   label?: string;
-  viewBox?: {
-    height: number;
-    width: number;
-    x: number;
-    y: number;
-  };
+  // Removed viewBox as it's not used
 }
 
 function ChartTooltip({
   active,
   payload,
   label,
-}: ChartTooltipProps) { // Removido viewBox (não usado)
+}: ChartTooltipProps) {
   if (!active || !payload || !payload.length) return null;
 
-  const nameKey = payload[0].nameKey || 'name'; // Removido uso de nameKey (não usado)
+  // Removed nameKey as it's not used
   const valueFormatter = (value: number) => {
     if (typeof value === 'number') {
       return new Intl.NumberFormat('en-US').format(value);
@@ -132,7 +128,7 @@ function ChartTooltip({
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-primary">{label}</span>
         </div>
-        {payload.map((item, index: number) => ( // Tipos explícitos para index
+        {payload.map((item, index: number) => (
           <div key={index} className="flex items-center gap-2">
             <div
               className="h-2.5 w-2.5 rounded-full"

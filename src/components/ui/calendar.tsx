@@ -2,10 +2,11 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import {
   Button,
-  buttonVariants,
+  buttonVariants, // Keep buttonVariants for type inference in CalendarTitle
 } from '@/components/ui/button';
+import { VariantProps } from 'class-variance-authority'; // Import VariantProps
 
-interface ButtonProps
+interface CalendarButtonProps // Renamed to avoid conflict with ButtonProps from button.tsx
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {}
 
@@ -34,7 +35,7 @@ CalendarHeader.displayName = "CalendarHeader";
 
 const CalendarTitle = React.forwardRef<
   HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement>
+  CalendarButtonProps // Use CalendarButtonProps
 >(({ className, children, ...props }, ref) => (
   <button
     ref={ref}
@@ -68,7 +69,7 @@ CalendarActions.displayName = "CalendarActions";
 
 const CalendarAction = React.forwardRef<
   HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement>
+  CalendarButtonProps // Use CalendarButtonProps
 >(({ className, variant = "ghost", size = "icon", ...props }, ref) => (
   <Button
     ref={ref}
