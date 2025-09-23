@@ -1,4 +1,4 @@
-import * * as React from 'react';
+import * as React from 'react';
 import * as LabelPrimitive from "@radix-ui/react-label";
 import { Slot } from "@radix-ui/react-slot";
 import {
@@ -47,7 +47,7 @@ const useFormField = <
   const itemContext = useFormContext<TFieldValues>();
   const { name } = fieldContext;
 
-  const fieldState = itemContext.getFieldState(name); // Removed 'valid: true' as it's not an option
+  const fieldState = itemContext.getFieldState(name as any); // Cast to any to bypass strict type checking for now
 
   if (!name) {
     throw new Error("useFormField should be used within <FormField>");
