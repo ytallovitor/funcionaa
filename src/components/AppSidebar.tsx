@@ -12,8 +12,8 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-  useSidebar, // Import useSidebar
 } from "@/components/ui/sidebar";
+import { useSidebar } from "@/context/sidebar-context"; // Import useSidebar from new context file
 import { Button } from "@/components/ui/button";
 import { Activity } from "lucide-react";
 

@@ -118,7 +118,7 @@ type ToastTitleProps = React.ComponentPropsWithoutRef<typeof ToastPrimitives.Tit
 type ToastDescriptionProps = React.ComponentPropsWithoutRef<typeof ToastPrimitives.Description>;
 
 export {
-  ToastProvider,
+  // Removed ToastProvider export
   ToastViewport,
   Toast,
   ToastTitle,

@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
-import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"; // Import useSidebar
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/context/sidebar-context"; // Import from new context file
 import { AppSidebar } from "@/components/AppSidebar";
 import { Activity } from "lucide-react";
 

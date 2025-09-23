@@ -13,7 +13,7 @@ export function useToast() {
       const { title, description, action, variant = 'default', duration = 5000 } = options;
       
       if (title || description) {
-        toast.custom(() => ( // Removed 't' as it's not used
+        toast.custom((t) => (
           <div className="flex flex-col gap-2 p-4 bg-background rounded-lg shadow-lg border">
             {title && <p className="font-semibold text-foreground">{title}</p>}
             {description && <p className="text-foreground">{description}</p>}

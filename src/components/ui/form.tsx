@@ -47,12 +47,7 @@ const useFormField = <
   const itemContext = useFormContext<TFieldValues>();
   const { name } = fieldContext;
 
-  const fieldState = itemContext.getFieldState(name, {
-    // @ts-ignore - 'valid' is not a direct option for getFieldState in react-hook-form v7
-    // The 'valid' property is part of the returned FieldState, not an option for the method.
-    // This is a common pattern in shadcn/ui, so we'll keep it as is for now.
-    valid: true, 
-  });
+  const fieldState = itemContext.getFieldState(name); // Removed 'valid: true' as it's not an option
 
   if (!name) {
     throw new Error("useFormField should be used within <FormField>");
@@ -170,9 +165,7 @@ const FormMessage = React.forwardRef<
       id={formMessageId}
       className={cn("text-sm font-medium text-destructive", className)}
       {...props}
-    >
-      {body}
-    </p>
+    />
   );
 });
 FormMessage.displayName = "FormMessage";
