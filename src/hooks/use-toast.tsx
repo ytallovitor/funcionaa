@@ -12,11 +12,17 @@ export function useToast() {
       const { title, description, variant = 'default', duration = 5000 } = options;
       
       if (title || description) {
-        toast[options.variant || 'default']({
-          title,
-          description,
-          duration,
-        });
+        if (variant === 'destructive') {
+          toast.error(title || description, {
+            description: title && description ? description : undefined,
+            duration,
+          });
+        } else {
+          toast.message(title || description, {
+            description: title && description ? description : undefined,
+            duration,
+          });
+        }
       }
     },
   };
