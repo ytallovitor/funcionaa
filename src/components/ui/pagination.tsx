@@ -23,9 +23,13 @@ const PaginationItem = React.forwardRef<
 ));
 PaginationItem.displayName = 'PaginationItem';
 
+interface PaginationLinkProps extends ButtonProps {
+  isActive?: boolean;
+}
+
 const PaginationLink = React.forwardRef<
-  HTMLAnchorElement,
-  ButtonProps & React.HTMLAttributes<HTMLAnchorElement> // Use ButtonProps directly
+  HTMLButtonElement, // Changed to HTMLButtonElement as it renders a Button
+  PaginationLinkProps
 >(({ className, isActive, size = 'default', ...props }, ref) => (
   <Button
     ref={ref}
@@ -38,7 +42,7 @@ const PaginationLink = React.forwardRef<
 PaginationLink.displayName = 'PaginationLink';
 
 const PaginationPrevious = React.forwardRef<
-  HTMLAnchorElement,
+  HTMLButtonElement, // Changed to HTMLButtonElement
   React.ComponentPropsWithoutRef<typeof PaginationLink>
 >(({ className, ...props }, ref) => (
   <PaginationLink
@@ -55,7 +59,7 @@ const PaginationPrevious = React.forwardRef<
 PaginationPrevious.displayName = 'PaginationPrevious';
 
 const PaginationNext = React.forwardRef<
-  HTMLAnchorElement,
+  HTMLButtonElement, // Changed to HTMLButtonElement
   React.ComponentPropsWithoutRef<typeof PaginationLink>
 >(({ className, ...props }, ref) => (
   <PaginationLink
