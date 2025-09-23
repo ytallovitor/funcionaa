@@ -89,7 +89,8 @@ interface StudentPortalDashboardContentProps {
 
 const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPortalDashboardContentProps) => {
   const navigate = useNavigate();
-  const { studentData, loading: studentDataLoading } = useStudentData(); // Use the hook
+  const studentData = useStudentData(); // Fixed: direct assignment, no destructuring of 'data'
+  const [loadingEvaluations, setLoadingEvaluations] = useState(true); // Added missing state
   const [loading, setLoading] = useState(true); // Keep local loading for RPC calls
   const [quickStats, setQuickStats] = useState<any[]>([]);
   const [allEvaluations, setAllEvaluations] = useState<EvaluationData[]>([]);
@@ -101,11 +102,11 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
 
   useEffect(() => {
     fetchDashboardData();
-  }, [student, loginCredentials, studentDataLoading]); // Re-fetch when studentData is loaded
+  }, [student, loginCredentials, studentData.loading]); // Re-fetch when studentData.loading changes
 
   useEffect(() => {
-    if (!studentDataLoading && studentData) {
-      // Update quick stats from useStudentData
+    if (!studentData.loading && studentData) {
+      // Update quick stats from studentData (direct access)
       const measurements = studentData.latestMeasurements;
       setQuickStats([
         {
@@ -138,7 +139,7 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
         }
       ]);
     }
-  }, [studentData, studentDataLoading]);
+  }, [studentData]); // Depend on studentData directly
 
 
   const fetchDashboardData = async () => {
@@ -213,6 +214,29 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
     }
   };
 
+  // Fixed: Call fetchAllEvaluations in useEffect
+  useEffect(() => {
+    fetchAllEvaluations();
+  }, [student.id]); // Depend on student.id to re-fetch when needed
+
+  const fetchAllEvaluations = async () => {
+    setLoadingEvaluations(true);
+    try {
+      const { data, error } = await supabase
+        .from('evaluations')
+        .select('evaluation_date, weight, body_fat_percentage, lean_mass')
+        .eq('student_id', student.id)
+        .order('evaluation_date', { ascending: true });
+
+      if (error) throw error;
+      setAllEvaluations(data || []);
+    } catch (error) {
+      console.error('Error fetching all evaluations:', error);
+    } finally {
+      setLoadingEvaluations(false);
+    }
+  };
+
   const handleWorkoutLogged = () => {
     fetchDashboardData(); // Re-fetch all data to update workout status and logs
   };
@@ -221,7 +245,7 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
     return target > 0 ? Math.min((completed / target) * 100, 100) : 0;
   };
 
-  if (loading || studentDataLoading) {
+  if (loading || studentData.loading) {
     return (
       <div className="space-y-6 p-4">
         <div className="space-y-2">
@@ -619,17 +643,17 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {todaysWorkout && (
-        <WorkoutLogger
-          open={isWorkoutLoggerOpen}
-          onOpenChange={setIsWorkoutLoggerOpen}
-          todaysWorkout={todaysWorkout}
-          studentId={student.id}
-          onWorkoutLogged={handleWorkoutLogged}
-        />
-      )}
+        {todaysWorkout && (
+          <WorkoutLogger
+            open={isWorkoutLoggerOpen}
+            onOpenChange={setIsWorkoutLoggerOpen}
+            todaysWorkout={todaysWorkout}
+            studentId={student.id}
+            onWorkoutLogged={handleWorkoutLogged}
+          />
+        )}
+      </div>
     </div>
   );
 };
