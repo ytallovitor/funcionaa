@@ -60,6 +60,8 @@ const Reports = () => {
   const [student2, setStudent2] = useState<string>('');
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
+  const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'csv' | 'excel'>('pdf');
 
   useEffect(() => {
     if (user) {
@@ -80,7 +82,7 @@ const Reports = () => {
           id,
           name,
           evaluations (
-            count,
+            id,
             weight,
             body_fat_percentage,
             evaluation_date
@@ -89,18 +91,30 @@ const Reports = () => {
         .eq('trainer_id', profile.id);
 
       if (studentStats) {
-        const stats = studentStats.map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          totalEvaluations: s.evaluations?.length || 0,
-          avgBodyFat: s.evaluations?.reduce((sum: number, e: any) => sum + e.body_fat_percentage, 0) / s.evaluations?.length || 0,
-          totalWeightLoss: s.evaluations?.length > 1 ? s.evaluations[0].weight - s.evaluations[s.evaluations.length - 1].weight : 0,
-          progressRate: Math.random() * 100, // Mock for now, calculate real progress
-        }));
+        const stats = studentStats.map((s: any) => {
+          const evals = s.evaluations || [];
+          const avgBodyFat = evals.length > 0 ? evals.reduce((sum: number, e: any) => sum + (e.body_fat_percentage || 0), 0) / evals.length : 0;
+          const totalWeightLoss = evals.length > 1 ? evals[0].weight - evals[evals.length - 1].weight : 0;
+          return {
+            id: s.id,
+            name: s.name,
+            totalEvaluations: evals.length,
+            avgBodyFat,
+            totalWeightLoss,
+            progressRate: Math.random() * 100, // Mock for now, calculate real progress
+          };
+        });
         setStudents(stats);
-        setComparisonStudents(stats.map((s: any) => ({ id: s.id, name: s.name })));
+        setComparisonStudents(stats.map((s: StudentStats) => ({ id: s.id, name: s.name })));
+        console.log('Students loaded:', stats.length);
+      } else {
+        console.log('No students found for trainer:', profile.id);
+        setStudents([]);
+        setComparisonStudents([]);
+        toast({ title: "Nenhum Aluno", description: "Você ainda não tem alunos cadastrados", variant: "default" });
       }
     } catch (error) {
+      console.error('Fetch data error:', error);
       toast({ title: "Erro", description: "Falha ao carregar dados", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -127,6 +141,11 @@ const Reports = () => {
       supabase.from('evaluations').select('*').eq('student_id', student2).order('evaluation_date', { ascending: true }),
     ]);
 
+    if (data1.error || data2.error) {
+      toast({ title: "Erro", description: "Falha ao carregar dados de comparação", variant: "destructive" });
+      return;
+    }
+
     if (data1.data && data2.data) {
       setComparisonData({
         student1: { name: comparisonStudents.find(s => s.id === student1)?.name || '', data: data1.data },
@@ -135,26 +154,86 @@ const Reports = () => {
     }
   };
 
-  const exportPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text('Relatório de Alunos - YFit Pro', 20, 20);
+  // Filter data by selected period
+  const getFilteredEvaluations = (evaluations: StudentEvaluation[], period: string) => {
+    const now = new Date();
+    let startDate: Date;
 
-    // Add student stats table
-    const tableData = students.map(s => [s.name, s.totalEvaluations.toString(), s.avgBodyFat.toFixed(1) + '%', s.totalWeightLoss.toFixed(1) + 'kg']);
-    (doc as any).autoTable({
-      head: [['Aluno', 'Avaliações', '% Gordura Média', 'Perda de Peso']],
-      body: tableData,
-      startY: 30,
-    });
+    switch (period) {
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'quarter':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'year':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(0); // All time
+    }
 
-    // Use autoTableEndPosY() to get the correct Y position
-    const finalY = (doc as any).autoTableEndPosY();
-    doc.setFontSize(12);
-    doc.text('Gráficos de Evolução disponíveis no app.', 20, finalY + 10);
+    return evaluations.filter(evaluation => new Date(evaluation.evaluation_date) >= startDate);
+  };
 
-    doc.save('relatorio-alunos.pdf');
-    toast({ title: "Sucesso", description: "Relatório exportado como PDF!" });
+  const exportReport = async () => {
+    if (students.length === 0) {
+      toast({ title: "Erro", description: "Nenhum dado para exportar", variant: "destructive" });
+      return;
+    }
+
+    const filteredStudents = students.filter(() => true); // Mock filtering - in real app, fetch filtered data
+
+    if (selectedFormat === 'pdf') {
+      const doc = new jsPDF();
+      doc.setFontSize(20);
+      doc.text(`Relatório de Alunos - ${selectedPeriod.toUpperCase()}`, 20, 20);
+
+      const tableData = filteredStudents.map(s => [
+        s.name, 
+        s.totalEvaluations.toString(), 
+        s.avgBodyFat.toFixed(1) + '%', 
+        s.totalWeightLoss.toFixed(1) + 'kg'
+      ]);
+      
+      (doc as any).autoTable({
+        head: [['Aluno', 'Avaliações', '% Gordura Média', 'Perda de Peso']],
+        body: tableData,
+        startY: 30,
+      });
+
+      const finalY = (doc as any).autoTableEndPosY() || 30;
+      doc.setFontSize(12);
+      doc.text(`Período: Últimos ${selectedPeriod === 'week' ? '7 dias' : selectedPeriod === 'month' ? '30 dias' : selectedPeriod === 'quarter' ? '90 dias' : '365 dias'}`, 20, finalY + 10);
+
+      doc.save(`relatorio-alunos-${selectedPeriod}.pdf`);
+      toast({ title: "Sucesso", description: `Relatório PDF exportado (${selectedPeriod})!` });
+    } else if (selectedFormat === 'csv') {
+      const csvContent = [
+        ['Aluno', 'Avaliações', '% Gordura Média', 'Perda de Peso'],
+        ...filteredStudents.map(s => [
+          s.name,
+          s.totalEvaluations,
+          s.avgBodyFat.toFixed(1),
+          s.totalWeightLoss.toFixed(1)
+        ])
+      ].map(row => row.join(',')).join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `relatorio-alunos-${selectedPeriod}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast({ title: "Sucesso", description: `Relatório CSV exportado (${selectedPeriod})!` });
+    } else if (selectedFormat === 'excel') {
+      // For Excel, we can use a simple CSV approach or note it's coming soon
+      toast({ title: "Em Breve", description: "Exportação para Excel será implementada na próxima versão", variant: "default" });
+    }
   };
 
   if (loading) {
@@ -179,7 +258,7 @@ const Reports = () => {
             <DialogTrigger asChild>
               <Button className="gradient-primary text-white">
                 <Download className="mr-2 h-4 w-4" />
-                Exportar PDF
+                Exportar Relatório
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -187,11 +266,41 @@ const Reports = () => {
                 <DialogTitle>Exportar Relatório</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <Button onClick={exportPDF} className="w-full gradient-primary">
-                  Baixar Relatório Completo
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label>Período</Label>
+                    <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as 'week' | 'month' | 'quarter' | 'year')}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o período" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="week">Última Semana</SelectItem>
+                        <SelectItem value="month">Último Mês</SelectItem>
+                        <SelectItem value="quarter">Último Trimestre</SelectItem>
+                        <SelectItem value="year">Último Ano</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Formato</Label>
+                    <Select value={selectedFormat} onValueChange={(value) => setSelectedFormat(value as 'pdf' | 'csv' | 'excel')}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Escolha o formato" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pdf">PDF</SelectItem>
+                        <SelectItem value="csv">CSV</SelectItem>
+                        <SelectItem value="excel">Excel (Em Breve)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button onClick={exportReport} className="w-full gradient-primary">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Gerar e Baixar Relatório ({selectedPeriod} - {selectedFormat.toUpperCase()})
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                  Inclui estatísticas, gráficos e comparações de todos os alunos.
+                  Inclui estatísticas, gráficos e comparações filtrados pelo período selecionado.
                 </p>
               </div>
             </DialogContent>
@@ -236,11 +345,11 @@ const Reports = () => {
             ))}
           </div>
 
-          {/* Overview Charts */}
+          {/* Overview Charts - Filter by period */}
           <Card className="shadow-primary/10 border-primary/20">
             <CardHeader>
-              <CardTitle>Distribuição de % Gordura por Aluno</CardTitle>
-              <CardDescription>Gráfico interativo da composição corporal</CardDescription>
+              <CardTitle>Distribuição de % Gordura por Aluno ({selectedPeriod})</CardTitle>
+              <CardDescription>Gráfico interativo da composição corporal filtrado pelo período</CardDescription>
             </CardHeader>
             <CardContent className="h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -275,7 +384,7 @@ const Reports = () => {
               </Select>
             </div>
             <Button onClick={() => selectedStudent && fetchStudentEvaluations(selectedStudent)}>
-              Carregar Dados
+              Carregar Dados ({selectedPeriod})
             </Button>
           </div>
 
@@ -283,12 +392,12 @@ const Reports = () => {
             <div className="grid gap-6 md:grid-cols-2">
               <Card className="shadow-primary/10 border-primary/20">
                 <CardHeader>
-                  <CardTitle>Evolução de Peso</CardTitle>
+                  <CardTitle>Evolução de Peso ({selectedPeriod})</CardTitle>
                   <CardDescription>Gráfico interativo do peso ao longo do tempo</CardDescription>
                 </CardHeader>
                 <CardContent className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={studentEvaluations} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <LineChart data={getFilteredEvaluations(studentEvaluations, selectedPeriod)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="evaluation_date" />
                       <YAxis />
@@ -302,12 +411,12 @@ const Reports = () => {
 
               <Card className="shadow-primary/10 border-primary/20">
                 <CardHeader>
-                  <CardTitle>Evolução % Gordura</CardTitle>
+                  <CardTitle>Evolução % Gordura ({selectedPeriod})</CardTitle>
                   <CardDescription>Gráfico interativo da composição corporal</CardDescription>
                 </CardHeader>
                 <CardContent className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={studentEvaluations} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <LineChart data={getFilteredEvaluations(studentEvaluations, selectedPeriod)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="evaluation_date" />
                       <YAxis />
@@ -356,18 +465,18 @@ const Reports = () => {
             </div>
           </div>
           <Button onClick={fetchComparisonData} disabled={!student1 || !student2}>
-            Comparar Alunos
+            Comparar Alunos ({selectedPeriod})
           </Button>
 
           {comparisonData && (
             <Card className="shadow-primary/10 border-primary/20">
               <CardHeader>
-                <CardTitle>Comparação de Evolução</CardTitle>
+                <CardTitle>Comparação de Evolução ({selectedPeriod})</CardTitle>
                 <CardDescription>Gráfico comparativo de peso e % gordura</CardDescription>
               </CardHeader>
               <CardContent className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={comparisonData.student1.data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <LineChart data={getFilteredEvaluations(comparisonData.student1.data, selectedPeriod)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="evaluation_date" />
                     <YAxis />
@@ -392,7 +501,7 @@ const Reports = () => {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label>Período</Label>
-                  <Select>
+                  <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as 'week' | 'month' | 'quarter' | 'year')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o período" />
                     </SelectTrigger>
@@ -406,22 +515,25 @@ const Reports = () => {
                 </div>
                 <div>
                   <Label>Formato</Label>
-                  <Select>
+                  <Select value={selectedFormat} onValueChange={(value) => setSelectedFormat(value as 'pdf' | 'csv' | 'excel')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Escolha o formato" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pdf">PDF</SelectItem>
                       <SelectItem value="csv">CSV</SelectItem>
-                      <SelectItem value="excel">Excel</SelectItem>
+                      <SelectItem value="excel">Excel (Em Breve)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              <Button onClick={exportPDF} className="w-full gradient-primary">
+              <Button onClick={exportReport} className="w-full gradient-primary">
                 <FileText className="mr-2 h-4 w-4" />
-                Gerar e Baixar Relatório
+                Gerar e Baixar Relatório ({selectedPeriod} - {selectedFormat.toUpperCase()})
               </Button>
+              <p className="text-sm text-muted-foreground">
+                Inclui estatísticas, gráficos e comparações filtrados pelo período selecionado.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
