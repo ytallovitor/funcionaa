@@ -33,6 +33,7 @@ interface StudentStats {
   avgLeanMass: number;
   totalWeightLoss: number;
   progressRate: number;
+  evaluations: any[]; // Store full evaluations for filtering
 }
 
 interface StudentEvaluation {
@@ -73,6 +74,8 @@ const Reports = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Starting fetchData for Reports...');
+      
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('id')
@@ -86,11 +89,14 @@ const Reports = () => {
       }
 
       if (!profile) {
+        console.error('No profile found for user:', user!.id);
         toast({ title: "Erro", description: "Perfil não encontrado", variant: "destructive" });
         return;
       }
 
-      // Fetch students with evaluations - ensure RLS allows this
+      console.log('✅ Profile loaded:', profile.id);
+
+      // Fetch students with ALL evaluations (we'll filter client-side)
       const { data: studentStats, error: studentsError } = await supabase
         .from('students')
         .select(`
@@ -108,9 +114,12 @@ const Reports = () => {
 
       if (studentsError) {
         console.error('Students fetch error:', studentsError);
-        toast({ title: "Erro", description: "Falha ao carregar alunos - verifique RLS policies", variant: "destructive" });
+        console.log('RLS Policy Check: Ensure trainers can SELECT students WHERE trainer_id = (SELECT id FROM profiles WHERE user_id = auth.uid())');
+        toast({ title: "Erro", description: "Falha ao carregar alunos - verifique RLS policies no Supabase", variant: "destructive" });
         return;
       }
+
+      console.log('📊 Raw students data:', studentStats?.length || 0);
 
       if (studentStats && studentStats.length > 0) {
         const stats = studentStats.map((s: any) => {
@@ -126,11 +135,12 @@ const Reports = () => {
             avgLeanMass,
             totalWeightLoss,
             progressRate: Math.random() * 100, // Mock for now
+            evaluations: evals, // Store full evaluations for filtering
           };
         });
         setStudents(stats);
         setComparisonStudents(stats.map((s: StudentStats) => ({ id: s.id, name: s.name })));
-        console.log('Students loaded:', stats.length);
+        console.log('✅ Students processed:', stats.length);
       } else {
         console.log('No students found for trainer:', profile.id);
         setStudents([]);
@@ -153,6 +163,7 @@ const Reports = () => {
       .order('evaluation_date', { ascending: true });
 
     if (error) {
+      console.error('Error fetching student evaluations:', error);
       toast({ title: "Erro", description: "Falha ao carregar avaliações", variant: "destructive" });
       return;
     }
@@ -171,6 +182,7 @@ const Reports = () => {
     ]);
 
     if (data1.error || data2.error) {
+      console.error('Comparison fetch error:', data1.error || data2.error);
       toast({ title: "Erro", description: "Falha ao carregar dados de comparação", variant: "destructive" });
       return;
     }
@@ -183,8 +195,8 @@ const Reports = () => {
     }
   };
 
-  // Filter data by selected period
-  const getFilteredEvaluations = (evaluations: StudentEvaluation[], period: string) => {
+  // Filter evaluations by selected period (client-side)
+  const getFilteredEvaluations = (evaluations: any[], period: string) => {
     const now = new Date();
     let startDate: Date;
 
@@ -208,62 +220,117 @@ const Reports = () => {
     return evaluations.filter(evaluation => new Date(evaluation.evaluation_date) >= startDate);
   };
 
-  const exportReport = async () => {
+  // Filter students by period (client-side, using stored evaluations)
+  const getFilteredStudentsByPeriod = (students: StudentStats[], period: string) => {
+    return students.map(student => {
+      const filteredEvals = getFilteredEvaluations(student.evaluations, period);
+      const avgBodyFat = filteredEvals.length > 0 ? filteredEvals.reduce((sum: number, e: any) => sum + (e.body_fat_percentage || 0), 0) / filteredEvals.length : 0;
+      const avgLeanMass = filteredEvals.length > 0 ? filteredEvals.reduce((sum: number, e: any) => sum + (e.lean_mass || 0), 0) / filteredEvals.length : 0;
+      const totalWeightLoss = filteredEvals.length > 1 ? filteredEvals[0].weight - filteredEvals[filteredEvals.length - 1].weight : 0;
+      return {
+        ...student,
+        totalEvaluations: filteredEvals.length,
+        avgBodyFat,
+        avgLeanMass,
+        totalWeightLoss,
+        evaluations: filteredEvals, // Update filtered evaluations
+      };
+    }).filter(student => student.totalEvaluations > 0); // Only show students with evaluations in period
+  };
+
+  const exportPDF = async () => {
     if (students.length === 0) {
       toast({ title: "Erro", description: "Nenhum dado para exportar", variant: "destructive" });
       return;
     }
 
-    const filteredStudents = students.filter(() => true); // Mock filtering - in real app, fetch filtered data
+    // Filter students by selected period
+    const filteredStudents = getFilteredStudentsByPeriod(students, selectedPeriod);
 
-    if (selectedFormat === 'pdf') {
-      const doc = new jsPDF();
-      doc.setFontSize(20);
-      doc.text(`Relatório de Alunos - ${selectedPeriod.toUpperCase()}`, 20, 20);
+    if (filteredStudents.length === 0) {
+      toast({ title: "Aviso", description: "Nenhum aluno com avaliações no período selecionado", variant: "default" });
+      return;
+    }
 
-      const tableData = filteredStudents.map(s => [
-        s.name, 
-        s.totalEvaluations.toString(), 
-        s.avgBodyFat.toFixed(1) + '%', 
-        s.avgLeanMass.toFixed(1) + 'kg',
-        s.totalWeightLoss.toFixed(1) + 'kg'
-      ]);
-      
-      (doc as any).autoTable({
-        head: [['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso']],
-        body: tableData,
-        startY: 30,
-      });
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.text(`Relatório de Alunos - ${selectedPeriod.toUpperCase()}`, 20, 20);
 
-      const finalY = (doc as any).autoTableEndPosY() || 30;
-      doc.setFontSize(12);
-      doc.text(`Período: Últimos ${selectedPeriod === 'week' ? '7 dias' : selectedPeriod === 'month' ? '30 dias' : selectedPeriod === 'quarter' ? '90 dias' : '365 dias'}`, 20, finalY + 10);
+    const tableData = filteredStudents.map(s => [
+      s.name, 
+      s.totalEvaluations.toString(), 
+      s.avgBodyFat.toFixed(1) + '%', 
+      s.avgLeanMass.toFixed(1) + 'kg',
+      s.totalWeightLoss.toFixed(1) + 'kg'
+    ]);
+    
+    (doc as any).autoTable({
+      head: [['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso']],
+      body: tableData,
+      startY: 30,
+    });
 
-      doc.save(`relatorio-alunos-${selectedPeriod}.pdf`);
-      toast({ title: "Sucesso", description: `Relatório PDF exportado (${selectedPeriod})!` });
-    } else if (selectedFormat === 'csv') {
-      const csvContent = [
-        ['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso'],
-        ...filteredStudents.map(s => [
-          s.name,
-          s.totalEvaluations,
-          s.avgBodyFat.toFixed(1),
-          s.avgLeanMass.toFixed(1),
-          s.totalWeightLoss.toFixed(1)
-        ])
-      ].map(row => row.join(',')).join('\n');
+    const finalY = (doc as any).autoTableEndPosY() || 30;
+    doc.setFontSize(12);
+    doc.text(`Período: Últimos ${selectedPeriod === 'week' ? '7 dias' : selectedPeriod === 'month' ? '30 dias' : selectedPeriod === 'quarter' ? '90 dias' : '365 dias'}`, 20, finalY + 10);
 
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `relatorio-alunos-${selectedPeriod}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      toast({ title: "Sucesso", description: `Relatório CSV exportado (${selectedPeriod})!` });
-    } else if (selectedFormat === 'excel') {
-      // For Excel, we can use a simple CSV approach or note it's coming soon
-      toast({ title: "Em Breve", description: "Exportação para Excel será implementada na próxima versão", variant: "default" });
+    doc.save(`relatorio-alunos-${selectedPeriod}.pdf`);
+    toast({ title: "Sucesso", description: `Relatório PDF exportado (${filteredStudents.length} alunos, período: ${selectedPeriod})!` });
+  };
+
+  const exportCSV = async () => {
+    if (students.length === 0) {
+      toast({ title: "Erro", description: "Nenhum dado para exportar", variant: "destructive" });
+      return;
+    }
+
+    // Filter students by selected period
+    const filteredStudents = getFilteredStudentsByPeriod(students, selectedPeriod);
+
+    if (filteredStudents.length === 0) {
+      toast({ title: "Aviso", description: "Nenhum aluno com avaliações no período selecionado", variant: "default" });
+      return;
+    }
+
+    const csvContent = [
+      ['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso'],
+      ...filteredStudents.map(s => [
+        s.name,
+        s.totalEvaluations,
+        s.avgBodyFat.toFixed(1),
+        s.avgLeanMass.toFixed(1),
+        s.totalWeightLoss.toFixed(1)
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio-alunos-${selectedPeriod}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast({ title: "Sucesso", description: `Relatório CSV exportado (${filteredStudents.length} alunos, período: ${selectedPeriod})!` });
+  };
+
+  const exportExcel = async () => {
+    toast({ title: "Em Breve", description: "Exportação para Excel será implementada na próxima versão", variant: "default" });
+  };
+
+  // Handle export based on selected format
+  const handleExport = () => {
+    switch (selectedFormat) {
+      case 'pdf':
+        exportPDF();
+        break;
+      case 'csv':
+        exportCSV();
+        break;
+      case 'excel':
+        exportExcel();
+        break;
+      default:
+        toast({ title: "Erro", description: "Formato inválido selecionado", variant: "destructive" });
     }
   };
 
@@ -277,6 +344,9 @@ const Reports = () => {
       </div>
     );
   }
+
+  // Get filtered students for current period (for display and export)
+  const filteredStudentsForPeriod = getFilteredStudentsByPeriod(students, selectedPeriod);
 
   return (
     <div className="space-y-6">
@@ -326,12 +396,12 @@ const Reports = () => {
                     </Select>
                   </div>
                 </div>
-                <Button onClick={exportReport} className="w-full gradient-primary">
+                <Button onClick={handleExport} className="w-full gradient-primary">
                   <FileText className="mr-2 h-4 w-4" />
                   Gerar e Baixar Relatório ({selectedPeriod} - {selectedFormat.toUpperCase()})
                 </Button>
                 <p className="text-sm text-muted-foreground">
-                  Inclui estatísticas, gráficos e comparações filtrados pelo período selecionado.
+                  {filteredStudentsForPeriod.length} alunos com dados no período selecionado.
                 </p>
               </div>
             </DialogContent>
@@ -350,10 +420,10 @@ const Reports = () => {
         <TabsContent value="overview" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {[
-              { title: "Total de Alunos", value: students.length, icon: Users, color: "blue" },
-              { title: "Avaliações Totais", value: students.reduce((sum, s) => sum + s.totalEvaluations, 0), icon: TrendingUp, color: "green" },
-              { title: "Média % Gordura", value: students.reduce((sum, s) => sum + s.avgBodyFat, 0) / students.length || 0, icon: Target, color: "orange" },
-              { title: "Média Massa Magra", value: students.reduce((sum, s) => sum + s.avgLeanMass, 0) / students.length || 0, icon: TrendingUp, color: "purple" },
+              { title: "Total de Alunos", value: filteredStudentsForPeriod.length, icon: Users, color: "blue" },
+              { title: "Avaliações Totais", value: filteredStudentsForPeriod.reduce((sum, s) => sum + s.totalEvaluations, 0), icon: TrendingUp, color: "green" },
+              { title: "Média % Gordura", value: filteredStudentsForPeriod.reduce((sum, s) => sum + s.avgBodyFat, 0) / filteredStudentsForPeriod.length || 0, icon: Target, color: "orange" },
+              { title: "Média Massa Magra", value: filteredStudentsForPeriod.reduce((sum, s) => sum + s.avgLeanMass, 0) / filteredStudentsForPeriod.length || 0, icon: TrendingUp, color: "purple" },
             ].map((stat, index) => (
               <Card key={index} className="shadow-primary/10 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -376,7 +446,7 @@ const Reports = () => {
             ))}
           </div>
 
-          {/* Body Fat Distribution Chart */}
+          {/* Body Fat Distribution Chart - Filtered */}
           <Card className="shadow-primary/10 border-primary/20">
             <CardHeader>
               <CardTitle>Distribuição de % Gordura por Aluno ({selectedPeriod})</CardTitle>
@@ -384,7 +454,7 @@ const Reports = () => {
             </CardHeader>
             <CardContent className="h-96">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={students.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={filteredStudentsForPeriod.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} />
                   <YAxis />
@@ -396,7 +466,7 @@ const Reports = () => {
             </CardContent>
           </Card>
 
-          {/* Lean Mass Distribution Chart */}
+          {/* Lean Mass Distribution Chart - Filtered */}
           <Card className="shadow-primary/10 border-primary/20">
             <CardHeader>
               <CardTitle>Distribuição de Massa Magra por Aluno ({selectedPeriod})</CardTitle>
@@ -404,7 +474,7 @@ const Reports = () => {
             </CardHeader>
             <CardContent className="h-96">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={students.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={filteredStudentsForPeriod.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} />
                   <YAxis />
@@ -639,7 +709,7 @@ const Reports = () => {
               </Select>
             </div>
           </div>
-          <Button onClick={exportReport} className="w-full gradient-primary">
+          <Button onClick={handleExport} className="w-full gradient-primary">
             <FileText className="mr-2 h-4 w-4" />
             Gerar e Baixar Relatório ({selectedPeriod} - {selectedFormat.toUpperCase()})
           </Button>
@@ -651,14 +721,14 @@ const Reports = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Inclui estatísticas, gráficos e comparações filtrados pelo período selecionado.
+                {filteredStudentsForPeriod.length} alunos com dados no período selecionado.
               </p>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Coming Soon Section - Updated to remove implemented features */}
+      {/* Coming Soon Section */}
       <Card className="shadow-primary/10 border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
