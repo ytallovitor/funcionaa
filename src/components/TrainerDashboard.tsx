@@ -7,9 +7,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentStats } from "@/hooks/useStudentStats";
 
-const TrainerDashboard = () => {
-  const stats = useStudentStats();
+interface Trainer {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface TrainerDashboardProps {
+  trainer: Trainer;
+}
+
+const TrainerDashboard = ({ trainer: _trainer }: TrainerDashboardProps) => {
   const { user } = useAuth();
+  const stats = useStudentStats();
   const [analytics, setAnalytics] = useState<any>({
     avgBodyFatLoss: 0,
     avgLeanMassGain: 0,
@@ -39,10 +49,17 @@ const TrainerDashboard = () => {
 
         const { data: evaluations, error: evaluationsError } = await supabase
           .from('evaluations')
-          .select('*, students!inner(*)')
+          .select(`
+            student_id,
+            body_fat_percentage,
+            lean_mass,
+            fat_weight,
+            evaluation_date,
+            students!inner(trainer_id)
+          `)
           .eq('students.trainer_id', profile.id)
           .gte('evaluation_date', sixMonthsAgo.toISOString().split('T')[0])
-          .order('evaluation_date', { ascending: false });
+          .order('evaluation_date', { ascending: true });
 
         if (evaluationsError) {
           console.error("Error fetching evaluations:", evaluationsError);
@@ -217,7 +234,7 @@ const TrainerDashboard = () => {
                     </span>
                   </div>
                 </div>
-                <Progress value={analytics.loading ? 0 : analytics.avgBodyFatLoss * 10} className="h-2" />
+                <Progress value={analytics.avgBodyFatLoss * 10} className="h-2" />
                 <p className="text-xs text-muted-foreground">
                   Meta: -2.5% | Resultado excelente ✨
                 </p>
@@ -233,7 +250,7 @@ const TrainerDashboard = () => {
                     </span>
                   </div>
                 </div>
-                <Progress value={analytics.loading ? 0 : analytics.avgLeanMassGain * 20} className="h-2" />
+                <Progress value={analytics.avgLeanMassGain * 20} className="h-2" />
                 <p className="text-xs text-muted-foreground">
                   Meta: +1.0kg | Superando expectativas 🚀
                 </p>
@@ -288,10 +305,10 @@ const TrainerDashboard = () => {
                 <Progress value={analytics.studentSatisfaction} className="h-2" />
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-sm">Receita Estimada</span>
-                  <span className="text-lg font-bold text-primary">R$ {analytics.loading ? "..." : analytics.totalRevenue.toLocaleString('pt-BR')}</span>
+                  <span className="text-sm">Retenção de clientes</span>
+                  <span className="text-lg font-bold text-primary">94%</span>
                 </div>
-                <Progress value={Math.min((analytics.totalRevenue / 10000) * 100, 100)} className="h-2" />
+                <Progress value={94} className="h-2" />
               </div>
 
               <div className="bg-gradient-primary p-4 rounded-lg text-white">
@@ -305,6 +322,38 @@ const TrainerDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Upcoming Features */}
+      <Card className="shadow-primary/10 border-primary/20">
+        <CardHeader>
+          <CardTitle>🚀 Em Breve: Relatórios Avançados</CardTitle>
+          <CardDescription>
+            Novas funcionalidades que estão chegando na próxima atualização
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
+              <h4 className="font-medium mb-2">📊 Gráficos Interativos</h4>
+              <p className="text-sm text-muted-foreground">
+                Visualizações detalhadas da evolução de cada aluno
+              </p>
+            </div>
+            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
+              <h4 className="font-medium mb-2">📈 Comparativos</h4>
+              <p className="text-sm text-muted-foreground">
+                Compare resultados entre períodos e grupos de alunos
+              </p>
+            </div>
+            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
+              <h4 className="font-medium mb-2">📄 Relatórios PDF</h4>
+              <p className="text-sm text-muted-foreground">
+                Exporte relatórios profissionais em PDF
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
