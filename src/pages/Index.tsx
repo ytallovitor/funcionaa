@@ -124,13 +124,7 @@ const Index = () => {
   }
 
   return (
-    <TrainerDashboard 
-      trainer={{
-        id: userProfile.id,
-        name: userProfile.full_name || 'Personal Trainer',
-        email: userProfile.email
-      }}
-    />
+    <TrainerDashboard />
   );
 };
 
