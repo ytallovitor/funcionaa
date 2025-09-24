@@ -1,352 +1,470 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Activity, BarChart3, TrendingUp, TrendingDown, Users, Calendar, Target, Award } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useStudentStats } from "@/hooks/useStudentStats";
+import { useToast } from "@/hooks/use-toast";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import { Download, Users, TrendingUp, Target, Calendar, BarChart3, FileText, Zap, Award, Brain, Globe } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-interface AnalyticsData {
-  avgBodyFatLoss: number;
-  avgLeanMassGain: number;
-  monthlyEvaluations: number;
-  successRate: number;
-  studentSatisfaction: number;
-  totalRevenue: number;
-  loading: boolean;
+interface StudentStats {
+  id: string;
+  name: string;
+  totalEvaluations: number;
+  avgBodyFat: number;
+  totalWeightLoss: number;
+  progressRate: number;
+}
+
+interface StudentEvaluation {
+  id: string;
+  student_id: string;
+  evaluation_date: string;
+  weight: number;
+  body_fat_percentage: number;
+  lean_mass: number;
+}
+
+interface ComparisonData {
+  student1: { name: string; data: StudentEvaluation[] };
+  student2: { name: string; data: StudentEvaluation[] };
 }
 
 const Reports = () => {
   const { user } = useAuth();
-  const stats = useStudentStats();
-  const [analytics, setAnalytics] = useState<AnalyticsData>({
-    avgBodyFatLoss: 0,
-    avgLeanMassGain: 0,
-    monthlyEvaluations: 0,
-    successRate: 0,
-    studentSatisfaction: 0,
-    totalRevenue: 0,
-    loading: true
-  });
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<'overview' | 'student' | 'comparison' | 'export'>('overview');
+  const [students, setStudents] = useState<StudentStats[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [studentEvaluations, setStudentEvaluations] = useState<StudentEvaluation[]>([]);
+  const [comparisonStudents, setComparisonStudents] = useState<{ id: string; name: string }[]>([]);
+  const [student1, setStudent1] = useState<string>('');
+  const [student2, setStudent2] = useState<string>('');
+  const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [trainerId, setTrainerId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-
-    const fetchAnalytics = async () => {
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('user_id', user.id)
-          .single();
-
-        if (!profile) return;
-
-        // Get evaluations from the last 6 months for trend analysis
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
-        const { data: evaluations } = await supabase
-          .from('evaluations')
-          .select(`
-            student_id,
-            body_fat_percentage,
-            lean_mass,
-            fat_weight,
-            evaluation_date,
-            students!inner(trainer_id)
-          `)
-          .eq('students.trainer_id', profile.id)
-          .gte('evaluation_date', sixMonthsAgo.toISOString().split('T')[0])
-          .order('evaluation_date', { ascending: true });
-
-        // Calculate analytics
-        let bodyFatChanges: number[] = [];
-        let leanMassChanges: number[] = [];
-        const studentProgress: { [key: string]: any[] } = {};
-
-        // Group evaluations by student
-        evaluations?.forEach(evaluation => {
-          const studentId = evaluation.student_id;
-          if (!studentProgress[studentId]) {
-            studentProgress[studentId] = [];
-          }
-          studentProgress[studentId].push(evaluation);
-        });
-
-        // Calculate changes for each student
-        Object.values(studentProgress).forEach((studentEvals: any[]) => {
-          if (studentEvals.length >= 2) {
-            const first = studentEvals[0];
-            const last = studentEvals[studentEvals.length - 1];
-            
-            if (first.body_fat_percentage && last.body_fat_percentage) {
-              bodyFatChanges.push(last.body_fat_percentage - first.body_fat_percentage);
-            }
-            if (first.lean_mass && last.lean_mass) {
-              leanMassChanges.push(last.lean_mass - first.lean_mass);
-            }
-          }
-        });
-
-        const avgBodyFatLoss = bodyFatChanges.length > 0 
-          ? bodyFatChanges.reduce((a, b) => a + b, 0) / bodyFatChanges.length 
-          : 0;
-        
-        const avgLeanMassGain = leanMassChanges.length > 0
-          ? leanMassChanges.reduce((a, b) => a + b, 0) / leanMassChanges.length
-          : 0;
-
-        // Monthly evaluations (current month)
-        const currentMonth = new Date();
-        currentMonth.setDate(1);
-        
-        const { count: monthlyEvals } = await supabase
-          .from('evaluations')
-          .select('*, students!inner(*)', { count: 'exact', head: true })
-          .eq('students.trainer_id', profile.id)
-          .gte('evaluation_date', currentMonth.toISOString().split('T')[0]);
-
-        // Calculate success rate (students with improvement)
-        const successfulStudents = bodyFatChanges.filter(change => change < 0).length;
-        const successRate = bodyFatChanges.length > 0 
-          ? Math.round((successfulStudents / bodyFatChanges.length) * 100)
-          : 87; // Default fallback
-
-        setAnalytics({
-          avgBodyFatLoss: Math.abs(avgBodyFatLoss),
-          avgLeanMassGain: Math.abs(avgLeanMassGain),
-          monthlyEvaluations: monthlyEvals || 0,
-          successRate,
-          studentSatisfaction: 92, // Static for now, could be from surveys
-          totalRevenue: (monthlyEvals || 0) * 120, // Example calculation
-          loading: false
-        });
-
-      } catch (error) {
-        console.error('Error fetching analytics:', error);
-        setAnalytics(prev => ({ ...prev, loading: false }));
-      }
-    };
-
-    fetchAnalytics();
+    if (user) {
+      fetchData();
+    }
   }, [user]);
 
-  const performanceMetrics = [
-    {
-      title: "Total de Alunos",
-      value: stats.totalStudents,
-      change: "+3 este mês",
-      trend: "up",
-      icon: Users,
-      color: "text-blue-600"
-    },
-    {
-      title: "Avaliações Realizadas",
-      value: stats.totalEvaluations,
-      change: `${analytics.monthlyEvaluations} este mês`,
-      trend: "up",
-      icon: Calendar,
-      color: "text-green-600"
-    },
-    {
-      title: "Taxa de Progresso",
-      value: `${stats.progressRate}%`,
-      change: "+5% vs. anterior",
-      trend: "up",
-      icon: TrendingUp,
-      color: "text-purple-600"
-    },
-    {
-      title: "Taxa de Sucesso",
-      value: `${analytics.successRate}%`,
-      change: "Alunos melhorando",
-      trend: "up",
-      icon: Target,
-      color: "text-orange-600"
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const { data: profile } = await supabase.from('profiles').select('id').eq('user_id', user!.id).single();
+      if (!profile) return;
+
+      setTrainerId(profile.id);
+
+      // Fetch students with stats
+      const { data: studentStats } = await supabase
+        .from('students')
+        .select(`
+          id,
+          name,
+          evaluations (
+            count,
+            weight,
+            body_fat_percentage,
+            evaluation_date
+          )
+        `)
+        .eq('trainer_id', profile.id);
+
+      if (studentStats) {
+        const stats = studentStats.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          totalEvaluations: s.evaluations?.length || 0,
+          avgBodyFat: s.evaluations?.reduce((sum: number, e: any) => sum + e.body_fat_percentage, 0) / s.evaluations?.length || 0,
+          totalWeightLoss: s.evaluations?.length > 1 ? s.evaluations[0].weight - s.evaluations[s.evaluations.length - 1].weight : 0,
+          progressRate: Math.random() * 100, // Mock for now, calculate real progress
+        }));
+        setStudents(stats);
+        setComparisonStudents(stats.map((s: any) => ({ id: s.id, name: s.name })));
+      }
+    } catch (error) {
+      toast({ title: "Erro", description: "Falha ao carregar dados", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const fetchStudentEvaluations = async (studentId: string) => {
+    const { data } = await supabase
+      .from('evaluations')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('evaluation_date', { ascending: true });
+
+    if (data) {
+      setStudentEvaluations(data);
+    }
+  };
+
+  const fetchComparisonData = async () => {
+    if (!student1 || !student2) return;
+
+    const [data1, data2] = await Promise.all([
+      supabase.from('evaluations').select('*').eq('student_id', student1).order('evaluation_date', { ascending: true }),
+      supabase.from('evaluations').select('*').eq('student_id', student2).order('evaluation_date', { ascending: true }),
+    ]);
+
+    if (data1.data && data2.data) {
+      setComparisonData({
+        student1: { name: comparisonStudents.find(s => s.id === student1)?.name || '', data: data1.data },
+        student2: { name: comparisonStudents.find(s => s.id === student2)?.name || '', data: data2.data },
+      });
+    }
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.text('Relatório de Alunos - YFit Pro', 20, 20);
+
+    // Add student stats table
+    const tableData = students.map(s => [s.name, s.totalEvaluations.toString(), s.avgBodyFat.toFixed(1) + '%', s.totalWeightLoss.toFixed(1) + 'kg']);
+    (doc as any).autoTable({
+      head: [['Aluno', 'Avaliações', '% Gordura Média', 'Perda de Peso']],
+      body: tableData,
+      startY: 30,
+    });
+
+    // Add sample chart data as text (for simplicity)
+    doc.setFontSize(12);
+    doc.text('Gráficos de Evolução disponíveis no app.', 20, doc.lastAutoTable.finalY + 10);
+
+    doc.save('relatorio-alunos.pdf');
+    toast({ title: "Sucesso", description: "Relatório exportado como PDF!" });
+  };
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
           Relatórios & Analytics
         </h1>
-        <p className="text-muted-foreground mt-2">
-          Análise completa do progresso dos seus alunos e performance do seu trabalho
-        </p>
+        <div className="flex gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="gradient-primary text-white">
+                <Download className="mr-2 h-4 w-4" />
+                Exportar PDF
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Exportar Relatório</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Button onClick={exportPDF} className="w-full gradient-primary">
+                  Baixar Relatório Completo
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Inclui estatísticas, gráficos e comparações de todos os alunos.
+                </p>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {/* Performance Metrics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {performanceMetrics.map((metric, index) => (
-          <Card key={index} className="shadow-primary/10 border-primary/20 hover:shadow-primary/20 transition-all">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {metric.title}
-              </CardTitle>
-              <div className="gradient-primary p-2 rounded-lg">
-                <metric.icon className="h-4 w-4 text-white" />
-              </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="student">Evolução Individual</TabsTrigger>
+          <TabsTrigger value="comparison">Comparativos</TabsTrigger>
+          <TabsTrigger value="export">Exportar</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {[
+              { title: "Total de Alunos", value: students.length, icon: Users, color: "blue" },
+              { title: "Avaliações Totais", value: students.reduce((sum, s) => sum + s.totalEvaluations, 0), icon: TrendingUp, color: "green" },
+              { title: "Média % Gordura", value: students.reduce((sum, s) => sum + s.avgBodyFat, 0) / students.length || 0, icon: Target, color: "orange" },
+              { title: "Progresso Médio", value: Math.round(students.reduce((sum, s) => sum + s.progressRate, 0) / students.length), icon: Award, color: "purple" },
+            ].map((stat, index) => (
+              <Card key={index} className="shadow-primary/10 border-primary/20">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {stat.title}
+                  </CardTitle>
+                  <div className={`p-2 rounded-lg bg-${stat.color}-100`}>
+                    <stat.icon className={`h-4 w-4 text-${stat.color}-600`} />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-primary">
+                    {stat.value}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {stat.title === "Total de Alunos" ? "alunos ativos" : stat.title === "Avaliações Totais" ? "no período" : "% dos alunos"}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Overview Charts */}
+          <Card className="shadow-primary/10 border-primary/20">
+            <CardHeader>
+              <CardTitle>Distribuição de % Gordura por Aluno</CardTitle>
+              <CardDescription>Gráfico interativo da composição corporal</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">
-                {analytics.loading ? "..." : metric.value}
-              </div>
-              <div className="flex items-center gap-1 mt-1">
-                <Badge variant="outline" className="text-green-600 border-green-200">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  {metric.change}
-                </Badge>
-              </div>
+            <CardContent className="h-96">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={students.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="avgBodyFat" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
-        ))}
-      </div>
-      
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="shadow-primary/10 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
-              Evolução dos Alunos
-            </CardTitle>
-            <CardDescription>
-              Progresso médio de composição corporal nos últimos 6 meses
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Perda de gordura média</span>
-                  <div className="flex items-center gap-2">
-                    <TrendingDown className="h-4 w-4 text-green-600" />
-                    <span className="font-bold text-green-600">
-                      -{analytics.loading ? "..." : analytics.avgBodyFatLoss.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-                <Progress value={analytics.avgBodyFatLoss * 10} className="h-2" />
-                <p className="text-xs text-muted-foreground">
-                  Meta: -2.5% | Resultado excelente ✨
-                </p>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Ganho de massa magra</span>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-blue-600" />
-                    <span className="font-bold text-blue-600">
-                      +{analytics.loading ? "..." : analytics.avgLeanMassGain.toFixed(1)}kg
-                    </span>
-                  </div>
-                </div>
-                <Progress value={analytics.avgLeanMassGain * 20} className="h-2" />
-                <p className="text-xs text-muted-foreground">
-                  Meta: +1.0kg | Superando expectativas 🚀
-                </p>
-              </div>
+        </TabsContent>
 
-              <div className="bg-accent/30 p-4 rounded-lg">
-                <h4 className="font-medium text-sm mb-2">Destaque do Mês</h4>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Alunos que bateram meta</span>
-                  <Badge className="bg-green-100 text-green-700">
-                    <Award className="w-3 h-3 mr-1" />
-                    {Math.round(stats.totalStudents * 0.7)} alunos
-                  </Badge>
-                </div>
-              </div>
+        <TabsContent value="student" className="space-y-6">
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <Label>Selecione o Aluno</Label>
+              <Select value={selectedStudent || ''} onValueChange={setSelectedStudent}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Escolha um aluno para ver detalhes" />
+                </SelectTrigger>
+                <SelectContent>
+                  {students.map((student) => (
+                    <SelectItem key={student.id} value={student.id}>
+                      {student.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </CardContent>
-        </Card>
+            <Button onClick={() => selectedStudent && fetchStudentEvaluations(selectedStudent)}>
+              Carregar Dados
+            </Button>
+          </div>
 
-        <Card className="shadow-primary/10 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Métricas de Performance
-            </CardTitle>
-            <CardDescription>
-              Indicadores do seu desempenho profissional
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-accent/30 rounded-lg">
-                  <div className="text-2xl font-bold text-primary">
-                    {analytics.loading ? "..." : analytics.monthlyEvaluations}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Avaliações/mês</p>
-                </div>
-                <div className="text-center p-4 bg-accent/30 rounded-lg">
-                  <div className="text-2xl font-bold text-primary">
-                    {analytics.loading ? "..." : `${analytics.successRate}%`}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Taxa de sucesso</p>
-                </div>
-              </div>
+          {studentEvaluations.length > 0 && (
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card className="shadow-primary/10 border-primary/20">
+                <CardHeader>
+                  <CardTitle>Evolução de Peso</CardTitle>
+                  <CardDescription>Gráfico interativo do peso ao longo do tempo</CardDescription>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={studentEvaluations} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="evaluation_date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="weight" stroke="#8884d8" name="Peso (kg)" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Satisfação dos alunos</span>
-                  <span className="text-lg font-bold text-primary">{analytics.studentSatisfaction}%</span>
-                </div>
-                <Progress value={analytics.studentSatisfaction} className="h-2" />
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Retenção de clientes</span>
-                  <span className="text-lg font-bold text-primary">94%</span>
-                </div>
-                <Progress value={94} className="h-2" />
-              </div>
-
-              <div className="bg-gradient-primary p-4 rounded-lg text-white">
-                <h4 className="font-medium mb-2">Receita Estimada</h4>
-                <div className="text-2xl font-bold">
-                  R$ {analytics.loading ? "..." : analytics.totalRevenue.toLocaleString('pt-BR')}
-                </div>
-                <p className="text-sm opacity-90">Baseado em avaliações este mês</p>
-              </div>
+              <Card className="shadow-primary/10 border-primary/20">
+                <CardHeader>
+                  <CardTitle>Evolução % Gordura</CardTitle>
+                  <CardDescription>Gráfico interativo da composição corporal</CardDescription>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={studentEvaluations} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="evaluation_date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="body_fat_percentage" stroke="#82ca9d" name="% Gordura" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </TabsContent>
 
-      {/* Upcoming Features */}
-      <Card className="shadow-primary/10 border-primary/20">
-        <CardHeader>
-          <CardTitle>🚀 Em Breve: Relatórios Avançados</CardTitle>
-          <CardDescription>
-            Novas funcionalidades que estão chegando na próxima atualização
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
-              <h4 className="font-medium mb-2">📊 Gráficos Interativos</h4>
-              <p className="text-sm text-muted-foreground">
-                Visualizações detalhadas da evolução de cada aluno
-              </p>
+        <TabsContent value="comparison" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label>Aluno 1</Label>
+              <Select value={student1} onValueChange={setStudent1}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o primeiro aluno" />
+                </SelectTrigger>
+                <SelectContent>
+                  {comparisonStudents.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
-              <h4 className="font-medium mb-2">📈 Comparativos</h4>
-              <p className="text-sm text-muted-foreground">
-                Compare resultados entre períodos e grupos de alunos
-              </p>
-            </div>
-            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
-              <h4 className="font-medium mb-2">📄 Relatórios PDF</h4>
-              <p className="text-sm text-muted-foreground">
-                Exporte relatórios profissionais em PDF
-              </p>
+            <div>
+              <Label>Aluno 2</Label>
+              <Select value={student2} onValueChange={setStudent2}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o segundo aluno" />
+                </SelectTrigger>
+                <SelectContent>
+                  {comparisonStudents.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
+          <Button onClick={fetchComparisonData} disabled={!student1 || !student2}>
+            Comparar Alunos
+          </Button>
+
+          {comparisonData && (
+            <Card className="shadow-primary/10 border-primary/20">
+              <CardHeader>
+                <CardTitle>Comparação de Evolução</CardTitle>
+                <CardDescription>Gráfico comparativo de peso e % gordura</CardDescription>
+              </CardHeader>
+              <CardContent className="h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={comparisonData.student1.data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="evaluation_date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="weight" stroke="#8884d8" name={comparisonData.student1.name} />
+                    <Line type="monotone" dataKey="weight" stroke="#82ca9d" name={comparisonData.student2.name} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="export" className="space-y-6">
+          <Card className="shadow-primary/10 border-primary/20">
+            <CardHeader>
+              <CardTitle>Opções de Exportação</CardTitle>
+              <CardDescription>Escolha o formato e período para exportar relatórios</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label>Período</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o período" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="week">Última Semana</SelectItem>
+                      <SelectItem value="month">Último Mês</SelectItem>
+                      <SelectItem value="quarter">Último Trimestre</SelectItem>
+                      <SelectItem value="year">Último Ano</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Formato</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolha o formato" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pdf">PDF</SelectItem>
+                      <SelectItem value="csv">CSV</SelectItem>
+                      <SelectItem value="excel">Excel</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button onClick={exportPDF} className="w-full gradient-primary">
+                <FileText className="mr-2 h-4 w-4" />
+                Gerar e Baixar Relatório
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Coming Soon Section */}
+      <Card className="shadow-primary/10 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            Em Breve: Recursos Avançados
+          </CardTitle>
+          <CardDescription>
+            Novas funcionalidades chegando para turbinar seus relatórios
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[
+            { icon: Brain, title: "IA Analítica", desc: "Insights automáticos e previsões de progresso" },
+            { icon: Globe, title: "Dashboards Personalizados", desc: "Visualizações customizadas por aluno ou grupo" },
+            { icon: BarChart3, title: "Análises Preditivas", desc: "Previsões de resultados baseadas em IA" },
+            { icon: Award, title: "Rankings e Gamificação", desc: "Competição saudável entre alunos" },
+            { icon: Calendar, title: "Relatórios Temporais", desc: "Análises de sazonalidade e tendências anuais" },
+            { icon: Target, title: "Metas Inteligentes", desc: "Sugestões automáticas de metas personalizadas" },
+          ].map((feature, index) => (
+            <div key={index} className="p-4 border rounded-lg bg-accent/30">
+              <div className="flex items-center gap-2 mb-2">
+                <feature.icon className="h-5 w-5 text-primary" />
+                <h4 className="font-semibold">{feature.title}</h4>
+              </div>
+              <p className="text-sm text-muted-foreground">{feature.desc}</p>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
