@@ -1,13 +1,10 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -22,9 +19,6 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -66,7 +60,6 @@ const Reports = () => {
   const [student2, setStudent2] = useState<string>('');
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [trainerId, setTrainerId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -79,8 +72,6 @@ const Reports = () => {
       setLoading(true);
       const { data: profile } = await supabase.from('profiles').select('id').eq('user_id', user!.id).single();
       if (!profile) return;
-
-      setTrainerId(profile.id);
 
       // Fetch students with stats
       const { data: studentStats } = await supabase
@@ -157,15 +148,14 @@ const Reports = () => {
       startY: 30,
     });
 
-    // Add sample chart data as text (for simplicity)
+    // Use autoTableEndPosY() to get the correct Y position
+    const finalY = (doc as any).autoTableEndPosY();
     doc.setFontSize(12);
-    doc.text('Gráficos de Evolução disponíveis no app.', 20, doc.lastAutoTable.finalY + 10);
+    doc.text('Gráficos de Evolução disponíveis no app.', 20, finalY + 10);
 
     doc.save('relatorio-alunos.pdf');
     toast({ title: "Sucesso", description: "Relatório exportado como PDF!" });
   };
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
   if (loading) {
     return (
@@ -209,7 +199,7 @@ const Reports = () => {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as 'overview' | 'student' | 'comparison' | 'export')}>
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="student">Evolução Individual</TabsTrigger>
