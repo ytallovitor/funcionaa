@@ -30,6 +30,7 @@ interface StudentStats {
   name: string;
   totalEvaluations: number;
   avgBodyFat: number;
+  avgLeanMass: number; // Added
   totalWeightLoss: number;
   progressRate: number;
 }
@@ -72,11 +73,25 @@ const Reports = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const { data: profile } = await supabase.from('profiles').select('id').eq('user_id', user!.id).single();
-      if (!profile) return;
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user!.id)
+        .single();
 
-      // Fetch students with stats
-      const { data: studentStats } = await supabase
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+        toast({ title: "Erro", description: "Falha ao carregar perfil", variant: "destructive" });
+        return;
+      }
+
+      if (!profile) {
+        toast({ title: "Erro", description: "Perfil não encontrado", variant: "destructive" });
+        return;
+      }
+
+      // Fetch students with evaluations - ensure RLS allows this
+      const { data: studentStats, error: studentsError } = await supabase
         .from('students')
         .select(`
           id,
@@ -85,23 +100,32 @@ const Reports = () => {
             id,
             weight,
             body_fat_percentage,
+            lean_mass,
             evaluation_date
           )
         `)
         .eq('trainer_id', profile.id);
 
-      if (studentStats) {
+      if (studentsError) {
+        console.error('Students fetch error:', studentsError);
+        toast({ title: "Erro", description: "Falha ao carregar alunos - verifique RLS policies", variant: "destructive" });
+        return;
+      }
+
+      if (studentStats && studentStats.length > 0) {
         const stats = studentStats.map((s: any) => {
           const evals = s.evaluations || [];
           const avgBodyFat = evals.length > 0 ? evals.reduce((sum: number, e: any) => sum + (e.body_fat_percentage || 0), 0) / evals.length : 0;
+          const avgLeanMass = evals.length > 0 ? evals.reduce((sum: number, e: any) => sum + (e.lean_mass || 0), 0) / evals.length : 0; // Added
           const totalWeightLoss = evals.length > 1 ? evals[0].weight - evals[evals.length - 1].weight : 0;
           return {
             id: s.id,
             name: s.name,
             totalEvaluations: evals.length,
             avgBodyFat,
+            avgLeanMass, // Added
             totalWeightLoss,
-            progressRate: Math.random() * 100, // Mock for now, calculate real progress
+            progressRate: Math.random() * 100, // Mock for now
           };
         });
         setStudents(stats);
@@ -122,11 +146,16 @@ const Reports = () => {
   };
 
   const fetchStudentEvaluations = async (studentId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('evaluations')
       .select('*')
       .eq('student_id', studentId)
       .order('evaluation_date', { ascending: true });
+
+    if (error) {
+      toast({ title: "Erro", description: "Falha ao carregar avaliações", variant: "destructive" });
+      return;
+    }
 
     if (data) {
       setStudentEvaluations(data);
@@ -196,11 +225,12 @@ const Reports = () => {
         s.name, 
         s.totalEvaluations.toString(), 
         s.avgBodyFat.toFixed(1) + '%', 
+        s.avgLeanMass.toFixed(1) + 'kg', // Added
         s.totalWeightLoss.toFixed(1) + 'kg'
       ]);
       
       (doc as any).autoTable({
-        head: [['Aluno', 'Avaliações', '% Gordura Média', 'Perda de Peso']],
+        head: [['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso']], // Added column
         body: tableData,
         startY: 30,
       });
@@ -213,11 +243,12 @@ const Reports = () => {
       toast({ title: "Sucesso", description: `Relatório PDF exportado (${selectedPeriod})!` });
     } else if (selectedFormat === 'csv') {
       const csvContent = [
-        ['Aluno', 'Avaliações', '% Gordura Média', 'Perda de Peso'],
+        ['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso'], // Added column
         ...filteredStudents.map(s => [
           s.name,
           s.totalEvaluations,
           s.avgBodyFat.toFixed(1),
+          s.avgLeanMass.toFixed(1), // Added
           s.totalWeightLoss.toFixed(1)
         ])
       ].map(row => row.join(',')).join('\n');
@@ -322,7 +353,7 @@ const Reports = () => {
               { title: "Total de Alunos", value: students.length, icon: Users, color: "blue" },
               { title: "Avaliações Totais", value: students.reduce((sum, s) => sum + s.totalEvaluations, 0), icon: TrendingUp, color: "green" },
               { title: "Média % Gordura", value: students.reduce((sum, s) => sum + s.avgBodyFat, 0) / students.length || 0, icon: Target, color: "orange" },
-              { title: "Progresso Médio", value: Math.round(students.reduce((sum, s) => sum + s.progressRate, 0) / students.length), icon: Award, color: "purple" },
+              { title: "Média Massa Magra", value: students.reduce((sum, s) => sum + s.avgLeanMass, 0) / students.length || 0, icon: TrendingUp, color: "purple" }, // Added
             ].map((stat, index) => (
               <Card key={index} className="shadow-primary/10 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -338,14 +369,14 @@ const Reports = () => {
                     {stat.value}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {stat.title === "Total de Alunos" ? "alunos ativos" : stat.title === "Avaliações Totais" ? "no período" : "% dos alunos"}
+                    {stat.title === "Total de Alunos" ? "alunos ativos" : stat.title === "Avaliações Totais" ? "no período" : "kg"}
                   </p>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          {/* Overview Charts - Filter by period */}
+          {/* Body Fat Distribution Chart */}
           <Card className="shadow-primary/10 border-primary/20">
             <CardHeader>
               <CardTitle>Distribuição de % Gordura por Aluno ({selectedPeriod})</CardTitle>
@@ -359,7 +390,27 @@ const Reports = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="avgBodyFat" fill="#8884d8" />
+                  <Bar dataKey="avgBodyFat" fill="#8884d8" name="% Gordura" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Lean Mass Distribution Chart - Added */}
+          <Card className="shadow-primary/10 border-primary/20">
+            <CardHeader>
+              <CardTitle>Distribuição de Massa Magra por Aluno ({selectedPeriod})</CardTitle>
+              <CardDescription>Gráfico interativo da massa magra filtrado pelo período</CardDescription>
+            </CardHeader>
+            <CardContent className="h-96">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={students.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="avgLeanMass" fill="#82ca9d" name="Massa Magra (kg)" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -389,7 +440,8 @@ const Reports = () => {
           </div>
 
           {studentEvaluations.length > 0 && (
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-3">
+              {/* Weight Evolution */}
               <Card className="shadow-primary/10 border-primary/20">
                 <CardHeader>
                   <CardTitle>Evolução de Peso ({selectedPeriod})</CardTitle>
@@ -409,6 +461,7 @@ const Reports = () => {
                 </CardContent>
               </Card>
 
+              {/* Body Fat Evolution */}
               <Card className="shadow-primary/10 border-primary/20">
                 <CardHeader>
                   <CardTitle>Evolução % Gordura ({selectedPeriod})</CardTitle>
@@ -423,6 +476,26 @@ const Reports = () => {
                       <Tooltip />
                       <Legend />
                       <Line type="monotone" dataKey="body_fat_percentage" stroke="#82ca9d" name="% Gordura" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Lean Mass Evolution - Added */}
+              <Card className="shadow-primary/10 border-primary/20">
+                <CardHeader>
+                  <CardTitle>Evolução Massa Magra ({selectedPeriod})</CardTitle>
+                  <CardDescription>Gráfico interativo da massa magra ao longo do tempo</CardDescription>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getFilteredEvaluations(studentEvaluations, selectedPeriod)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="evaluation_date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="lean_mass" stroke="#ff7300" name="Massa Magra (kg)" />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -469,68 +542,114 @@ const Reports = () => {
           </Button>
 
           {comparisonData && (
-            <Card className="shadow-primary/10 border-primary/20">
-              <CardHeader>
-                <CardTitle>Comparação de Evolução ({selectedPeriod})</CardTitle>
-                <CardDescription>Gráfico comparativo de peso e % gordura</CardDescription>
-              </CardHeader>
-              <CardContent className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={getFilteredEvaluations(comparisonData.student1.data, selectedPeriod)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="evaluation_date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="weight" stroke="#8884d8" name={comparisonData.student1.name} />
-                    <Line type="monotone" dataKey="weight" stroke="#82ca9d" name={comparisonData.student2.name} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <div className="grid gap-6 md:grid-cols-3">
+              {/* Weight Comparison */}
+              <Card className="shadow-primary/10 border-primary/20">
+                <CardHeader>
+                  <CardTitle>Comparação de Peso ({selectedPeriod})</CardTitle>
+                  <CardDescription>Gráfico comparativo de peso</CardDescription>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getFilteredEvaluations(comparisonData.student1.data, selectedPeriod)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="evaluation_date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="weight" stroke="#8884d8" name={comparisonData.student1.name} />
+                      <Line type="monotone" dataKey="weight" stroke="#82ca9d" name={comparisonData.student2.name} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Body Fat Comparison */}
+              <Card className="shadow-primary/10 border-primary/20">
+                <CardHeader>
+                  <CardTitle>Comparação % Gordura ({selectedPeriod})</CardTitle>
+                  <CardDescription>Gráfico comparativo de composição corporal</CardDescription>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getFilteredEvaluations(comparisonData.student1.data, selectedPeriod)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="evaluation_date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="body_fat_percentage" stroke="#8884d8" name={comparisonData.student1.name} />
+                      <Line type="monotone" dataKey="body_fat_percentage" stroke="#82ca9d" name={comparisonData.student2.name} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Lean Mass Comparison - Added */}
+              <Card className="shadow-primary/10 border-primary/20">
+                <CardHeader>
+                  <CardTitle>Comparação Massa Magra ({selectedPeriod})</CardTitle>
+                  <CardDescription>Gráfico comparativo de massa magra</CardDescription>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getFilteredEvaluations(comparisonData.student1.data, selectedPeriod)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="evaluation_date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="lean_mass" stroke="#ff7300" name={comparisonData.student1.name} />
+                      <Line type="monotone" dataKey="lean_mass" stroke="#ffbb28" name={comparisonData.student2.name} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </TabsContent>
 
         <TabsContent value="export" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label>Período</Label>
+              <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as 'week' | 'month' | 'quarter' | 'year')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">Última Semana</SelectItem>
+                  <SelectItem value="month">Último Mês</SelectItem>
+                  <SelectItem value="quarter">Último Trimestre</SelectItem>
+                  <SelectItem value="year">Último Ano</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Formato</Label>
+              <Select value={selectedFormat} onValueChange={(value) => setSelectedFormat(value as 'pdf' | 'csv' | 'excel')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Escolha o formato" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="csv">CSV</SelectItem>
+                  <SelectItem value="excel">Excel (Em Breve)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Button onClick={exportReport} className="w-full gradient-primary">
+            <FileText className="mr-2 h-4 w-4" />
+            Gerar e Baixar Relatório ({selectedPeriod} - {selectedFormat.toUpperCase()})
+          </Button>
+
           <Card className="shadow-primary/10 border-primary/20">
             <CardHeader>
               <CardTitle>Opções de Exportação</CardTitle>
               <CardDescription>Escolha o formato e período para exportar relatórios</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <Label>Período</Label>
-                  <Select value={selectedPeriod} onValueChange={(value) => setSelectedPeriod(value as 'week' | 'month' | 'quarter' | 'year')}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o período" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="week">Última Semana</SelectItem>
-                      <SelectItem value="month">Último Mês</SelectItem>
-                      <SelectItem value="quarter">Último Trimestre</SelectItem>
-                      <SelectItem value="year">Último Ano</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Formato</Label>
-                  <Select value={selectedFormat} onValueChange={(value) => setSelectedFormat(value as 'pdf' | 'csv' | 'excel')}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Escolha o formato" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pdf">PDF</SelectItem>
-                      <SelectItem value="csv">CSV</SelectItem>
-                      <SelectItem value="excel">Excel (Em Breve)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button onClick={exportReport} className="w-full gradient-primary">
-                <FileText className="mr-2 h-4 w-4" />
-                Gerar e Baixar Relatório ({selectedPeriod} - {selectedFormat.toUpperCase()})
-              </Button>
               <p className="text-sm text-muted-foreground">
                 Inclui estatísticas, gráficos e comparações filtrados pelo período selecionado.
               </p>
