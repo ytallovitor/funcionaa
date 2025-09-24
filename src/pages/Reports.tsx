@@ -22,7 +22,7 @@ import {
 } from "recharts";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import { Download, Users, TrendingUp, Target, Calendar, BarChart3, FileText, Zap, Award, Brain, Globe } from "lucide-react";
+import { Download, Users, TrendingUp, Target, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface StudentStats {
@@ -30,7 +30,7 @@ interface StudentStats {
   name: string;
   totalEvaluations: number;
   avgBodyFat: number;
-  avgLeanMass: number; // Added
+  avgLeanMass: number;
   totalWeightLoss: number;
   progressRate: number;
 }
@@ -116,14 +116,14 @@ const Reports = () => {
         const stats = studentStats.map((s: any) => {
           const evals = s.evaluations || [];
           const avgBodyFat = evals.length > 0 ? evals.reduce((sum: number, e: any) => sum + (e.body_fat_percentage || 0), 0) / evals.length : 0;
-          const avgLeanMass = evals.length > 0 ? evals.reduce((sum: number, e: any) => sum + (e.lean_mass || 0), 0) / evals.length : 0; // Added
+          const avgLeanMass = evals.length > 0 ? evals.reduce((sum: number, e: any) => sum + (e.lean_mass || 0), 0) / evals.length : 0;
           const totalWeightLoss = evals.length > 1 ? evals[0].weight - evals[evals.length - 1].weight : 0;
           return {
             id: s.id,
             name: s.name,
             totalEvaluations: evals.length,
             avgBodyFat,
-            avgLeanMass, // Added
+            avgLeanMass,
             totalWeightLoss,
             progressRate: Math.random() * 100, // Mock for now
           };
@@ -225,12 +225,12 @@ const Reports = () => {
         s.name, 
         s.totalEvaluations.toString(), 
         s.avgBodyFat.toFixed(1) + '%', 
-        s.avgLeanMass.toFixed(1) + 'kg', // Added
+        s.avgLeanMass.toFixed(1) + 'kg',
         s.totalWeightLoss.toFixed(1) + 'kg'
       ]);
       
       (doc as any).autoTable({
-        head: [['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso']], // Added column
+        head: [['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso']],
         body: tableData,
         startY: 30,
       });
@@ -243,12 +243,12 @@ const Reports = () => {
       toast({ title: "Sucesso", description: `Relatório PDF exportado (${selectedPeriod})!` });
     } else if (selectedFormat === 'csv') {
       const csvContent = [
-        ['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso'], // Added column
+        ['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso'],
         ...filteredStudents.map(s => [
           s.name,
           s.totalEvaluations,
           s.avgBodyFat.toFixed(1),
-          s.avgLeanMass.toFixed(1), // Added
+          s.avgLeanMass.toFixed(1),
           s.totalWeightLoss.toFixed(1)
         ])
       ].map(row => row.join(',')).join('\n');
@@ -353,7 +353,7 @@ const Reports = () => {
               { title: "Total de Alunos", value: students.length, icon: Users, color: "blue" },
               { title: "Avaliações Totais", value: students.reduce((sum, s) => sum + s.totalEvaluations, 0), icon: TrendingUp, color: "green" },
               { title: "Média % Gordura", value: students.reduce((sum, s) => sum + s.avgBodyFat, 0) / students.length || 0, icon: Target, color: "orange" },
-              { title: "Média Massa Magra", value: students.reduce((sum, s) => sum + s.avgLeanMass, 0) / students.length || 0, icon: TrendingUp, color: "purple" }, // Added
+              { title: "Média Massa Magra", value: students.reduce((sum, s) => sum + s.avgLeanMass, 0) / students.length || 0, icon: TrendingUp, color: "purple" },
             ].map((stat, index) => (
               <Card key={index} className="shadow-primary/10 border-primary/20">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -396,7 +396,7 @@ const Reports = () => {
             </CardContent>
           </Card>
 
-          {/* Lean Mass Distribution Chart - Added */}
+          {/* Lean Mass Distribution Chart */}
           <Card className="shadow-primary/10 border-primary/20">
             <CardHeader>
               <CardTitle>Distribuição de Massa Magra por Aluno ({selectedPeriod})</CardTitle>
@@ -481,7 +481,7 @@ const Reports = () => {
                 </CardContent>
               </Card>
 
-              {/* Lean Mass Evolution - Added */}
+              {/* Lean Mass Evolution */}
               <Card className="shadow-primary/10 border-primary/20">
                 <CardHeader>
                   <CardTitle>Evolução Massa Magra ({selectedPeriod})</CardTitle>
@@ -585,7 +585,7 @@ const Reports = () => {
                 </CardContent>
               </Card>
 
-              {/* Lean Mass Comparison - Added */}
+              {/* Lean Mass Comparison */}
               <Card className="shadow-primary/10 border-primary/20">
                 <CardHeader>
                   <CardTitle>Comparação Massa Magra ({selectedPeriod})</CardTitle>
@@ -657,37 +657,6 @@ const Reports = () => {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Coming Soon Section */}
-      <Card className="shadow-primary/10 border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            Em Breve: Recursos Avançados
-          </CardTitle>
-          <CardDescription>
-            Novas funcionalidades chegando para turbinar seus relatórios
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[
-            { icon: Brain, title: "IA Analítica", desc: "Insights automáticos e previsões de progresso" },
-            { icon: Globe, title: "Dashboards Personalizados", desc: "Visualizações customizadas por aluno ou grupo" },
-            { icon: BarChart3, title: "Análises Preditivas", desc: "Previsões de resultados baseadas em IA" },
-            { icon: Award, title: "Rankings e Gamificação", desc: "Competição saudável entre alunos" },
-            { icon: Calendar, title: "Relatórios Temporais", desc: "Análises de sazonalidade e tendências anuais" },
-            { icon: Target, title: "Metas Inteligentes", desc: "Sugestões automáticas de metas personalizadas" },
-          ].map((feature, index) => (
-            <div key={index} className="p-4 border rounded-lg bg-accent/30">
-              <div className="flex items-center gap-2 mb-2">
-                <feature.icon className="h-5 w-5 text-primary" />
-                <h4 className="font-semibold">{feature.title}</h4>
-              </div>
-              <p className="text-sm text-muted-foreground">{feature.desc}</p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
     </div>
   );
 };
