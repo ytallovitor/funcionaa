@@ -62,6 +62,7 @@ const Reports = () => {
   const [student2, setStudent2] = useState<string>('');
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [selectedFormat, setSelectedFormat] = useState<'pdf' | 'csv' | 'excel'>('pdf');
 
@@ -252,30 +253,38 @@ const Reports = () => {
       return;
     }
 
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text(`Relatório de Alunos - ${selectedPeriod.toUpperCase()}`, 20, 20);
+    setExportLoading(true);
+    try {
+      const doc = new jsPDF();
+      doc.setFontSize(20);
+      doc.text(`Relatório de Alunos - ${selectedPeriod.toUpperCase()}`, 20, 20);
 
-    const tableData = filteredStudents.map(s => [
-      s.name, 
-      s.totalEvaluations.toString(), 
-      s.avgBodyFat.toFixed(1) + '%', 
-      s.avgLeanMass.toFixed(1) + 'kg',
-      s.totalWeightLoss.toFixed(1) + 'kg'
-    ]);
-    
-    (doc as any).autoTable({
-      head: [['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso']],
-      body: tableData,
-      startY: 30,
-    });
+      const tableData = filteredStudents.map(s => [
+        s.name, 
+        s.totalEvaluations.toString(), 
+        s.avgBodyFat.toFixed(1) + '%', 
+        s.avgLeanMass.toFixed(1) + 'kg',
+        s.totalWeightLoss.toFixed(1) + 'kg'
+      ]);
+      
+      (doc as any).autoTable({
+        head: [['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso']],
+        body: tableData,
+        startY: 30,
+      });
 
-    const finalY = (doc as any).autoTableEndPosY() || 30;
-    doc.setFontSize(12);
-    doc.text(`Período: Últimos ${selectedPeriod === 'week' ? '7 dias' : selectedPeriod === 'month' ? '30 dias' : selectedPeriod === 'quarter' ? '90 dias' : '365 dias'}`, 20, finalY + 10);
+      const finalY = (doc as any).autoTableEndPosY() || 30;
+      doc.setFontSize(12);
+      doc.text(`Período: Últimos ${selectedPeriod === 'week' ? '7 dias' : selectedPeriod === 'month' ? '30 dias' : selectedPeriod === 'quarter' ? '90 dias' : '365 dias'}`, 20, finalY + 10);
 
-    doc.save(`relatorio-alunos-${selectedPeriod}.pdf`);
-    toast({ title: "Sucesso", description: `Relatório PDF exportado (${filteredStudents.length} alunos, período: ${selectedPeriod})!` });
+      doc.save(`relatorio-alunos-${selectedPeriod}.pdf`);
+      toast({ title: "Sucesso", description: `Relatório PDF exportado (${filteredStudents.length} alunos, período: ${selectedPeriod})!` });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({ title: "Erro", description: "Falha ao gerar PDF. Verifique console para detalhes.", variant: "destructive" });
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const exportCSV = async () => {
@@ -292,25 +301,33 @@ const Reports = () => {
       return;
     }
 
-    const csvContent = [
-      ['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso'],
-      ...filteredStudents.map(s => [
-        s.name,
-        s.totalEvaluations,
-        s.avgBodyFat.toFixed(1),
-        s.avgLeanMass.toFixed(1),
-        s.totalWeightLoss.toFixed(1)
-      ])
-    ].map(row => row.join(',')).join('\n');
+    setExportLoading(true);
+    try {
+      const csvContent = [
+        ['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso'],
+        ...filteredStudents.map(s => [
+          s.name,
+          s.totalEvaluations,
+          s.avgBodyFat.toFixed(1),
+          s.avgLeanMass.toFixed(1),
+          s.totalWeightLoss.toFixed(1)
+        ])
+      ].map(row => row.join(',')).join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `relatorio-alunos-${selectedPeriod}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    toast({ title: "Sucesso", description: `Relatório CSV exportado (${filteredStudents.length} alunos, período: ${selectedPeriod})!` });
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `relatorio-alunos-${selectedPeriod}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast({ title: "Sucesso", description: `Relatório CSV exportado (${filteredStudents.length} alunos, período: ${selectedPeriod})!` });
+    } catch (error) {
+      console.error('CSV export error:', error);
+      toast({ title: "Erro", description: "Falha ao gerar CSV. Verifique console para detalhes.", variant: "destructive" });
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const exportExcel = async () => {
@@ -357,9 +374,9 @@ const Reports = () => {
         <div className="flex gap-2">
           <Dialog>
             <DialogTrigger asChild>
-              <Button className="gradient-primary text-white">
+              <Button className="gradient-primary text-white" disabled={exportLoading}>
                 <Download className="mr-2 h-4 w-4" />
-                Exportar Relatório
+                {exportLoading ? "Gerando..." : "Exportar Relatório"}
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -396,9 +413,9 @@ const Reports = () => {
                     </Select>
                   </div>
                 </div>
-                <Button onClick={handleExport} className="w-full gradient-primary">
+                <Button onClick={handleExport} className="w-full gradient-primary" disabled={exportLoading}>
                   <FileText className="mr-2 h-4 w-4" />
-                  Gerar e Baixar Relatório ({selectedPeriod} - {selectedFormat.toUpperCase()})
+                  {exportLoading ? "Gerando..." : `Gerar e Baixar Relatório (${selectedPeriod} - ${selectedFormat.toUpperCase()})`}
                 </Button>
                 <p className="text-sm text-muted-foreground">
                   {filteredStudentsForPeriod.length} alunos com dados no período selecionado.
@@ -709,9 +726,9 @@ const Reports = () => {
               </Select>
             </div>
           </div>
-          <Button onClick={handleExport} className="w-full gradient-primary">
+          <Button onClick={handleExport} className="w-full gradient-primary" disabled={exportLoading}>
             <FileText className="mr-2 h-4 w-4" />
-            Gerar e Baixar Relatório ({selectedPeriod} - {selectedFormat.toUpperCase()})
+            {exportLoading ? "Gerando..." : `Gerar e Baixar Relatório (${selectedPeriod} - ${selectedFormat.toUpperCase()})`}
           </Button>
 
           <Card className="shadow-primary/10 border-primary/20">
@@ -728,7 +745,7 @@ const Reports = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Coming Soon Section */}
+      {/* Upcoming Features */}
       <Card className="shadow-primary/10 border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
