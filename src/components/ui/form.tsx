@@ -1,25 +1,12 @@
 import * as React from "react"
-import { useForm, FormProvider, useFormContext } from "react-hook-form"
-
-import * as FormPrimitive from "@radix-ui/react-slot"
-import { FieldValues, Path, FieldError } from "react-hook-form"
+import { useForm, FormProvider, useFormContext, useFormState } from "react-hook-form"
 
 import { cn } from "@/lib/utils"
 
-const Form = React.forwardRef<
-  React.ElementRef<typeof FormPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof FormPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <FormPrimitive.Root
-    ref={ref}
-    className={cn("space-y-2", className)}
-    {...props}
-  />
-))
-Form.displayName = "Form"
+import type { FieldValues, Path, FieldError } from "react-hook-form"
 
 interface FormProps<TFieldValues extends FieldValues> {
-  children: (methods: UseFormReturn<TFieldValues>) => React.ReactNode
+  children: (methods: ReturnType<typeof useForm<TFieldValues>>) => React.ReactNode
   onSubmit: (values: TFieldValues) => any
   className?: string
 }
@@ -35,7 +22,7 @@ export function Form<TFieldValues extends FieldValues>({
   })
 
   React.useEffect(() => {
-    const subscription = form.watch((value, { name, type }) => {
+    const subscription = form.watch(({ name }) => {
       if (name === 'root') return
       form.setFocus(name as Path<TFieldValues>, { shouldSelect: true } as any)
     })
@@ -69,21 +56,27 @@ const useFormField = <
   TFieldValues extends FieldValues = FieldValues
 >() => {
   const fieldContext = useFormContext<TFieldValues>()
-  const [name, setName] = React.useState<Path<TFieldValues>>('' as Path<TFieldValues>)
+  const [name, setName] = React.useState<Path<TFieldValues>>("" as Path<TFieldValues>)
 
   React.useEffect(() => {
-    const subscription = fieldContext.watch((value, { name }) => {
+    const subscription = fieldContext.watch(({ name }) => {
       if (name === 'root') return
       setName(name as Path<TFieldValues>)
     })
     return () => subscription.unsubscribe()
   }, [fieldContext])
 
-  const fieldState = fieldContext.getFieldState(name, fieldContext.formState)
+  const formState = useFormState<TFieldValues>({
+    control: fieldContext.control,
+    name,
+  })
+
+  const fieldError = formState.errors[name as Path<TFieldValues>] as FieldError | undefined
 
   return {
     name,
-    ...fieldState,
+    ...formState,
+    error: fieldError,
   }
 }
 
@@ -107,14 +100,14 @@ interface FormLabelProps
 {}
 
 const FormLabel = React.forwardRef<
-  React.ElementRef<typeof FormPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof FormPrimitive.Root> &
+  React.ElementRef<"label">,
+  React.ComponentPropsWithoutRef<"label"> &
     FormLabelProps
 >(({ className, ...props }, ref) => {
-  const { error, formState } = useFormField()
+  const { error } = useFormField()
 
   return (
-    <FormPrimitive.Root
+    <label
       ref={ref}
       className={cn(
         "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
@@ -132,14 +125,14 @@ interface FormControlProps
 {}
 
 const FormControl = React.forwardRef<
-  React.ElementRef<typeof FormPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof FormPrimitive.Root> &
+  React.ElementRef<"input">,
+  React.ComponentPropsWithoutRef<"input"> &
     FormControlProps
 >(({ className, ...props }, ref) => {
-  const { error, formState } = useFormField()
+  const { error } = useFormField()
 
   return (
-    <FormPrimitive.Root
+    <input
       ref={ref}
       className={cn(
         "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
@@ -193,7 +186,7 @@ const FormMessage = React.forwardRef<
   React.ElementRef<"p">,
   React.ComponentPropsWithoutRef<"p"> & FormMessageProps
 >(({ className, children, ...props }, ref) => {
-  const { error, formState } = useFormField()
+  const { error } = useFormField()
   const body = error ? String(error?.message) : children
 
   if (!body) {
