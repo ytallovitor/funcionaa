@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Activity, BarChart3, TrendingUp, TrendingDown, Users, Calendar, Target, Award } from "lucide-react";
+import { Activity, BarChart3, TrendingUp, TrendingDown, Users, Calendar, Target, Award, Brain, Globe } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -322,38 +322,6 @@ const TrainerDashboard = ({ trainer: _trainer }: TrainerDashboardProps) => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Upcoming Features */}
-      <Card className="shadow-primary/10 border-primary/20">
-        <CardHeader>
-          <CardTitle>🚀 Em Breve: Relatórios Avançados</CardTitle>
-          <CardDescription>
-            Novas funcionalidades que estão chegando na próxima atualização
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
-              <h4 className="font-medium mb-2">📊 Gráficos Interativos</h4>
-              <p className="text-sm text-muted-foreground">
-                Visualizações detalhadas da evolução de cada aluno
-              </p>
-            </div>
-            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
-              <h4 className="font-medium mb-2">📈 Comparativos</h4>
-              <p className="text-sm text-muted-foreground">
-                Compare resultados entre períodos e grupos de alunos
-              </p>
-            </div>
-            <div className="p-4 border border-primary/20 rounded-lg opacity-60">
-              <h4 className="font-medium mb-2">📄 Relatórios PDF</h4>
-              <p className="text-sm text-muted-foreground">
-                Exporte relatórios profissionais em PDF
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
