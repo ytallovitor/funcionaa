@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Activity, BarChart3, TrendingUp, TrendingDown, Users, Calendar, Target, Award, Brain, Globe } from "lucide-react";
+import { Activity, BarChart3, TrendingUp, TrendingDown, Users, Calendar, Target, Award } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
