@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import EvaluationMethodSelector from "@/components/EvaluationMethodSelector";
 import CircumferencesEvaluation from "@/components/CircumferencesEvaluation";
 import SkinfoldsEvaluation from "@/components/SkinfoldsEvaluation";
+import FitnessTestsEvaluation from "@/components/FitnessTestsEvaluation";
 import { Loader2 } from "lucide-react";
 import WorkoutSuggestionDialog from "@/components/WorkoutSuggestionDialog";
 
@@ -27,7 +28,7 @@ const Evaluation = () => {
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState<'method' | 'evaluation' | 'suggestion'>('method');
-  const [selectedMethod, setSelectedMethod] = useState<'circumferences' | 'skinfolds'>('circumferences');
+  const [selectedMethod, setSelectedMethod] = useState<'circumferences' | 'skinfolds' | 'fitness_tests'>('circumferences');
 
   const studentId = searchParams.get('student');
 
@@ -71,7 +72,7 @@ const Evaluation = () => {
     }
   };
 
-  const handleMethodSelect = (method: 'circumferences' | 'skinfolds') => {
+  const handleMethodSelect = (method: 'circumferences' | 'skinfolds' | 'fitness_tests') => {
     setSelectedMethod(method);
     setCurrentStep('evaluation');
   };
@@ -109,19 +110,31 @@ const Evaluation = () => {
     );
   }
 
-  return selectedMethod === 'circumferences' ? (
-    <CircumferencesEvaluation
-      student={student}
-      onBack={handleBackToMethod}
-      onSuccess={handleEvaluationSuccess}
-    />
-  ) : (
-    <SkinfoldsEvaluation
-      student={student}
-      onBack={handleBackToMethod}
-      onSuccess={handleEvaluationSuccess}
-    />
-  );
+  if (selectedMethod === 'circumferences') {
+    return (
+      <CircumferencesEvaluation
+        student={student}
+        onBack={handleBackToMethod}
+        onSuccess={handleEvaluationSuccess}
+      />
+    );
+  } else if (selectedMethod === 'skinfolds') {
+    return (
+      <SkinfoldsEvaluation
+        student={student}
+        onBack={handleBackToMethod}
+        onSuccess={handleEvaluationSuccess}
+      />
+    );
+  } else {
+    return (
+      <FitnessTestsEvaluation
+        student={student}
+        onBack={handleBackToMethod}
+        onSuccess={handleEvaluationSuccess}
+      />
+    );
+  }
 };
 
 export default Evaluation;

@@ -3,14 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Activity, Calculator, Target } from "lucide-react";
+import { Activity, Calculator, Target, Dumbbell } from "lucide-react";
 
 interface EvaluationMethodSelectorProps {
-  onMethodSelect: (method: 'circumferences' | 'skinfolds') => void;
+  onMethodSelect: (method: 'circumferences' | 'skinfolds' | 'fitness_tests') => void;
 }
 
 const EvaluationMethodSelector = ({ onMethodSelect }: EvaluationMethodSelectorProps) => {
-  const [selectedMethod, setSelectedMethod] = useState<'circumferences' | 'skinfolds'>('circumferences');
+  const [selectedMethod, setSelectedMethod] = useState<'circumferences' | 'skinfolds' | 'fitness_tests'>('circumferences');
 
   const handleSubmit = () => {
     onMethodSelect(selectedMethod);
@@ -38,7 +38,7 @@ const EvaluationMethodSelector = ({ onMethodSelect }: EvaluationMethodSelectorPr
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <RadioGroup value={selectedMethod} onValueChange={(value) => setSelectedMethod(value as 'circumferences' | 'skinfolds')}>
+          <RadioGroup value={selectedMethod} onValueChange={(value) => setSelectedMethod(value as 'circumferences' | 'skinfolds' | 'fitness_tests')}>
             <div className="grid gap-4">
               <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                 <RadioGroupItem value="circumferences" id="circumferences" className="mt-1" />
@@ -71,6 +71,22 @@ const EvaluationMethodSelector = ({ onMethodSelect }: EvaluationMethodSelectorPr
                   </div>
                 </div>
               </div>
+
+              <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                <RadioGroupItem value="fitness_tests" id="fitness_tests" className="mt-1" />
+                <div className="flex-1">
+                  <Label htmlFor="fitness_tests" className="text-base font-medium cursor-pointer">
+                    Testes de Aptidão Física
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Testes de capacidade aeróbica, força, flexibilidade e equilíbrio.
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Dumbbell className="h-4 w-4 text-primary" />
+                    <span className="text-xs text-primary">Avaliação abrangente da aptidão física geral.</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </RadioGroup>
 
@@ -78,7 +94,11 @@ const EvaluationMethodSelector = ({ onMethodSelect }: EvaluationMethodSelectorPr
             onClick={handleSubmit}
             className="w-full gradient-primary shadow-primary hover:shadow-glow transition-all"
           >
-            Continuar com {selectedMethod === 'circumferences' ? 'Circunferências' : 'Dobras Cutâneas'}
+            Continuar com {
+              selectedMethod === 'circumferences' ? 'Circunferências' : 
+              selectedMethod === 'skinfolds' ? 'Dobras Cutâneas' : 
+              'Testes de Aptidão Física'
+            }
           </Button>
         </CardContent>
       </Card>
