@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,40 +40,41 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
     fatWeight: 0,
     leanMass: 0,
     bmr: 0,
-    dailyCalories: 0
+    dailyCalories: 0,
+    bmi: 0,
   });
 
   useEffect(() => {
     const fetchLatestEvaluation = async () => {
       if (!student) return;
 
-      const { data, error } = await supabase
-        .from('evaluations')
-        .select('*')
-        .eq('student_id', student.id)
-        .order('evaluation_date', { ascending: false })
-        .limit(1)
-        .single();
+        const { data, error } = await supabase
+          .from('evaluations')
+          .select('*')
+          .eq('student_id', student.id)
+          .order('evaluation_date', { ascending: false })
+          .limit(1)
+          .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error("Error fetching latest evaluation:", error);
-      }
+        if (error && error.code !== 'PGRST116') {
+          console.error("Error fetching latest evaluation:", error);
+        }
 
-      if (data) {
-        setFormData({
-          weight: data.weight?.toString() || "",
-          waist: data.waist?.toString() || "",
-          neck: data.neck?.toString() || "",
-          hip: data.hip?.toString() || "",
-          rightArm: data.right_arm?.toString() || "",
-          rightForearm: data.right_forearm?.toString() || ""
-        });
-        toast({
-          title: "Dados carregados",
-          description: "A última avaliação foi pré-carregada para facilitar.",
-        });
-      }
-    };
+        if (data) {
+          setFormData({
+            weight: data.weight?.toString() || "",
+            waist: data.waist?.toString() || "",
+            neck: data.neck?.toString() || "",
+            hip: data.hip?.toString() || "",
+            rightArm: data.right_arm?.toString() || "",
+            rightForearm: data.right_forearm?.toString() || ""
+          });
+          toast({
+            title: "Dados carregados",
+            description: "A última avaliação foi pré-carregada para facilitar.",
+          });
+        }
+      };
 
     fetchLatestEvaluation();
   }, [student, toast]);
@@ -114,7 +115,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
       if (!hip || hip <= 0) {
         toast({
           title: "Atenção",
-          description: "Medida de quadril é obrigatória para mulheres. Preencha o campo.",
+          description: "Medida de quadril é obrigatória para mulheres no método de circunferências.",
           variant: "destructive"
         });
         return;
@@ -149,12 +150,17 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
     // Calorias diárias: BMR × 1.55 (moderadamente ativo, ACSM)
     const dailyCalories = Math.round(bmr * 1.55);
 
+    // Calculate BMI
+    const heightM = student.height / 100;
+    const bmi = weight / (heightM * heightM);
+
     setCalculatedData({
       bodyFatPercentage,
       fatWeight,
       leanMass,
       bmr,
-      dailyCalories
+      dailyCalories,
+      bmi
     });
   };
 
@@ -206,7 +212,8 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
           lean_mass: calculatedData.leanMass,
           bmr: calculatedData.bmr,
           daily_calories: calculatedData.dailyCalories,
-          skinfold_protocol: null
+          skinfold_protocol: null,
+          bmi: calculatedData.bmi
         });
 
       if (error) throw error;
@@ -360,7 +367,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
               <Button 
                 type="submit" 
                 className="w-full gradient-primary shadow-primary hover:shadow-glow transition-all"
-                disabled={!isFormValid}
+                disabled={isSubmitting || !isFormValid}
               >
                 {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 <Save className="h-4 w-4 mr-2" />
@@ -380,6 +387,12 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-4 bg-accent/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Índice de Massa Corporal (IMC)</p>
+                <p className="text-2xl font-bold text-primary">
+                  {calculatedData.bmi ? calculatedData.bmi.toFixed(1) : "N/A"}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-accent/50 rounded-lg">
                 <p className="text-sm text-muted-foreground">% Gordura Corporal</p>
                 <p className="text-2xl font-bold text-primary">
                   {calculatedData.bodyFatPercentage.toFixed(1)}%
@@ -389,15 +402,6 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
                 <p className="text-sm text-muted-foreground">Massa Magra</p>
                 <p className="text-2xl font-bold text-primary">
                   {calculatedData.leanMass.toFixed(1)}kg
-                </p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-accent/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Peso da Gordura</p>
-                <p className="text-2xl font-bold text-primary">
-                  {calculatedData.fatWeight.toFixed(1)}kg
                 </p>
               </div>
               <div className="text-center p-4 bg-accent/50 rounded-lg">
@@ -414,12 +418,6 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
                 {calculatedData.dailyCalories.toFixed(0)} kcal
               </p>
               <p className="text-xs text-muted-foreground mt-1">Base: Atividade moderada (1.55 × BMR, ACSM)</p>
-            </div>
-
-            <div className="mt-4 p-3 bg-orange-50/50 rounded-lg border border-orange-200">
-              <p className="text-xs text-orange-700">
-                <strong>Aviso:</strong> O método de circunferências (US Navy) é prático, mas pode ter uma margem de erro maior para o percentual de gordura corporal (~3-4%). É mais recomendado para **monitorar tendências de progresso** ao longo do tempo do que para uma medida exata. Para maior precisão, considere métodos como dobras cutâneas (com profissional treinado) ou bioimpedância.
-              </p>
             </div>
           </CardContent>
         </Card>

@@ -45,7 +45,8 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
     fatWeight: 0,
     leanMass: 0,
     bmr: 0,
-    dailyCalories: 0
+    dailyCalories: 0,
+    bmi: 0,
   });
 
   useEffect(() => {
@@ -175,14 +176,19 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
     }
     
     // Calorias diárias: BMR × fator de atividade (1.55 = moderadamente ativo, ACSM)
-    const dailyCalories = Math.round(bmr * 1.55); // Ajustável com base no nível de atividade
+    const dailyCalories = Math.round(bmr * 1.55);
+
+    // Calculate BMI
+    const heightM = student.height / 100;
+    const bmi = weight / (heightM * heightM);
 
     setCalculatedData({
       bodyFatPercentage,
       fatWeight,
       leanMass,
       bmr,
-      dailyCalories
+      dailyCalories,
+      bmi
     });
   };
 
@@ -219,7 +225,7 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
         .insert({
           student_id: student.id,
           evaluation_method: 'skinfolds',
-          evaluation_date: new Date().toISOString().split('T')[0], // Data atual
+          evaluation_date: new Date().toISOString().split('T')[0],
           weight,
           waist: 0, // Required field, set to 0 for skinfolds
           neck: 0, // Required field, set to 0 for skinfolds
@@ -235,7 +241,8 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
           fat_weight: calculatedData.fatWeight,
           lean_mass: calculatedData.leanMass,
           bmr: calculatedData.bmr,
-          daily_calories: calculatedData.dailyCalories
+          daily_calories: calculatedData.dailyCalories,
+          bmi: calculatedData.bmi
         });
 
       if (error) throw error;
@@ -432,6 +439,12 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-4 bg-accent/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Índice de Massa Corporal (IMC)</p>
+                <p className="text-2xl font-bold text-primary">
+                  {calculatedData.bmi ? calculatedData.bmi.toFixed(1) : "N/A"}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-accent/50 rounded-lg">
                 <p className="text-sm text-muted-foreground">% Gordura Corporal</p>
                 <p className="text-2xl font-bold text-primary">
                   {calculatedData.bodyFatPercentage.toFixed(1)}%
@@ -441,15 +454,6 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
                 <p className="text-sm text-muted-foreground">Massa Magra</p>
                 <p className="text-2xl font-bold text-primary">
                   {calculatedData.leanMass.toFixed(1)}kg
-                </p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-accent/50 rounded-lg">
-                <p className="text-sm text-muted-foreground">Peso da Gordura</p>
-                <p className="text-2xl font-bold text-primary">
-                  {calculatedData.fatWeight.toFixed(1)}kg
                 </p>
               </div>
               <div className="text-center p-4 bg-accent/50 rounded-lg">
