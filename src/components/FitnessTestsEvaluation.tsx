@@ -66,7 +66,7 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
           abdominal_test_reps: parseInt(formData.abdominalTestReps) || null,
           pushup_test_reps: parseInt(formData.pushupTestReps) || null,
           handgrip_test_right: parseFloat(formData.handgripTestRight) || null,
-          handgrip_test_left: parseFloat(formData.handgripTestLeft) || null,
+          handgripTest_left: parseFloat(formData.handgripTestLeft) || null,
           horizontal_jump_distance: parseFloat(formData.horizontalJumpDistance) || null,
           vertical_jump_height: parseFloat(formData.verticalJumpHeight) || null,
           sit_and_reach_distance: parseFloat(formData.sitAndReachDistance) || null,
