@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -234,7 +234,7 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
           chest_skinfold: protocol === '7-folds' ? parseFloat(formData.chest) : null,
           axillary_skinfold: protocol === '7-folds' ? parseFloat(formData.axillary) : null,
           abdominal_skinfold: protocol === '7-folds' ? parseFloat(formData.abdominal) : null,
-          suprailiac_skinfold: protocol === '7-folds' ? parseFloat(formData.suprailiac) : null,
+          suprailiac_skinfold: parseFloat(formData.suprailiac),
           thigh_skinfold: parseFloat(formData.thigh),
           skinfold_protocol: protocol === '7-folds' ? '7-dobras-jackson-pollock' : `3-dobras-jackson-pollock`,
           body_fat_percentage: calculatedData.bodyFatPercentage,
