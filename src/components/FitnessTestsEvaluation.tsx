@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save, Loader2, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +27,9 @@ interface FitnessTestsEvaluationProps {
 const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEvaluationProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedProtocol, setSelectedProtocol] = useState<'taf' | 'tafi' | 'cooper'>('taf'); // Protocolo selecionado
   const [formData, setFormData] = useState({
+    // Campos comuns a todos
     cooperTestDistance: "",
     oneMileTestTime: "",
     sixMinWalkDistance: "",
@@ -45,6 +48,51 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
     timedUpAndGo: ""
   });
 
+  const protocols = [
+    { value: 'taf' as const, label: 'TAF (Teste de Aptidão Física - Completo)', description: 'Testes completos: aeróbico, força, flexibilidade e equilíbrio' },
+    { value: 'tafi' as const, label: 'TAFI (Individualizado)', description: 'Testes personalizados focados no aluno' },
+    { value: 'cooper' as const, label: 'Cooper Protocol', description: 'Foco em capacidade aeróbica (Cooper + testes de endurance)' }
+  ];
+
+  // Campos por protocolo (condicionais)
+  const getFieldsForProtocol = (protocol: 'taf' | 'tafi' | 'cooper') => {
+    switch (protocol) {
+      case 'taf':
+        return [
+          // Aeróbico
+          { id: 'cooperTestDistance', label: 'Teste de Cooper (metros)', placeholder: 'Ex: 2800' },
+          { id: 'sixMinWalkDistance', label: 'Caminhada de 6 min (metros)', placeholder: 'Ex: 550' },
+          // Força
+          { id: 'abdominalTestReps', label: 'Abdominais (reps)', placeholder: 'Ex: 45' },
+          { id: 'pushupTestReps', label: 'Flexões (reps)', placeholder: 'Ex: 20' },
+          { id: 'handgripTestRight', label: 'Preensão Direita (kg)', placeholder: 'Ex: 40.5' },
+          // Flexibilidade
+          { id: 'sitAndReachDistance', label: 'Sentar e Alcançar (cm)', placeholder: 'Ex: 25' },
+          // Equilíbrio
+          { id: 'timedUpAndGo', label: 'Timed Up and Go (s)', placeholder: 'Ex: 7.5' }
+        ];
+      case 'tafi':
+        return [
+          // Personalizado: permite todos, mas com foco em testes selecionados
+          { id: 'oneMileTestTime', label: 'Teste de 1 Milha (s)', placeholder: 'Ex: 420' },
+          { id: 'legerTestShuttles', label: 'Teste de Léger (lançadeiras)', placeholder: 'Ex: 8' },
+          { id: 'horizontalJumpDistance', label: 'Salto Horizontal (cm)', placeholder: 'Ex: 220' },
+          { id: 'verticalJumpHeight', label: 'Salto Vertical (cm)', placeholder: 'Ex: 45' },
+          { id: 'unipodalBalanceEyesOpen', label: 'Apoio Unipodal Olhos Abertos (s)', placeholder: 'Ex: 30' }
+        ];
+      case 'cooper':
+        return [
+          // Foco aeróbico
+          { id: 'cooperTestDistance', label: 'Teste de Cooper (metros)', placeholder: 'Ex: 2800', required: true },
+          { id: 'oneMileTestTime', label: 'Teste de 1 Milha (s)', placeholder: 'Ex: 420', required: true },
+          { id: 'sixMinWalkDistance', label: 'Caminhada de 6 min (metros)', placeholder: 'Ex: 550' },
+          { id: 'legerTestShuttles', label: 'Teste de Léger (lançadeiras)', placeholder: 'Ex: 8' }
+        ];
+      default:
+        return [];
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!student) return;
@@ -52,12 +100,30 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
     setIsSubmitting(true);
 
     try {
+      // Validação básica por protocolo
+      const requiredFields = getFieldsForProtocol(selectedProtocol).filter(field => field.required);
+      const hasRequired = requiredFields.every(field => {
+        const value = formData[field.id as keyof typeof formData];
+        return value && value.trim() !== '';
+      });
+
+      if (!hasRequired) {
+        toast({
+          title: "Validação",
+          description: `Preencha os campos obrigatórios para o protocolo ${protocols.find(p => p.value === selectedProtocol)?.label}.`,
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('evaluations')
         .insert({
           student_id: student.id,
-          evaluation_method: 'fitness_tests',
+          evaluation_method: `fitness_tests_${selectedProtocol}`, // Inclui o protocolo no método
           evaluation_date: new Date().toISOString().split('T')[0],
+          // Todos os campos (alguns null se não aplicáveis)
           cooper_test_distance: parseFloat(formData.cooperTestDistance) || null,
           one_mile_test_time: parseFloat(formData.oneMileTestTime) || null,
           six_min_walk_distance: parseFloat(formData.sixMinWalkDistance) || null,
@@ -80,7 +146,7 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
 
       toast({
         title: "Sucesso!",
-        description: "Avaliação de aptidão física salva com sucesso."
+        description: `Avaliação de aptidão física salva com sucesso (Protocolo: ${protocols.find(p => p.value === selectedProtocol)?.label}).`
       });
 
       onSuccess();
@@ -96,6 +162,8 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
     }
   };
 
+  const fieldsForProtocol = getFieldsForProtocol(selectedProtocol);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -108,218 +176,72 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
             Avaliação de Aptidão Física
           </h1>
           <p className="text-muted-foreground mt-2">
-            Registre os resultados dos testes de aptidão física para {student.name}
+            Protocolo selecionado: {protocols.find(p => p.value === selectedProtocol)?.label} - {protocols.find(p => p.value === selectedProtocol)?.description}
           </p>
         </div>
       </div>
 
+      {/* Seletor de Protocolo */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Testes de Aptidão Física
+            Escolha o Protocolo
           </CardTitle>
           <CardDescription>
-            Registre os resultados dos testes abaixo
+            Selecione o tipo de teste de aptidão física para {student.name}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label htmlFor="protocol">Protocolo de Avaliação</Label>
+            <Select value={selectedProtocol} onValueChange={(value) => setSelectedProtocol(value as 'taf' | 'tafi' | 'cooper')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Escolha o protocolo" />
+              </SelectTrigger>
+              <SelectContent>
+                {protocols.map((proto) => (
+                  <SelectItem key={proto.value} value={proto.value}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{proto.label}</span>
+                      <span className="text-xs text-muted-foreground">{proto.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Formulário com Campos Condicionais */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Testes do Protocolo Selecionado
+          </CardTitle>
+          <CardDescription>
+            Preencha os resultados dos testes conforme o protocolo escolhido
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
-              {/* Aerobic Tests */}
-              <div>
-                <h4 className="font-semibold mb-2">Capacidade Aeróbica</h4>
-                <div className="space-y-2">
-                  <Label htmlFor="cooperTestDistance">Teste de Cooper (distância em metros)</Label>
+              {fieldsForProtocol.map((field) => (
+                <div key={field.id} className="space-y-2">
+                  <Label htmlFor={field.id}>{field.label} {field.required && <span className="text-destructive">*</span>}</Label>
                   <Input
-                    id="cooperTestDistance"
+                    id={field.id}
                     type="number"
                     step="0.1"
-                    value={formData.cooperTestDistance}
-                    onChange={(e) => setFormData(prev => ({ ...prev, cooperTestDistance: e.target.value }))}
-                    placeholder="Ex: 2800"
+                    value={formData[field.id as keyof typeof formData] || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
+                    placeholder={field.placeholder}
+                    required={field.required}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="oneMileTestTime">Teste de 1 Milha (tempo em segundos)</Label>
-                  <Input
-                    id="oneMileTestTime"
-                    type="number"
-                    step="0.1"
-                    value={formData.oneMileTestTime}
-                    onChange={(e) => setFormData(prev => ({ ...prev, oneMileTestTime: e.target.value }))}
-                    placeholder="Ex: 420"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sixMinWalkDistance">Caminhada de 6 min (distância em metros)</Label>
-                  <Input
-                    id="sixMinWalkDistance"
-                    type="number"
-                    step="0.1"
-                    value={formData.sixMinWalkDistance}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sixMinWalkDistance: e.target.value }))}
-                    placeholder="Ex: 550"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="legerTestShuttles">Teste de Léger (número de lançadeiras)</Label>
-                  <Input
-                    id="legerTestShuttles"
-                    type="number"
-                    value={formData.legerTestShuttles}
-                    onChange={(e) => setFormData(prev => ({ ...prev, legerTestShuttles: e.target.value }))}
-                    placeholder="Ex: 8"
-                  />
-                </div>
-              </div>
-
-              {/* Strength and Endurance Tests */}
-              <div>
-                <h4 className="font-semibold mb-2">Força e Resistência Muscular</h4>
-                <div className="space-y-2">
-                  <Label htmlFor="abdominalTestReps">Abdominais em 1 min (repetições)</Label>
-                  <Input
-                    id="abdominalTestReps"
-                    type="number"
-                    value={formData.abdominalTestReps}
-                    onChange={(e) => setFormData(prev => ({ ...prev, abdominalTestReps: e.target.value }))}
-                    placeholder="Ex: 45"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pushupTestReps">Flexões de Braço (repetições)</Label>
-                  <Input
-                    id="pushupTestReps"
-                    type="number"
-                    value={formData.pushupTestReps}
-                    onChange={(e) => setFormData(prev => ({ ...prev, pushupTestReps: e.target.value }))}
-                    placeholder="Ex: 20"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="handgripTestRight">Preensão Manual Direita (kg)</Label>
-                  <Input
-                    id="handgripTestRight"
-                    type="number"
-                    step="0.1"
-                    value={formData.handgripTestRight}
-                    onChange={(e) => setFormData(prev => ({ ...prev, handgripTestRight: e.target.value }))}
-                    placeholder="Ex: 40.5"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="handgripTestLeft">Preensão Manual Esquerda (kg)</Label>
-                  <Input
-                    id="handgripTestLeft"
-                    type="number"
-                    step="0.1"
-                    value={formData.handgripTestLeft}
-                    onChange={(e) => setFormData(prev => ({ ...prev, handgripTestLeft: e.target.value }))}
-                    placeholder="Ex: 38.2"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="horizontalJumpDistance">Salto Horizontal (distância em cm)</Label>
-                  <Input
-                    id="horizontalJumpDistance"
-                    type="number"
-                    step="0.1"
-                    value={formData.horizontalJumpDistance}
-                    onChange={(e) => setFormData(prev => ({ ...prev, horizontalJumpDistance: e.target.value }))}
-                    placeholder="Ex: 220"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="verticalJumpHeight">Salto Vertical (altura em cm)</Label>
-                  <Input
-                    id="verticalJumpHeight"
-                    type="number"
-                    step="0.1"
-                    value={formData.verticalJumpHeight}
-                    onChange={(e) => setFormData(prev => ({ ...prev, verticalJumpHeight: e.target.value }))}
-                    placeholder="Ex: 45"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* Flexibility Tests */}
-              <div>
-                <h4 className="font-semibold mb-2">Flexibilidade</h4>
-                <div className="space-y-2">
-                  <Label htmlFor="sitAndReachDistance">Sentar e Alcançar (distância em cm)</Label>
-                  <Input
-                    id="sitAndReachDistance"
-                    type="number"
-                    step="0.1"
-                    value={formData.sitAndReachDistance}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sitAndReachDistance: e.target.value }))}
-                    placeholder="Ex: 25"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="backReachRight">Alcançar Atrás das Costas (Direito)</Label>
-                  <Input
-                    id="backReachRight"
-                    type="number"
-                    step="0.1"
-                    value={formData.backReachRight}
-                    onChange={(e) => setFormData(prev => ({ ...prev, backReachRight: e.target.value }))}
-                    placeholder="Ex: 10"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="backReachLeft">Alcançar Atrás das Costas (Esquerdo)</Label>
-                  <Input
-                    id="backReachLeft"
-                    type="number"
-                    step="0.1"
-                    value={formData.backReachLeft}
-                    onChange={(e) => setFormData(prev => ({ ...prev, backReachLeft: e.target.value }))}
-                    placeholder="Ex: 8"
-                  />
-                </div>
-              </div>
-
-              {/* Balance Tests */}
-              <div>
-                <h4 className="font-semibold mb-2">Equilíbrio</h4>
-                <div className="space-y-2">
-                  <Label htmlFor="unipodalBalanceEyesOpen">Apoio Unipodal (Olhos Abertos, segundos)</Label>
-                  <Input
-                    id="unipodalBalanceEyesOpen"
-                    type="number"
-                    step="0.1"
-                    value={formData.unipodalBalanceEyesOpen}
-                    onChange={(e) => setFormData(prev => ({ ...prev, unipodalBalanceEyesOpen: e.target.value }))}
-                    placeholder="Ex: 30"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="unipodalBalanceEyesClosed">Apoio Unipodal (Olhos Fechados, segundos)</Label>
-                  <Input
-                    id="unipodalBalanceEyesClosed"
-                    type="number"
-                    step="0.1"
-                    value={formData.unipodalBalanceEyesClosed}
-                    onChange={(e) => setFormData(prev => ({ ...prev, unipodalBalanceEyesClosed: e.target.value }))}
-                    placeholder="Ex: 15"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timedUpAndGo">Timed Up and Go (segundos)</Label>
-                  <Input
-                    id="timedUpAndGo"
-                    type="number"
-                    step="0.1"
-                    value={formData.timedUpAndGo}
-                    onChange={(e) => setFormData(prev => ({ ...prev, timedUpAndGo: e.target.value }))}
-                    placeholder="Ex: 7.5"
-                  />
-                </div>
-              </div>
+              ))}
             </div>
 
             <Button 
@@ -329,7 +251,7 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Save className="h-4 w-4 mr-2" />
-              Salvar Avaliação
+              Salvar Avaliação ({protocols.find(p => p.value === selectedProtocol)?.label})
             </Button>
           </form>
         </CardContent>
