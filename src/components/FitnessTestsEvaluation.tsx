@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, Loader2, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Student {
   id: string;
@@ -50,7 +51,7 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
 
   const protocols = [
     { value: 'taf' as const, label: 'TAF (Teste de Aptidão Física - Completo)', description: 'Testes completos: aeróbico, força, flexibilidade e equilíbrio' },
-    { value: 'tafi' as const, label: 'TAFI (Individualizado)', description: 'Testes personalizados focados no aluno' },
+    { value: 'tafi' as const, label: 'TAFI (Idosos)', description: 'Teste de Aptidão Física para Idosos - Foco em equilíbrio, mobilidade, prevenção de quedas e capacidade funcional' },
     { value: 'cooper' as const, label: 'Cooper Protocol', description: 'Foco em capacidade aeróbica (Cooper + testes de endurance)' }
   ];
 
@@ -60,33 +61,34 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
       case 'taf':
         return [
           // Aeróbico
-          { id: 'cooperTestDistance', label: 'Teste de Cooper (metros)', placeholder: 'Ex: 2800' },
-          { id: 'sixMinWalkDistance', label: 'Caminhada de 6 min (metros)', placeholder: 'Ex: 550' },
+          { id: 'cooperTestDistance', label: 'Teste de Cooper (metros)', placeholder: 'Ex: 2800', tooltip: 'Corre 12 minutos para medir VO2 max' },
+          { id: 'sixMinWalkDistance', label: 'Caminhada de 6 min (metros)', placeholder: 'Ex: 550', tooltip: 'Distância percorrida em 6 minutos' },
           // Força
-          { id: 'abdominalTestReps', label: 'Abdominais (reps)', placeholder: 'Ex: 45' },
-          { id: 'pushupTestReps', label: 'Flexões (reps)', placeholder: 'Ex: 20' },
-          { id: 'handgripTestRight', label: 'Preensão Direita (kg)', placeholder: 'Ex: 40.5' },
+          { id: 'abdominalTestReps', label: 'Abdominais (reps)', placeholder: 'Ex: 45', tooltip: 'Número de repetições em 1 minuto' },
+          { id: 'pushupTestReps', label: 'Flexões (reps)', placeholder: 'Ex: 20', tooltip: 'Número de flexões em 1 minuto' },
+          { id: 'handgripTestRight', label: 'Preensão Direita (kg)', placeholder: 'Ex: 40.5', tooltip: 'Força de preensão manual' },
           // Flexibilidade
-          { id: 'sitAndReachDistance', label: 'Sentar e Alcançar (cm)', placeholder: 'Ex: 25' },
+          { id: 'sitAndReachDistance', label: 'Sentar e Alcançar (cm)', placeholder: 'Ex: 25', tooltip: 'Flexibilidade do tronco' },
           // Equilíbrio
-          { id: 'timedUpAndGo', label: 'Timed Up and Go (s)', placeholder: 'Ex: 7.5' }
+          { id: 'timedUpAndGo', label: 'Timed Up and Go (s)', placeholder: 'Ex: 7.5', tooltip: 'Tempo para levantar e andar 3m' }
         ];
       case 'tafi':
         return [
-          // Personalizado: permite todos, mas com foco em testes selecionados
-          { id: 'oneMileTestTime', label: 'Teste de 1 Milha (s)', placeholder: 'Ex: 420' },
-          { id: 'legerTestShuttles', label: 'Teste de Léger (lançadeiras)', placeholder: 'Ex: 8' },
-          { id: 'horizontalJumpDistance', label: 'Salto Horizontal (cm)', placeholder: 'Ex: 220' },
-          { id: 'verticalJumpHeight', label: 'Salto Vertical (cm)', placeholder: 'Ex: 45' },
-          { id: 'unipodalBalanceEyesOpen', label: 'Apoio Unipodal Olhos Abertos (s)', placeholder: 'Ex: 30' }
+          // Foco em idosos: equilíbrio, mobilidade, baixa intensidade
+          { id: 'sixMinWalkDistance', label: 'Caminhada de 6 min (metros)', placeholder: 'Ex: 400', tooltip: 'Capacidade funcional aeróbica segura para idosos', required: true },
+          { id: 'timedUpAndGo', label: 'Timed Up and Go (s)', placeholder: 'Ex: 8.0', tooltip: 'Risco de quedas - tempo para levantar, andar 3m e sentar', required: true },
+          { id: 'unipodalBalanceEyesOpen', label: 'Apoio Unipodal Olhos Abertos (s)', placeholder: 'Ex: 20', tooltip: 'Equilíbrio estático - pé dominante, olhos abertos', required: true },
+          { id: 'unipodalBalanceEyesClosed', label: 'Apoio Unipodal Olhos Fechados (s)', placeholder: 'Ex: 10', tooltip: 'Equilíbrio proprioceptivo - sem visão' },
+          { id: 'sitAndReachDistance', label: 'Sentar e Alcançar (cm)', placeholder: 'Ex: 15', tooltip: 'Flexibilidade lombar para idosos' },
+          { id: 'handgripTestRight', label: 'Preensão Manual Direita (kg)', placeholder: 'Ex: 25', tooltip: 'Força de preensão - indicador de sarcopenia' }
         ];
       case 'cooper':
         return [
           // Foco aeróbico
-          { id: 'cooperTestDistance', label: 'Teste de Cooper (metros)', placeholder: 'Ex: 2800', required: true },
-          { id: 'oneMileTestTime', label: 'Teste de 1 Milha (s)', placeholder: 'Ex: 420', required: true },
-          { id: 'sixMinWalkDistance', label: 'Caminhada de 6 min (metros)', placeholder: 'Ex: 550' },
-          { id: 'legerTestShuttles', label: 'Teste de Léger (lançadeiras)', placeholder: 'Ex: 8' }
+          { id: 'cooperTestDistance', label: 'Teste de Cooper (metros)', placeholder: 'Ex: 2800', required: true, tooltip: 'Corre 12 minutos para medir VO2 max' },
+          { id: 'oneMileTestTime', label: 'Teste de 1 Milha (s)', placeholder: 'Ex: 420', required: true, tooltip: 'Tempo para correr 1 milha (1.6km)' },
+          { id: 'sixMinWalkDistance', label: 'Caminhada de 6 min (metros)', placeholder: 'Ex: 550', tooltip: 'Distância percorrida em 6 minutos' },
+          { id: 'legerTestShuttles', label: 'Teste de Léger (lançadeiras)', placeholder: 'Ex: 8', tooltip: 'Nível alcançado no teste de 20m shuttles' }
         ];
       default:
         return [];
@@ -165,98 +167,109 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
   const fieldsForProtocol = getFieldsForProtocol(selectedProtocol);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Voltar
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-            Avaliação de Aptidão Física
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Protocolo selecionado: {protocols.find(p => p.value === selectedProtocol)?.label} - {protocols.find(p => p.value === selectedProtocol)?.description}
-          </p>
-        </div>
-      </div>
-
-      {/* Seletor de Protocolo */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Escolha o Protocolo
-          </CardTitle>
-          <CardDescription>
-            Selecione o tipo de teste de aptidão física para {student.name}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Label htmlFor="protocol">Protocolo de Avaliação</Label>
-            <Select value={selectedProtocol} onValueChange={(value) => setSelectedProtocol(value as 'taf' | 'tafi' | 'cooper')}>
-              <SelectTrigger>
-                <SelectValue placeholder="Escolha o protocolo" />
-              </SelectTrigger>
-              <SelectContent>
-                {protocols.map((proto) => (
-                  <SelectItem key={proto.value} value={proto.value}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{proto.label}</span>
-                      <span className="text-xs text-muted-foreground">{proto.description}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <TooltipProvider>
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+              Avaliação de Aptidão Física
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Protocolo selecionado: {protocols.find(p => p.value === selectedProtocol)?.label} - {protocols.find(p => p.value === selectedProtocol)?.description}
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Formulário com Campos Condicionais */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Testes do Protocolo Selecionado
-          </CardTitle>
-          <CardDescription>
-            Preencha os resultados dos testes conforme o protocolo escolhido
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              {fieldsForProtocol.map((field) => (
-                <div key={field.id} className="space-y-2">
-                  <Label htmlFor={field.id}>{field.label} {field.required && <span className="text-destructive">*</span>}</Label>
-                  <Input
-                    id={field.id}
-                    type="number"
-                    step="0.1"
-                    value={formData[field.id as keyof typeof formData] || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                    placeholder={field.placeholder}
-                    required={field.required}
-                  />
-                </div>
-              ))}
+        {/* Seletor de Protocolo */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Escolha o Protocolo
+            </CardTitle>
+            <CardDescription>
+              Selecione o tipo de teste de aptidão física para {student.name}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="protocol">Protocolo de Avaliação</Label>
+              <Select value={selectedProtocol} onValueChange={(value) => setSelectedProtocol(value as 'taf' | 'tafi' | 'cooper')}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Escolha o protocolo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {protocols.map((proto) => (
+                    <SelectItem key={proto.value} value={proto.value}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{proto.label}</span>
+                        <span className="text-xs text-muted-foreground">{proto.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          </CardContent>
+        </Card>
 
-            <Button 
-              type="submit" 
-              className="w-full gradient-primary shadow-primary hover:shadow-glow transition-all"
-              disabled={isSubmitting}
-            >
-              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              <Save className="h-4 w-4 mr-2" />
-              Salvar Avaliação ({protocols.find(p => p.value === selectedProtocol)?.label})
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+        {/* Formulário com Campos Condicionais */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Testes do Protocolo Selecionado
+            </CardTitle>
+            <CardDescription>
+              Preencha os resultados dos testes conforme o protocolo escolhido
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                {fieldsForProtocol.map((field) => (
+                  <div key={field.id} className="space-y-2">
+                    <Label htmlFor={field.id}>
+                      {field.label} {field.required && <span className="text-destructive">*</span>}
+                    </Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Input
+                          id={field.id}
+                          type="number"
+                          step="0.1"
+                          value={formData[field.id as keyof typeof formData] || ""}
+                          onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
+                          placeholder={field.placeholder}
+                          required={field.required}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{field.tooltip}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                ))}
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full gradient-primary shadow-primary hover:shadow-glow transition-all"
+                disabled={isSubmitting}
+              >
+                {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Avaliação ({protocols.find(p => p.value === selectedProtocol)?.label})
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </TooltipProvider>
   );
 };
 
