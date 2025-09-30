@@ -30,6 +30,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Video } from "lucide-react";
 import { useStudentData } from "@/hooks/useStudentData"; // Import useStudentData
 
+import bcrypt from 'bcryptjs'; // Adicionado bcrypt para hash no client-side
+
 interface Student {
   id: string;
   name: string;
@@ -141,11 +143,13 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
     }
   }, [studentData]); // Depend on studentData directly
 
-
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
       const today = new Date().toISOString().split('T')[0];
+
+      // Hash the password using bcrypt (client-side) to match server-side storage
+      const hashedPassword = await bcrypt.hash(loginCredentials.password, 10); // Use salt rounds 10
 
       const [
         evaluationsResponse,
@@ -155,16 +159,17 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
       ] = await Promise.all([
         supabase.rpc('fn_student_evaluations', {
           p_username: loginCredentials.username,
-          p_password: loginCredentials.password,
+          p_password: hashedPassword, // Use hashed password
         }),
         supabase.rpc('fn_student_workouts', {
           p_username: loginCredentials.username,
-          p_password: loginCredentials.password,
+          p_password: hashedPassword, // Use hashed password
         }),
         supabase.from('profiles').select('id, full_name').eq('id', student.trainer_id).maybeSingle(), // Alterado para maybeSingle()
         supabase.from('conversations').select('id').eq('student_id', student.id).eq('trainer_id', student.trainer_id).maybeSingle(), // Alterado para maybeSingle()
       ]);
 
+      // Fixed: Use .data for RPC returns (SETOF returns array in data)
       if (evaluationsResponse.error) throw evaluationsResponse.error;
       if (workoutsResponse.error) throw workoutsResponse.error;
       
@@ -175,6 +180,7 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
       }
       setTrainerProfile(trainerProfileResponse.data);
 
+      // Fixed: Access .data for array results
       setAllEvaluations(evaluationsResponse.data || []);
       setAllWorkouts(workoutsResponse.data || []);
 
@@ -198,7 +204,7 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
             last_message_at: new Date().toISOString()
           })
           .select('id')
-          .single(); // Este .single() é seguro, pois esperamos uma nova linha
+          .single();
 
         if (createConvError) throw createConvError;
         setStudentConversationId(newConversation.id);
@@ -222,12 +228,15 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
   const fetchAllEvaluations = async () => {
     setLoadingEvaluations(true);
     try {
-      const { data, error } = await supabase
-        .from('evaluations')
-        .select('evaluation_date, weight, body_fat_percentage, lean_mass')
-        .eq('student_id', student.id)
-        .order('evaluation_date', { ascending: true });
+      // Hash password again for consistency
+      const hashedPassword = await bcrypt.hash(loginCredentials.password, 10);
 
+      const { data, error } = await supabase.rpc('fn_student_evaluations', {
+        p_username: loginCredentials.username,
+        p_password: hashedPassword,
+      });
+
+      // Fixed: Use .data for RPC
       if (error) throw error;
       setAllEvaluations(data || []);
     } catch (error) {
