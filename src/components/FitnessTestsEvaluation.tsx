@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import Select from 'react-select';
 
 interface Student {
   id: string;
@@ -34,16 +33,16 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
     legerTestShuttles: "",
     abdominalTestReps: "",
     pushupTestReps: "",
-      handgripTestRight: "",
-      handgripTestLeft: "",
-      horizontalJumpDistance: "",
-      verticalJumpHeight: "",
-      sitAndReachDistance: "",
-      backReachRight: "",
-      backReachLeft: "",
-      unipodalBalanceEyesOpen: "",
-      unipodalBalanceEyesClosed: "",
-      timedUpAndGo: ""
+    handgripTestRight: "",
+    handgripTestLeft: "",
+    horizontalJumpDistance: "",
+    verticalJumpHeight: "",
+    sitAndReachDistance: "",
+    backReachRight: "",
+    backReachLeft: "",
+    unipodalBalanceEyesOpen: "",
+    unipodalBalanceEyesClosed: "",
+    timedUpAndGo: ""
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,7 +65,7 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
           abdominal_test_reps: parseInt(formData.abdominalTestReps) || null,
           pushup_test_reps: parseInt(formData.pushupTestReps) || null,
           handgrip_test_right: parseFloat(formData.handgripTestRight) || null,
-          handgripTest_left: parseFloat(formData.handgripTestLeft) || null,
+          handgrip_test_left: parseFloat(formData.handgripTestLeft) || null,
           horizontal_jump_distance: parseFloat(formData.horizontalJumpDistance) || null,
           vertical_jump_height: parseFloat(formData.verticalJumpHeight) || null,
           sit_and_reach_distance: parseFloat(formData.sitAndReachDistance) || null,
