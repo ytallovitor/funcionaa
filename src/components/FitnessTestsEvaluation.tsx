@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Loader2, Activity } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Activity, HelpCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,6 +19,14 @@ interface Student {
   height: number;
 }
 
+interface FieldConfig {
+  id: string;
+  label: string;
+  placeholder: string;
+  tooltip: string;
+  required?: boolean; // Adicionado: propriedade opcional para validação
+}
+
 interface FitnessTestsEvaluationProps {
   student: Student;
   onBack: () => void;
@@ -28,9 +36,8 @@ interface FitnessTestsEvaluationProps {
 const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEvaluationProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedProtocol, setSelectedProtocol] = useState<'taf' | 'tafi' | 'cooper'>('taf'); // Protocolo selecionado
+  const [selectedProtocol, setSelectedProtocol] = useState<'taf' | 'tafi' | 'cooper'>('taf');
   const [formData, setFormData] = useState({
-    // Campos comuns a todos
     cooperTestDistance: "",
     oneMileTestTime: "",
     sixMinWalkDistance: "",
@@ -55,40 +62,136 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
     { value: 'cooper' as const, label: 'Cooper Protocol', description: 'Foco em capacidade aeróbica (Cooper + testes de endurance)' }
   ];
 
-  // Campos por protocolo (condicionais)
-  const getFieldsForProtocol = (protocol: 'taf' | 'tafi' | 'cooper') => {
+  // Campos por protocolo (condicionais) - Todos em português com required definido
+  const getFieldsForProtocol = (protocol: 'taf' | 'tafi' | 'cooper'): FieldConfig[] => {
     switch (protocol) {
       case 'taf':
         return [
-          // Aeróbico
-          { id: 'cooperTestDistance', label: 'Teste de Cooper (metros)', placeholder: 'Ex: 2800', tooltip: 'Corre 12 minutos para medir VO2 max' },
-          { id: 'sixMinWalkDistance', label: 'Caminhada de 6 min (metros)', placeholder: 'Ex: 550', tooltip: 'Distância percorrida em 6 minutos' },
-          // Força
-          { id: 'abdominalTestReps', label: 'Abdominais (reps)', placeholder: 'Ex: 45', tooltip: 'Número de repetições em 1 minuto' },
-          { id: 'pushupTestReps', label: 'Flexões (reps)', placeholder: 'Ex: 20', tooltip: 'Número de flexões em 1 minuto' },
-          { id: 'handgripTestRight', label: 'Preensão Direita (kg)', placeholder: 'Ex: 40.5', tooltip: 'Força de preensão manual' },
-          // Flexibilidade
-          { id: 'sitAndReachDistance', label: 'Sentar e Alcançar (cm)', placeholder: 'Ex: 25', tooltip: 'Flexibilidade do tronco' },
-          // Equilíbrio
-          { id: 'timedUpAndGo', label: 'Timed Up and Go (s)', placeholder: 'Ex: 7.5', tooltip: 'Tempo para levantar e andar 3m' }
+          { 
+            id: 'cooperTestDistance', 
+            label: 'Teste de Cooper (distância em metros)', 
+            placeholder: 'Ex: 2800', 
+            tooltip: 'Corra o máximo possível em 12 minutos. Meça a distância total percorrida (em metros). Use pista reta ou esteira. Aquecimento: 5 min caminhada leve. Frequência cardíaca deve estar monitorada.',
+            required: true 
+          },
+          { 
+            id: 'sixMinWalkDistance', 
+            label: 'Caminhada de 6 minutos (distância em metros)', 
+            placeholder: 'Ex: 550', 
+            tooltip: 'Caminhe o máximo possível em 6 minutos, em linha reta. Marque a distância total. Ideal para avaliar resistência aeróbica. Use corredor de 30m. Incentive ritmo constante, sem corrida.',
+            required: true 
+          },
+          { 
+            id: 'abdominalTestReps', 
+            label: 'Flexão de Abdômen (30 seg)', 
+            placeholder: 'Ex: 45', 
+            tooltip: 'Deite de costas, joelhos dobrados, mãos atrás da cabeça. Levante o tronco até os joelhos. Conte repetições em 30 segundos. Mantenha ritmo constante, sem puxar o pescoço. Respiração: expire na subida.',
+            required: true 
+          },
+          { 
+            id: 'pushupTestReps', 
+            label: 'Flexão de Braço (1 min)', 
+            placeholder: 'Ex: 20', 
+            tooltip: 'Posição de prancha, desça o peito até quase tocar o chão, suba estendendo os braços. Conte repetições em 1 minuto. Para iniciantes: joelhos no chão. Mantenha corpo reto, sem arquear as costas.',
+            required: true 
+          },
+          { 
+            id: 'handgripTestRight', 
+            label: 'Dinamômetro Direito (kg)', 
+            placeholder: 'Ex: 40.5', 
+            tooltip: 'Aperte o dinamômetro com força máxima por 3 segundos. Faça 3 tentativas, use a melhor. Posição: sentado, braço em 90°. Relaxe entre tentativas. Meça em kg de força.',
+            required: false 
+          },
+          { 
+            id: 'sitAndReachDistance', 
+            label: 'Sentar e Alcançar (cm)', 
+            placeholder: 'Ex: 25', 
+            tooltip: 'Sente no chão, pernas estendidas, alcance os pés com as mãos. Meça a distância do alcance (positivo se ultrapassar, negativo se não). 3 tentativas, use a melhor. Aquecimento antes.',
+            required: true 
+          },
+          { 
+            id: 'timedUpAndGo', 
+            label: 'Levantar e Andar 2,44m (s)', 
+            placeholder: 'Ex: 7.5', 
+            tooltip: 'Sente em cadeira, levante, ande 2,44m até uma marca, vire e volte sentando. Cronometre o tempo total. Teste de mobilidade e equilíbrio. 3 tentativas, use a melhor. Use marcações no chão.',
+            required: true 
+          }
         ];
       case 'tafi':
         return [
-          // Foco em idosos: equilíbrio, mobilidade, baixa intensidade
-          { id: 'sixMinWalkDistance', label: 'Caminhada de 6 min (metros)', placeholder: 'Ex: 400', tooltip: 'Capacidade funcional aeróbica segura para idosos', required: true },
-          { id: 'timedUpAndGo', label: 'Timed Up and Go (s)', placeholder: 'Ex: 8.0', tooltip: 'Risco de quedas - tempo para levantar, andar 3m e sentar', required: true },
-          { id: 'unipodalBalanceEyesOpen', label: 'Apoio Unipodal Olhos Abertos (s)', placeholder: 'Ex: 20', tooltip: 'Equilíbrio estático - pé dominante, olhos abertos', required: true },
-          { id: 'unipodalBalanceEyesClosed', label: 'Apoio Unipodal Olhos Fechados (s)', placeholder: 'Ex: 10', tooltip: 'Equilíbrio proprioceptivo - sem visão' },
-          { id: 'sitAndReachDistance', label: 'Sentar e Alcançar (cm)', placeholder: 'Ex: 15', tooltip: 'Flexibilidade lombar para idosos' },
-          { id: 'handgripTestRight', label: 'Preensão Manual Direita (kg)', placeholder: 'Ex: 25', tooltip: 'Força de preensão - indicador de sarcopenia' }
+          { 
+            id: 'sixMinWalkDistance', 
+            label: 'Caminhada de 6 minutos (distância em metros)', 
+            placeholder: 'Ex: 400', 
+            tooltip: 'Caminhe o máximo possível em 6 minutos, em linha reta. Marque a distância total. Para idosos: ritmo confortável, sem forçar. Use corredor de 30m. Incentive pausas se necessário. Avalia capacidade funcional.',
+            required: true 
+          },
+          { 
+            id: 'timedUpAndGo', 
+            label: 'Levantar e Andar 2,44m (s)', 
+            placeholder: 'Ex: 8.0', 
+            tooltip: 'Sente em cadeira, levante, ande 2,44m até uma marca, vire e volte sentando. Cronometre o tempo total. Para idosos: foco em segurança, use apoio se precisar. Avalia risco de quedas.',
+            required: true 
+          },
+          { 
+            id: 'unipodalBalanceEyesOpen', 
+            label: 'Apoio Unipodal Olhos Abertos (s)', 
+            placeholder: 'Ex: 20', 
+            tooltip: 'Fique em pé sobre uma perna (pé dominante), olhos abertos. Mantenha o equilíbrio o máximo possível. Pare se perder equilíbrio. Para idosos: use apoio próximo, foque em estabilidade.',
+            required: true 
+          },
+          { 
+            id: 'unipodalBalanceEyesClosed', 
+            label: 'Apoio Unipodal Olhos Fechados (s)', 
+            placeholder: 'Ex: 10', 
+            tooltip: 'Mesmo que anterior, mas com olhos fechados. Para idosos: teste curto, priorize segurança. Avalia propriocepção e equilíbrio sensorial.',
+            required: false 
+          },
+          { 
+            id: 'sitAndReachDistance', 
+            label: 'Sentar e Alcançar (cm)', 
+            placeholder: 'Ex: 15', 
+            tooltip: 'Sente no chão, pernas estendidas, alcance os pés com as mãos. Para idosos: vá devagar, sem forçar. Meça a distância do alcance. Avalia flexibilidade lombar.',
+            required: true 
+          },
+          { 
+            id: 'handgripTestRight', 
+            label: 'Dinamômetro Direito (kg)', 
+            placeholder: 'Ex: 25', 
+            tooltip: 'Aperte o dinamômetro com força máxima por 3 segundos. Para idosos: 3 tentativas, use a melhor. Avalia força de preensão (importante para atividades diárias).',
+            required: true 
+          }
         ];
       case 'cooper':
         return [
-          // Foco aeróbico
-          { id: 'cooperTestDistance', label: 'Teste de Cooper (metros)', placeholder: 'Ex: 2800', required: true, tooltip: 'Corre 12 minutos para medir VO2 max' },
-          { id: 'oneMileTestTime', label: 'Teste de 1 Milha (s)', placeholder: 'Ex: 420', required: true, tooltip: 'Tempo para correr 1 milha (1.6km)' },
-          { id: 'sixMinWalkDistance', label: 'Caminhada de 6 min (metros)', placeholder: 'Ex: 550', tooltip: 'Distância percorrida em 6 minutos' },
-          { id: 'legerTestShuttles', label: 'Teste de Léger (lançadeiras)', placeholder: 'Ex: 8', tooltip: 'Nível alcançado no teste de 20m shuttles' }
+          { 
+            id: 'cooperTestDistance', 
+            label: 'Teste de Cooper (distância em metros)', 
+            placeholder: 'Ex: 2800', 
+            tooltip: 'Corra o máximo possível em 12 minutos. Meça a distância total percorrida (em metros). Use pista reta ou esteira. Aquecimento: 5 min caminhada leve. Frequência cardíaca deve estar monitorada.',
+            required: true 
+          },
+          { 
+            id: 'oneMileTestTime', 
+            label: 'Teste de 1600 metros (1.6km) (s)', 
+            placeholder: 'Ex: 420', 
+            tooltip: 'Corra 1600 metros o mais rápido possível. Cronometre o tempo total em segundos. Use pista reta ou esteira. Aquecimento: 5-10 min. Para iniciantes: caminhada rápida se necessário.',
+            required: true 
+          },
+          { 
+            id: 'sixMinWalkDistance', 
+            label: 'Caminhada de 6 minutos (distância em metros)', 
+            placeholder: 'Ex: 550', 
+            tooltip: 'Caminhe o máximo possível em 6 minutos, em linha reta. Marque a distância total. Ideal para avaliar resistência aeróbica. Use corredor de 30m. Incentive ritmo constante, sem corrida.',
+            required: false 
+          },
+          { 
+            id: 'legerTestShuttles', 
+            label: 'Teste de Léger (lançadeiras)', 
+            placeholder: 'Ex: 8', 
+            tooltip: 'Corra entre duas linhas de 20m, aumentando velocidade a cada minuto. Conte o nível (estágio) alcançado. Para iniciantes: versão caminhada. Monitore fadiga.',
+            required: false 
+          }
         ];
       default:
         return [];
@@ -123,7 +226,7 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
         .from('evaluations')
         .insert({
           student_id: student.id,
-          evaluation_method: `fitness_tests_${selectedProtocol}`, // Inclui o protocolo no método
+          evaluation_method: `fitness_tests_${selectedProtocol}`,
           evaluation_date: new Date().toISOString().split('T')[0],
           // Todos os campos (alguns null se não aplicáveis)
           cooper_test_distance: parseFloat(formData.cooperTestDistance) || null,
@@ -233,25 +336,28 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
               <div className="grid md:grid-cols-2 gap-4">
                 {fieldsForProtocol.map((field) => (
                   <div key={field.id} className="space-y-2">
-                    <Label htmlFor={field.id}>
-                      {field.label} {field.required && <span className="text-destructive">*</span>}
-                    </Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Input
-                          id={field.id}
-                          type="number"
-                          step="0.1"
-                          value={formData[field.id as keyof typeof formData] || ""}
-                          onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
-                          placeholder={field.placeholder}
-                          required={field.required}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{field.tooltip}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                    <div className="flex items-center gap-1">
+                      <Label htmlFor={field.id}>
+                        {field.label} {field.required && <span className="text-destructive">*</span>}
+                      </Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-sm max-w-xs">{field.tooltip}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Input
+                      id={field.id}
+                      type="number"
+                      step="0.1"
+                      value={formData[field.id as keyof typeof formData] || ""}
+                      onChange={(e) => setFormData(prev => ({ ...prev, [field.id]: e.target.value }))}
+                      placeholder={field.placeholder}
+                      required={field.required || false} // Usar field.required se existir, senão false
+                    />
                   </div>
                 ))}
               </div>
