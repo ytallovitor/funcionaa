@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Save, User, Bell, Shield, CreditCard, HelpCircle } from "lucide-react";
+import { Copy, Save, User, Bell, Shield, CreditCard, HelpCircle, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,7 @@ const Settings = () => {
     cref: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaved, setIsSaved] = useState(false); // Novo estado para feedback visual
   const [notifications, setNotifications] = useState({
     emailNewStudents: true,
     evaluationReminders: true,
@@ -68,6 +69,7 @@ const Settings = () => {
     if (!user) return;
     
     setIsLoading(true);
+    setIsSaved(false); // Resetar o estado de "Salvo"
     try {
       const { error } = await supabase
         .from('profiles')
@@ -83,6 +85,7 @@ const Settings = () => {
         title: "Perfil atualizado",
         description: "Suas informações foram salvas com sucesso",
       });
+      setIsSaved(true); // Definir o estado de "Salvo" como verdadeiro
     } catch (error) {
       console.error('Error updating profile:', error);
       toast({
@@ -92,6 +95,7 @@ const Settings = () => {
       });
     } finally {
       setIsLoading(false);
+      setTimeout(() => setIsSaved(false), 3000); // Resetar o estado após 3 segundos
     }
   };
 
@@ -174,8 +178,22 @@ const Settings = () => {
                   Cancelar
                 </Button>
                 <Button onClick={handleProfileUpdate} disabled={isLoading}>
-                  <Save className="mr-2 h-4 w-4" />
-                  {isLoading ? "Salvando..." : "Salvar Alterações"}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : isSaved ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Salvo!
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Salvar Alterações
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
