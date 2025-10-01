@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,8 +33,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import StudentPortalManager from "@/components/StudentPortalManager";
 import AnamnesisForm from "@/components/AnamnesisForm";
-import { useNavigate } from "react-router-dom";
-import SetWeeklyGoalsDialog from "@/components/SetWeeklyGoalsDialog"; // Import the new component
+import { SetWeeklyGoalsDialog } from "@/components/SetWeeklyGoalsDialog"; // Import the new component
 
 interface Student {
   id: string;
@@ -747,24 +747,13 @@ const Students = () => {
                           <span className="font-medium">Última Avaliação:</span>
                           {hasEvaluation ? (
                             <span className="text-green-600">
-                              {daysSinceLastEval} dias atrás
+                              {Math.floor((new Date().getTime() - new Date(student.lastEvaluation as string).getTime()) / (1000 * 60 * 60 * 24))} dias atrás
                             </span>
                           ) : (
                             <span className="text-red-600">Sem avaliação</span>
                           )}
                         </div>
                       </div>
-                      {student.weight && student.bodyFat && (
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm">
-                            <span className="font-medium">Peso:</span> {student.weight} kg • {student.bodyFat.toFixed(1)}% gordura
-                          </div>
-                          <Button variant="outline" size="sm" onClick={() => navigate(`/evaluation?student=${student.id}`)}>
-                            <Calendar className="h-3 w-3 mr-1" />
-                            Nova Avaliação
-                          </Button>
-                        </div>
-                      )}
                       <StudentPortalManager student={student} onPortalCreated={() => fetchStudents(trainerId!)} />
                     </CardContent>
                   </Card>
@@ -1098,32 +1087,6 @@ const Students = () => {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isWorkoutManagerOpen} onOpenChange={setIsWorkoutManagerOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Gerenciar Treinos de {managingWorkoutsFor?.name}</DialogTitle>
-            <DialogDescription>
-              Atribua ou remova treinos deste aluno
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um treino para atribuir" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="treino1">Treino de Força A</SelectItem>
-                <SelectItem value="treino2">Treino de Cardio B</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button className="w-full gradient-primary">
-              <Dumbbell className="mr-2 h-4 w-4" />
-              Atribuir Treino
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
 
