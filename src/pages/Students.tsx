@@ -33,7 +33,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import StudentPortalManager from "@/components/StudentPortalManager";
 import AnamnesisForm from "@/components/AnamnesisForm";
-import { SetWeeklyGoalsDialog } from "@/components/SetWeeklyGoalsDialog"; // Import the new component
+import { SetWeeklyGoalsDialog } from "@/components/SetWeeklyGoalsDialog";
+import EmptyState from "@/components/EmptyState"; // Importar o novo componente EmptyState
 
 interface Student {
   id: string;
@@ -761,17 +762,13 @@ const Students = () => {
               })}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium text-muted-foreground">Nenhum aluno cadastrado</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Comece adicionando seu primeiro aluno para gerenciar o acompanhamento
-              </p>
-              <Button className="gradient-primary text-white" onClick={() => setIsDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Primeiro Aluno
-              </Button>
-            </div>
+            <EmptyState
+              icon={Users}
+              title="Nenhum aluno cadastrado"
+              description="Comece adicionando seu primeiro aluno para gerenciar o acompanhamento."
+              buttonText="Adicionar Primeiro Aluno"
+              onButtonClick={() => setIsDialogOpen(true)}
+            />
           )}
         </TabsContent>
 
@@ -866,16 +863,13 @@ const Students = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <Archive className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium text-muted-foreground">Nenhum aluno arquivado</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Alunos arquivados aparecem aqui quando você arquivar um ativo
-              </p>
-              <Button variant="outline" onClick={() => setActiveTab('active')}>
-                Ver Alunos Ativos
-              </Button>
-            </div>
+            <EmptyState
+              icon={Archive}
+              title="Nenhum aluno arquivado"
+              description="Alunos arquivados aparecem aqui quando você arquivar um ativo."
+              buttonText="Ver Alunos Ativos"
+              onButtonClick={() => setActiveTab('active')}
+            />
           )}
         </TabsContent>
 
@@ -956,16 +950,13 @@ const Students = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <Trash2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium text-muted-foreground">Lixeira vazia</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Alunos na lixeira aparecem aqui. Eles podem ser restaurados ou excluídos definitivamente
-              </p>
-              <Button variant="outline" onClick={() => setActiveTab('active')}>
-                Ver Alunos Ativos
-              </Button>
-            </div>
+            <EmptyState
+              icon={Trash2}
+              title="Lixeira vazia"
+              description="Alunos na lixeira aparecem aqui. Eles podem ser restaurados ou excluídos definitivamente."
+              buttonText="Ver Alunos Ativos"
+              onButtonClick={() => setActiveTab('active')}
+            />
           )}
         </TabsContent>
       </Tabs>
