@@ -27,7 +27,7 @@ interface FieldConfig {
   placeholder: string;
   tooltip: string;
   required?: boolean;
-  type?: 'number' | 'radio'; // Adicionado tipo para diferenciar campos
+  type?: 'number' | 'radio';
 }
 
 interface FitnessTestsEvaluationProps {
@@ -88,15 +88,140 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
             required: true,
             type: 'number'
           },
-          // ... outros campos TAF (manter como antes)
+          { 
+            id: 'sixMinWalkDistance', 
+            label: 'Caminhada de 6 minutos (distância em metros)', 
+            placeholder: 'Ex: 550', 
+            tooltip: 'Caminhe o máximo possível em 6 minutos, em linha reta. Marque a distância total. Ideal para avaliar resistência aeróbica. Use corredor de 30m. Incentive ritmo constante, sem corrida.',
+            required: true,
+            type: 'number'
+          },
+          { 
+            id: 'abdominalTestReps', 
+            label: 'Flexão de Abdômen (30 seg)', 
+            placeholder: 'Ex: 45', 
+            tooltip: 'Deite de costas, joelhos dobrados, mãos atrás da cabeça. Levante o tronco até os joelhos. Conte repetições em 30 segundos. Mantenha ritmo constante, sem puxar o pescoço. Respiração: expire na subida.',
+            required: true,
+            type: 'number'
+          },
+          { 
+            id: 'pushupTestReps', 
+            label: 'Flexão de Braço (1 min)', 
+            placeholder: 'Ex: 20', 
+            tooltip: 'Posição de prancha, desça o peito até quase tocar o chão, suba estendendo os braços. Conte repetições em 1 minuto. Para iniciantes: joelhos no chão. Mantenha corpo reto, sem arquear as costas.',
+            required: true,
+            type: 'number'
+          },
+          { 
+            id: 'handgripTestRight', 
+            label: 'Dinamômetro Direito (kg)', 
+            placeholder: 'Ex: 40.5', 
+            tooltip: 'Aperte o dinamômetro com força máxima por 3 segundos. Faça 3 tentativas, use a melhor. Posição: sentado, braço em 90°. Relaxe entre tentativas. Meça em kg de força.',
+            required: false,
+            type: 'number'
+          },
+          { 
+            id: 'sitAndReachDistance', 
+            label: 'Sentar e Alcançar (cm)', 
+            placeholder: 'Ex: 25', 
+            tooltip: 'Sente no chão, pernas estendidas, alcance os pés com as mãos. Meça a distância do alcance (positivo se ultrapassar, negativo se não). 3 tentativas, use a melhor. Aquecimento antes.',
+            required: true,
+            type: 'number'
+          },
+          { 
+            id: 'timedUpAndGo', 
+            label: 'Levantar e Andar 2,44m (s)', 
+            placeholder: 'Ex: 7.5', 
+            tooltip: 'Sente em cadeira, levante, ande 2,44m até uma marca, vire e volte sentando. Cronometre o tempo total. Teste de mobilidade e equilíbrio. 3 tentativas, use a melhor. Use marcações no chão.',
+            required: true,
+            type: 'number'
+          }
         ];
       case 'tafi':
         return [
-          // ... campos TAFI (manter como antes)
+          { 
+            id: 'sixMinWalkDistance', 
+            label: 'Caminhada de 6 minutos (distância em metros)', 
+            placeholder: 'Ex: 400', 
+            tooltip: 'Caminhe o máximo possível em 6 minutos, em linha reta. Marque a distância total. Para idosos: ritmo confortável, sem forçar. Use corredor de 30m. Incentive pausas se necessário. Avalia capacidade funcional.',
+            required: true,
+            type: 'number'
+          },
+          { 
+            id: 'timedUpAndGo', 
+            label: 'Levantar e Andar 2,44m (s)', 
+            placeholder: 'Ex: 8.0', 
+            tooltip: 'Sente em cadeira, levante, ande 2,44m até uma marca, vire e volte sentando. Cronometre o tempo total. Para idosos: foco em segurança, use apoio se precisar. Avalia risco de quedas.',
+            required: true,
+            type: 'number'
+          },
+          { 
+            id: 'unipodalBalanceEyesOpen', 
+            label: 'Apoio Unipodal Olhos Abertos (s)', 
+            placeholder: 'Ex: 20', 
+            tooltip: 'Fique em pé sobre uma perna (pé dominante), olhos abertos. Mantenha o equilíbrio o máximo possível. Pare se perder equilíbrio. Para idosos: use apoio próximo, foque em estabilidade.',
+            required: true,
+            type: 'number'
+          },
+          { 
+            id: 'unipodalBalanceEyesClosed', 
+            label: 'Apoio Unipodal Olhos Fechados (s)', 
+            placeholder: 'Ex: 10', 
+            tooltip: 'Mesmo que anterior, mas com olhos fechados. Para idosos: teste curto, priorize segurança. Avalia propriocepção e equilíbrio sensorial.',
+            required: false,
+            type: 'number'
+          },
+          { 
+            id: 'sitAndReachDistance', 
+            label: 'Sentar e Alcançar (cm)', 
+            placeholder: 'Ex: 15', 
+            tooltip: 'Sente no chão, pernas estendidas, alcance os pés com as mãos. Para idosos: vá devagar, sem forçar. Meça a distância do alcance. Avalia flexibilidade lombar.',
+            required: true,
+            type: 'number'
+          },
+          { 
+            id: 'handgripTestRight', 
+            label: 'Dinamômetro Direito (kg)', 
+            placeholder: 'Ex: 25', 
+            tooltip: 'Aperte o dinamômetro com força máxima por 3 segundos. Para idosos: 3 tentativas, use a melhor. Avalia força de preensão (importante para atividades diárias).',
+            required: true,
+            type: 'number'
+          }
         ];
       case 'cooper':
         return [
-          // ... campos Cooper (manter como antes)
+          { 
+            id: 'cooperTestDistance', 
+            label: 'Teste de Cooper (distância em metros)', 
+            placeholder: 'Ex: 2800', 
+            tooltip: 'Corra o máximo possível em 12 minutos. Meça a distância total percorrida (em metros). Use pista reta ou esteira. Aquecimento: 5 min caminhada leve. Frequência cardíaca deve estar monitorada.',
+            required: true,
+            type: 'number'
+          },
+          { 
+            id: 'oneMileTestTime', 
+            label: 'Teste de 1600 metros (1.6km) (s)', 
+            placeholder: 'Ex: 420', 
+            tooltip: 'Corra 1600 metros o mais rápido possível. Cronometre o tempo total em segundos. Use pista reta ou esteira. Aquecimento: 5-10 min. Para iniciantes: caminhada rápida se necessário.',
+            required: true,
+            type: 'number'
+          },
+          { 
+            id: 'sixMinWalkDistance', 
+            label: 'Caminhada de 6 minutos (distância em metros)', 
+            placeholder: 'Ex: 550', 
+            tooltip: 'Caminhe o máximo possível em 6 minutos, em linha reta. Marque a distância total. Ideal para avaliar resistência aeróbica. Use corredor de 30m. Incentive ritmo constante, sem corrida.',
+            required: false,
+            type: 'number'
+          },
+          { 
+            id: 'legerTestShuttles', 
+            label: 'Teste de Léger (lançadeiras)', 
+            placeholder: 'Ex: 8', 
+            tooltip: 'Corra entre duas linhas de 20m, aumentando velocidade a cada minuto. Conte o nível (estágio) alcançado. Para iniciantes: versão caminhada. Monitore fadiga.',
+            required: false,
+            type: 'number'
+          }
         ];
       case 'parq':
         return [
