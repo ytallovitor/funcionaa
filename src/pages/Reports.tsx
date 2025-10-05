@@ -21,7 +21,7 @@ import {
   Bar,
 } from "recharts";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { Download, Users, TrendingUp, Target, Calendar, BarChart3, FileText, Zap, Award, Brain, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -256,9 +256,18 @@ const Reports = () => {
     setExportLoading(true);
     try {
       const doc = new jsPDF();
+      
+      // Add title
       doc.setFontSize(20);
-      doc.text(`Relatório de Alunos - ${selectedPeriod.toUpperCase()}`, 20, 20);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Relatório de Alunos - ${selectedPeriod.toUpperCase()}`, 14, 20);
+      
+      // Add date
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
 
+      // Prepare table data
       const tableData = filteredStudents.map(s => [
         s.name, 
         s.totalEvaluations.toString(), 
@@ -267,21 +276,36 @@ const Reports = () => {
         s.totalWeightLoss.toFixed(1) + 'kg'
       ]);
       
-      (doc as any).autoTable({
+      // Add table using autoTable
+      autoTable(doc, {
         head: [['Aluno', 'Avaliações', '% Gordura Média', 'Massa Magra Média', 'Perda de Peso']],
         body: tableData,
-        startY: 30,
+        startY: 35,
+        theme: 'grid',
+        headStyles: { fillColor: [6, 182, 212], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 3 },
+        columnStyles: {
+          0: { cellWidth: 50 },
+          1: { cellWidth: 30, halign: 'center' },
+          2: { cellWidth: 35, halign: 'center' },
+          3: { cellWidth: 35, halign: 'center' },
+          4: { cellWidth: 30, halign: 'center' }
+        }
       });
 
-      const finalY = (doc as any).autoTableEndPosY() || 30;
-      doc.setFontSize(12);
-      doc.text(`Período: Últimos ${selectedPeriod === 'week' ? '7 dias' : selectedPeriod === 'month' ? '30 dias' : selectedPeriod === 'quarter' ? '90 dias' : '365 dias'}`, 20, finalY + 10);
+      const finalY = (doc as any).lastAutoTable?.finalY || 35;
+      doc.setFontSize(10);
+      doc.text(`Período: Últimos ${selectedPeriod === 'week' ? '7 dias' : selectedPeriod === 'month' ? '30 dias' : selectedPeriod === 'quarter' ? '90 dias' : '365 dias'}`, 14, finalY + 10);
 
-      doc.save(`relatorio-alunos-${selectedPeriod}.pdf`);
-      toast({ title: "Sucesso", description: `Relatório PDF exportado (${filteredStudents.length} alunos, período: ${selectedPeriod})!` });
-    } catch (error) {
+      doc.save(`relatorio-alunos-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.pdf`);
+      toast({ title: "Sucesso", description: `Relatório PDF exportado com ${filteredStudents.length} alunos!` });
+    } catch (error: any) {
       console.error('PDF export error:', error);
-      toast({ title: "Erro", description: "Falha ao gerar PDF. Verifique console para detalhes.", variant: "destructive" });
+      toast({ 
+        title: "Erro ao Exportar PDF", 
+        description: error.message || "Falha ao gerar PDF. Verifique se jspdf-autotable está instalado.", 
+        variant: "destructive" 
+      });
     } finally {
       setExportLoading(false);
     }

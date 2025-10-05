@@ -438,13 +438,17 @@ const FitnessTestsEvaluation = ({ student, onBack, onSuccess }: FitnessTestsEval
           </CardContent>
         </Card>
 
-        {/* Alerta para PAR-Q com respostas positivas */}
-        {hasParqPositiveResponse && (
-          <Alert variant="destructive">
+        {selectedProtocol === 'parq' && (
+          <Alert variant={hasParqPositiveResponse ? "destructive" : "default"} className={hasParqPositiveResponse ? "border-2 border-destructive" : ""}>
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Atenção! Avaliação Médica Recomendada</AlertTitle>
-            <AlertDescription>
-              Uma ou mais respostas indicam que {student.name} deve ser avaliado por um médico antes de iniciar atividades físicas.
+            <AlertTitle className="text-lg font-bold">
+              {hasParqPositiveResponse ? '❌ ALUNO NÃO APTO' : '✅ ALUNO APTO'}
+            </AlertTitle>
+            <AlertDescription className="text-sm font-medium">
+              {hasParqPositiveResponse 
+                ? `Uma ou mais respostas "SIM" indicam que ${student.name} NÃO ESTÁ APTO para iniciar atividades físicas sem avaliação médica prévia. Recomenda-se consulta com médico antes de qualquer programa de exercícios.`
+                : `Todas as respostas foram "NÃO". ${student.name} está APTO para iniciar atividades físicas de intensidade leve a moderada. Sempre inicie gradualmente e monitore sinais de desconforto.`
+              }
             </AlertDescription>
           </Alert>
         )}

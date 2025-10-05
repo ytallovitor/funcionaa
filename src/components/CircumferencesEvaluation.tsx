@@ -27,6 +27,7 @@ interface CircumferencesEvaluationProps {
 const CircumferencesEvaluation = ({ student, onBack, onSuccess }: CircumferencesEvaluationProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [formData, setFormData] = useState({
     weight: "",
     waist: "",
@@ -46,7 +47,7 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
 
   useEffect(() => {
     const fetchLatestEvaluation = async () => {
-      if (!student) return;
+      if (!student || initialDataLoaded) return;
 
         const { data, error } = await supabase
           .from('evaluations')
@@ -74,10 +75,11 @@ const CircumferencesEvaluation = ({ student, onBack, onSuccess }: Circumferences
             description: "A última avaliação foi pré-carregada para facilitar.",
           });
         }
+        setInitialDataLoaded(true);
       };
 
     fetchLatestEvaluation();
-  }, [student, toast]);
+  }, [student]);
 
   useEffect(() => {
     if (formData.weight && formData.waist && formData.neck && student) {

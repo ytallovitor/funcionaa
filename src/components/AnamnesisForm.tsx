@@ -81,6 +81,8 @@ interface AnamnesisData {
 
 interface AIReport {
   summary: {
+    fitnessReadiness: 'APTO' | 'APTO_COM_RESTRICOES' | 'NAO_APTO';
+    fitnessReadinessReason: string;
     overallRisks: string[];
     overallSuggestions: string[];
   };
@@ -1146,6 +1148,36 @@ const AnamnesisForm = ({ student, open, onOpenChange }: AnamnesisFormProps) => {
               </p>
 
               <div className="space-y-4">
+                {/* Recomendação de Aptidão */}
+                <div className={`p-4 rounded-lg border-2 ${
+                  aiReport.summary.fitnessReadiness === 'APTO' 
+                    ? 'bg-green-50 border-green-500' 
+                    : aiReport.summary.fitnessReadiness === 'APTO_COM_RESTRICOES'
+                    ? 'bg-yellow-50 border-yellow-500'
+                    : 'bg-red-50 border-red-500'
+                }`}>
+                  <h4 className={`font-bold text-xl mb-2 flex items-center gap-2 ${
+                    aiReport.summary.fitnessReadiness === 'APTO' 
+                      ? 'text-green-700' 
+                      : aiReport.summary.fitnessReadiness === 'APTO_COM_RESTRICOES'
+                      ? 'text-yellow-700'
+                      : 'text-red-700'
+                  }`}>
+                    {aiReport.summary.fitnessReadiness === 'APTO' && '✅ ALUNO APTO'}
+                    {aiReport.summary.fitnessReadiness === 'APTO_COM_RESTRICOES' && '⚠️ APTO COM RESTRIÇÕES'}
+                    {aiReport.summary.fitnessReadiness === 'NAO_APTO' && '❌ NÃO APTO'}
+                  </h4>
+                  <p className={`text-sm font-medium ${
+                    aiReport.summary.fitnessReadiness === 'APTO' 
+                      ? 'text-green-800' 
+                      : aiReport.summary.fitnessReadiness === 'APTO_COM_RESTRICOES'
+                      ? 'text-yellow-800'
+                      : 'text-red-800'
+                  }`}>
+                    {aiReport.summary.fitnessReadinessReason}
+                  </p>
+                </div>
+
                 {aiReport.summary.overallRisks.length > 0 && (
                   <div>
                     <h4 className="font-semibold text-lg text-red-600 mb-2">Riscos Gerais Identificados:</h4>

@@ -28,6 +28,7 @@ interface SkinfoldsEvaluationProps {
 const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluationProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [protocol, setProtocol] = useState<'7-folds' | '3-folds'>('7-folds');
   const [formData, setFormData] = useState({
     weight: "",
@@ -51,7 +52,7 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
 
   useEffect(() => {
     const fetchLatestEvaluation = async () => {
-      if (!student) return;
+      if (!student || initialDataLoaded) return;
 
       const { data, error } = await supabase
         .from('evaluations')
@@ -81,10 +82,11 @@ const SkinfoldsEvaluation = ({ student, onBack, onSuccess }: SkinfoldsEvaluation
           description: "A última avaliação foi pré-carregada para facilitar.",
         });
       }
+      setInitialDataLoaded(true);
     };
 
     fetchLatestEvaluation();
-  }, [student, toast]);
+  }, [student]);
 
   useEffect(() => {
     if (formData.weight && hasRequiredFields()) {

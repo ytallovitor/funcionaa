@@ -94,7 +94,31 @@ const Evaluation = () => {
   }
 
   if (!student) {
-    return <EvaluationMethodSelector onMethodSelect={() => navigate('/students')} />;
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-4">Nova Avaliação</h1>
+        <p className="text-muted-foreground mb-6">
+          Selecione um aluno para realizar a avaliação ou{" "}
+          <button 
+            onClick={() => navigate('/students')} 
+            className="text-primary hover:underline font-medium"
+          >
+            cadastre um novo aluno
+          </button>
+        </p>
+        <div className="text-center py-12 border-2 border-dashed rounded-lg">
+          <p className="text-muted-foreground">
+            Nenhum aluno selecionado. Por favor, selecione um aluno na página de Alunos.
+          </p>
+          <button
+            onClick={() => navigate('/students')}
+            className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+          >
+            Ir para Alunos
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (currentStep === 'method') {
