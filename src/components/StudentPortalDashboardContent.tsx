@@ -263,52 +263,69 @@ const StudentPortalDashboardContent = ({ student, loginCredentials }: StudentPor
   }
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Welcome Header */}
-        <div className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold text-gradient">
-            Olá, {student.name}! 👋
-          </h1>
-          <p className="text-muted-foreground">
-            Acompanhe seu progresso e continue sua jornada de transformação
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6 animate-in fade-in duration-700">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Welcome Header with Premium Design */}
+        <div className="relative">
+          <div className="absolute -top-20 -left-20 w-96 h-96 bg-gradient-to-br from-emerald-400/20 to-teal-600/20 rounded-full blur-3xl" />
+          <div className="absolute -top-10 -right-20 w-72 h-72 bg-gradient-to-br from-blue-400/10 to-cyan-600/10 rounded-full blur-3xl" />
+          <div className="relative space-y-3 text-center animate-in fade-in slide-in-from-top-4 duration-500">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">
+              Olá, {student.name}! 👋
+            </h1>
+            <p className="text-slate-600 text-xl">
+              Acompanhe seu progresso e continue sua jornada de transformação
+            </p>
+          </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Button className="h-20 flex-col gap-2 gradient-primary text-white">
-            <Camera className="h-6 w-6" />
-            <span className="text-sm">Nova Medida</span>
+        {/* Quick Actions with Premium Design */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
+          <Button className="group h-24 flex-col gap-3 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg hover:shadow-2xl hover:shadow-emerald-200 transition-all duration-300 hover:scale-105 border-none">
+            <div className="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors duration-300">
+              <Camera className="h-6 w-6" />
+            </div>
+            <span className="text-sm font-semibold">Nova Medida</span>
           </Button>
-          <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => studentConversationId && navigate(`/chat/${studentConversationId}`)}>
-            <MessageCircle className="h-6 w-6" />
-            <span className="text-sm">Chat Trainer</span>
+          <Button variant="outline" className="group h-24 flex-col gap-3 border-2 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all duration-300 hover:scale-105 hover:shadow-xl" onClick={() => studentConversationId && navigate(`/chat/${studentConversationId}`)}>
+            <div className="p-2 bg-emerald-100 rounded-lg group-hover:bg-emerald-200 transition-colors duration-300">
+              <MessageCircle className="h-6 w-6 text-emerald-600" />
+            </div>
+            <span className="text-sm font-semibold text-emerald-700">Chat Trainer</span>
           </Button>
-          <Button variant="outline" className="h-20 flex-col gap-2">
-            <Activity className="h-6 w-6" />
-            <span className="text-sm">Treino Hoje</span>
+          <Button variant="outline" className="group h-24 flex-col gap-3 border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300 hover:scale-105 hover:shadow-xl">
+            <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors duration-300">
+              <Activity className="h-6 w-6 text-blue-600" />
+            </div>
+            <span className="text-sm font-semibold text-blue-700">Treino Hoje</span>
           </Button>
-          <Button variant="outline" className="h-20 flex-col gap-2">
-            <Trophy className="h-6 w-6" />
-            <span className="text-sm">Desafios</span>
+          <Button variant="outline" className="group h-24 flex-col gap-3 border-2 border-amber-200 hover:border-amber-400 hover:bg-amber-50 transition-all duration-300 hover:scale-105 hover:shadow-xl">
+            <div className="p-2 bg-amber-100 rounded-lg group-hover:bg-amber-200 transition-colors duration-300">
+              <Trophy className="h-6 w-6 text-amber-600" />
+            </div>
+            <span className="text-sm font-semibold text-amber-700">Desafios</span>
           </Button>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid with Premium Design */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {quickStats.map((stat, index) => (
-            <Card key={index} className="shadow-primary/10 border-primary/20 hover:shadow-primary/20 transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+            <Card key={index} className="group relative overflow-hidden border-slate-200 hover:border-emerald-300 transition-all duration-500 hover:shadow-2xl hover:shadow-emerald-100 hover:-translate-y-2 animate-in fade-in slide-in-from-bottom-2" style={{ animationDelay: `${(index + 4) * 100}ms` }}>
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+              <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-semibold text-slate-600 group-hover:text-emerald-700 transition-colors duration-300">
                   {stat.title}
                 </CardTitle>
-                <div className="gradient-primary p-2 rounded-lg">
-                  <stat.icon className="h-4 w-4 text-white" />
+                <div className="relative group/icon">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-lg blur-sm opacity-75 group-hover/icon:opacity-100 transition-opacity duration-300" />
+                  <div className="relative bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-lg shadow-lg transform group-hover/icon:scale-110 transition-transform duration-300">
+                    <stat.icon className="h-5 w-5 text-white" />
+                  </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-primary">{stat.value}</div>
+              <CardContent className="relative">
+                <div className="text-3xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:scale-105 transition-transform duration-300">{stat.value}</div>
                 {stat.value === 'N/A' ? (
                   <p className="text-xs text-muted-foreground mt-1">Sem dados ainda? Agende uma avaliação</p>
                 ) : (
